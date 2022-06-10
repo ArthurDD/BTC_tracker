@@ -32,7 +32,7 @@ To do so, you can simply copy/paste the following one and replace the **_##_** b
   },
   "google": {
     "custom_search_api_key": "##",
-    "custom_engine_id":  "##y"
+    "custom_engine_id":  "##"
     },
   "twitter": {
     "bearer_token": "##"
