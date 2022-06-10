@@ -106,3 +106,31 @@ def google_search(address: str, custom_search_api_key: str, custom_engine_id: st
             print(f"Relevant results:\n" + '\n'.join(f"{elt['title'], elt['link']}" for elt in relevant_results))
         else:
             print("No results found.")
+
+
+def search_twitter(address: str, bearer_token: str) -> None:
+    """
+    Gets potentially useful information from Twitter
+    :param address: BTC address to search information for.
+    :param bearer_token: Twitter API's bearer token
+    :return: None
+    """
+    query = f"{address} lang:en -is:retweet -is:reply -is:quote"
+    tweet_fields = "text,author_id,created_at,source"
+    try:
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        params = {'query': query, 'tweet.fields': {tweet_fields}, 'max_results': 10}
+
+        response = requests.get("https://api.twitter.com/2/tweets/search/recent", headers=headers, params=params)
+
+        # To get user's username from its ID
+        # response2 = requests.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
+
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')  # Python 3.6
+    except Exception as err:
+        print(f'Other error occurred: {err}')  # Python 3.6
+
+    else:
+        print("Success!")
+        print(json.dumps(response.json(), indent=4, sort_keys=True))

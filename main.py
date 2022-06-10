@@ -12,6 +12,8 @@ def main():
                   credentials['google']['custom_search_api_key'],
                   credentials['google']['custom_engine_id'])
 
+    # search_twitter(address, credentials['twitter']['bearer_token'])
+
 
 if __name__ == "__main__":
     main()
