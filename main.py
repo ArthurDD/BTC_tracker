@@ -8,6 +8,7 @@ def main():
     web_scraper = Scraper(address)
     web_scraper.bitcoinabuse_search()
 
+    web_scraper.google_search()
     # google_search(address,
     #               credentials['google']['custom_search_api_key'],
     #               credentials['google']['custom_engine_id'])
