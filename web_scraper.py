@@ -3,58 +3,66 @@ from requests.exceptions import HTTPError
 import json
 
 
-def setup(bitcoin_abuse_ids: dict) -> dict:
-    """
-    Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
-    :param bitcoin_abuse_ids: dict to be filled with abuse_ids as keys and abuse_types as items
-    {'abuse_id': 'abuse_type, ...}
-    :return: bitcoinabuse API token
-    """
-    try:
-        req = requests.get(f"https://www.bitcoinabuse.com/api/abuse-types")
+class Scraper:
+    def __init__(self, address):
+        self.address = address
+        self.bitcoinabuse_ids = {}
 
-        # If the response was successful, no Exception will be raised
-        req.raise_for_status()
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
-    except Exception as err:
-        print(f'Other error occurred: {err}')
-    else:  # In case of success
-        for pair in req.json():
-            bitcoin_abuse_ids[pair['id']] = pair['label']
-        with open("credentials.json", "r") as f:
-            dic = json.load(f)
-        return dic
+        credentials = self.setup()
+        self.bitcoinabuse_token = credentials['bitcoinabuse']['token']
 
+    def setup(self) -> dict:
+        """
+        Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
+        :param bitcoin_abuse_ids: dict to be filled with abuse_ids as keys and abuse_types as items
+        {'abuse_id': 'abuse_type, ...}
+        :return: bitcoinabuse API token
+        """
+        try:
+            req = requests.get(f"https://www.bitcoinabuse.com/api/abuse-types")
 
-def bitcoin_abuse_search(address: str, bitcoin_abuse_ids: dict, token: str) -> None:
-    """
-    Get last reports made on the address in input.
-    :param address: BTC address to look up abuses for.
-    :param bitcoin_abuse_ids: dict of ids and their associated abuse types.
-    :param token: Bitcoinabuse API token.
-    :return: None
-    """
+            # If the response was successful, no Exception will be raised
+            req.raise_for_status()
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')
+        except Exception as err:
+            print(f'Other error occurred: {err}')
+        else:  # In case of success
+            for pair in req.json():
+                self.bitcoinabuse_ids[pair['id']] = pair['label']
+            with open("credentials.json", "r") as f:
+                dic = json.load(f)
+            return dic
 
-    try:
-        req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={address}&api_token={token}")
+    def bitcoinabuse_search(self) -> None:
+        """
+        Get last reports made on the address in input.
+        :param address: BTC address to look up abuses for.
+        :param bitcoin_abuse_ids: dict of ids and their associated abuse types.
+        :param token: Bitcoinabuse API token.
+        :return: None
+        """
 
-        # If the response was successful, no Exception will be raised
-        req.raise_for_status()
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')  # Python 3.6
-    except Exception as err:
-        print(f'Other error occurred: {err}')  # Python 3.6
-    else:
-        print('Success!')
-        content = req.json()
-        if content['count'] > 0:
-            print(f"Address reported {content['count']} time(s) in the past: "
-                  f"(Last time reported: {content['last_seen']})")
-            print("Recent reports:\n" + '\n'.join([f"- {bitcoin_abuse_ids[elt['abuse_type_id']]}:  {elt['description']}"
-                                                   for elt in content['recent']]))
+        try:
+            req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={self.address}"
+                               f"&api_token={self.bitcoinabuse_token}")
+
+            # If the response was successful, no Exception will be raised
+            req.raise_for_status()
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+        except Exception as err:
+            print(f'Other error occurred: {err}')  # Python 3.6
         else:
-            print(f"This address has never been reported before.")
+            print('Success!')
+            content = req.json()
+            if content['count'] > 0:
+                print(f"Address reported {content['count']} time(s) in the past: "
+                      f"(Last time reported: {content['last_seen']})")
+                print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  {elt['description']}"
+                                                       for elt in content['recent']]))
+            else:
+                print(f"This address has never been reported before.")
 
 
 def get_keywords() -> list:
@@ -108,7 +116,7 @@ def google_search(address: str, custom_search_api_key: str, custom_engine_id: st
             print("No results found.")
 
 
-def search_twitter(address: str, bearer_token: str) -> None:
+def twitter_search(address: str, bearer_token: str) -> None:
     """
     Gets potentially useful information from Twitter
     :param address: BTC address to search information for.
@@ -136,7 +144,7 @@ def search_twitter(address: str, bearer_token: str) -> None:
         print(json.dumps(response.json(), indent=4, sort_keys=True))
 
 
-def search_reddit(address: str, client_id: str, secret_token: str, username: str, password: str) -> None:
+def reddit_search(address: str, client_id: str, secret_token: str, username: str, password: str) -> None:
     data = {'grant_type': 'password',
             'username': f"{username}",
             'password': f"{password}"}
