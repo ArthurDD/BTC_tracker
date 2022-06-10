@@ -3,7 +3,7 @@ from requests.exceptions import HTTPError
 import json
 
 
-def setup(bitcoin_abuse_ids):
+def setup(bitcoin_abuse_ids: dict) -> dict:
     """
     Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
     :param bitcoin_abuse_ids: dict to be filled with abuse_ids as keys and abuse_types as items
@@ -27,7 +27,7 @@ def setup(bitcoin_abuse_ids):
         return dic
 
 
-def bitcoin_abuse_search(address, bitcoin_abuse_ids, token):
+def bitcoin_abuse_search(address: str, bitcoin_abuse_ids: dict, token: str) -> None:
     """
     Get last reports made on the address in input.
     :param address: BTC address to look up abuses for.
@@ -57,7 +57,7 @@ def bitcoin_abuse_search(address, bitcoin_abuse_ids, token):
             print(f"This address has never been reported before.")
 
 
-def get_keywords():
+def get_keywords() -> list:
     """
     Gets keywords from keywords.txt.
     :return: list of str keywords
@@ -70,7 +70,7 @@ def get_keywords():
     return keywords
 
 
-def google_search(address, custom_search_api_key, custom_engine_id):
+def google_search(address: str, custom_search_api_key: str, custom_engine_id: str) -> None:
     """
     Gets potentially useful information from Google.
     :param custom_engine_id: Custom engine ID (cx)
@@ -81,7 +81,7 @@ def google_search(address, custom_search_api_key, custom_engine_id):
     print(f"custom_search_api_key: {custom_search_api_key}")
     try:
         params = {'cx': custom_engine_id, 'q': address, 'key': custom_search_api_key}
-        req = requests.get("https://customsearch.googleapis.com/customsearch/v1?", params=params)
+        req = requests.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
         # If the response was successful, no Exception will be raised
         req.raise_for_status()
     except HTTPError as http_err:
