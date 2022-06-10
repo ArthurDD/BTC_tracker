@@ -20,3 +20,22 @@ In order to use this tool, you will need to use different APIs:
   - Developer portal: https://developer.twitter.com/en/portal/register/keys
   - OAuth-2 doc for Twitter: https://developer.twitter.com/en/docs/authentication/oauth-2-0/application-only
   - Tutorial: https://towardsdatascience.com/searching-for-tweets-with-python-f659144b225f
+
+
+### Credentials
+Once every API has been configured, you will need to create your own _**credentials.json**_ file containing all the required keys to make the tool work.
+To do so, you can simply copy/paste the following one and replace the **_##_** by your own credentials:
+
+```json
+{"bitcoinabuse": {
+    "token": "##"
+  },
+  "google": {
+    "custom_search_api_key": "##",
+    "custom_engine_id":  "##y"
+    },
+  "twitter": {
+    "bearer_token": "##"
+  }
+ }
+```
