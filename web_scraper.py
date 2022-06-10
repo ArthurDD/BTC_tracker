@@ -5,8 +5,8 @@ import json
 
 class Scraper:
     def __init__(self, address):
-        self.address = address
-        self.bitcoinabuse_ids = {}
+        self.address: str = address
+        self.bitcoinabuse_ids: dict = {}    # {'abuse_id': 'abuse_type, ...}
 
         credentials = self.setup()
         self.bitcoinabuse_token = credentials['bitcoinabuse']['token']
@@ -14,8 +14,6 @@ class Scraper:
     def setup(self) -> dict:
         """
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
-        :param bitcoin_abuse_ids: dict to be filled with abuse_ids as keys and abuse_types as items
-        {'abuse_id': 'abuse_type, ...}
         :return: bitcoinabuse API token
         """
         try:
@@ -37,12 +35,8 @@ class Scraper:
     def bitcoinabuse_search(self) -> None:
         """
         Get last reports made on the address in input.
-        :param address: BTC address to look up abuses for.
-        :param bitcoin_abuse_ids: dict of ids and their associated abuse types.
-        :param token: Bitcoinabuse API token.
         :return: None
         """
-
         try:
             req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={self.address}"
                                f"&api_token={self.bitcoinabuse_token}")
