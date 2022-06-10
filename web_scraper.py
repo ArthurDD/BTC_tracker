@@ -15,6 +15,8 @@ class Scraper:
         self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']
         self.google_custom_engine_id: str = credentials['google']['custom_engine_id']
 
+        self.twitter_bearer_token = credentials['twitter']['bearer_token']
+
     def setup(self) -> dict:
         """
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
@@ -106,33 +108,30 @@ class Scraper:
             else:
                 print("No results found.")
 
+    def twitter_search(self) -> None:
+        """
+        Gets potentially useful information from Twitter
+        :return: None
+        """
+        query = f"{self.address} lang:en -is:retweet -is:reply -is:quote"
+        tweet_fields = "text,author_id,created_at,source"
+        try:
+            headers = {"Authorization": f"Bearer {self.twitter_bearer_token}"}
+            params = {'query': query, 'tweet.fields': {tweet_fields}, 'max_results': 10}
 
-def twitter_search(address: str, bearer_token: str) -> None:
-    """
-    Gets potentially useful information from Twitter
-    :param address: BTC address to search information for.
-    :param bearer_token: Twitter API's bearer token
-    :return: None
-    """
-    query = f"{address} lang:en -is:retweet -is:reply -is:quote"
-    tweet_fields = "text,author_id,created_at,source"
-    try:
-        headers = {"Authorization": f"Bearer {bearer_token}"}
-        params = {'query': query, 'tweet.fields': {tweet_fields}, 'max_results': 10}
+            response = requests.get("https://api.twitter.com/2/tweets/search/recent", headers=headers, params=params)
 
-        response = requests.get("https://api.twitter.com/2/tweets/search/recent", headers=headers, params=params)
+            # To get user's username from its ID
+            # response2 = requests.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
 
-        # To get user's username from its ID
-        # response2 = requests.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+        except Exception as err:
+            print(f'Other error occurred: {err}')  # Python 3.6
 
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')  # Python 3.6
-    except Exception as err:
-        print(f'Other error occurred: {err}')  # Python 3.6
-
-    else:
-        print("Success!")
-        print(json.dumps(response.json(), indent=4, sort_keys=True))
+        else:
+            print("Success!")
+            print(json.dumps(response.json(), indent=4, sort_keys=True))
 
 
 def reddit_search(address: str, client_id: str, secret_token: str, username: str, password: str) -> None:

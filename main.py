@@ -2,18 +2,15 @@ from web_scraper import *
 
 
 def main():
-    address = "bc1qc7fzv8z3damq0vrzn8se8rym8lhell4mwh25g4"
-    # address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    # address = "bc1qc7fzv8z3damq0vrzn8se8rym8lhell4mwh25g4"
+    address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
 
     web_scraper = Scraper(address)
-    web_scraper.bitcoinabuse_search()
+    # web_scraper.bitcoinabuse_search()
 
-    web_scraper.google_search()
-    # google_search(address,
-    #               credentials['google']['custom_search_api_key'],
-    #               credentials['google']['custom_engine_id'])
+    # web_scraper.google_search()
 
-    # search_twitter(address, credentials['twitter']['bearer_token'])
+    web_scraper.twitter_search()
 
     # search_reddit(address, credentials['reddit']['client_id'], credentials['reddit']['secret_token'],
     #               credentials['reddit']['username'], credentials['reddit']['password'])
