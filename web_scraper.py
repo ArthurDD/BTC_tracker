@@ -17,6 +17,11 @@ class Scraper:
 
         self.twitter_bearer_token = credentials['twitter']['bearer_token']
 
+        self.reddit_client_id = credentials['reddit']['client_id']
+        self.reddit_secret_token = credentials['reddit']['secret_token']
+        self.reddit_username = credentials['reddit']['username']
+        self.reddit_password = credentials['reddit']['password']
+
     def setup(self) -> dict:
         """
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
@@ -133,46 +138,51 @@ class Scraper:
             print("Success!")
             print(json.dumps(response.json(), indent=4, sort_keys=True))
 
+    def reddit_search(self) -> None:
+        """
+        Gets potentially useful information from Reddit
+        :return: None
+        """
+        data = {'grant_type': 'password',
+                'username': f"{self.reddit_username}",
+                'password': f"{self.reddit_password}"}
+        auth = requests.auth.HTTPBasicAuth(self.reddit_client_id, self.reddit_secret_token)
 
-def reddit_search(address: str, client_id: str, secret_token: str, username: str, password: str) -> None:
-    data = {'grant_type': 'password',
-            'username': f"{username}",
-            'password': f"{password}"}
-    auth = requests.auth.HTTPBasicAuth(client_id, secret_token)
+        headers = {'User-Agent': 'BTC_Tracker/0.0.1'}
 
-    headers = {'User-Agent': 'BTC_Tracker/0.0.1'}
+        token_req = False
+        counter = 0
+        while not token_req and counter < 10:
+            try:
+                counter += 1
+                response = requests.post('https://www.reddit.com/api/v1/access_token',
+                                         auth=auth, data=data, headers=headers)
+                # convert response to JSON and pull access_token value
+                # TODO: retrieve the access token when initialising the scraper,
+                #  and only retrieve it again when necessary
+                access_token = response.json()['access_token']
+            except KeyError:
+                pass
+            else:
+                token_req = True
+        if not token_req:
+            print("Token could not be retrieved")
+            return
 
-    token_req = False
-    counter = 0
-    while not token_req and counter < 10:
+        # add authorization to our headers dictionary
+        headers = {**headers, 'Authorization': f"bearer {access_token}"}
+        requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
+
+        print(f"We got the token! (Took {counter} tries.)")
         try:
-            counter += 1
-            response = requests.post('https://www.reddit.com/api/v1/access_token',
-                                     auth=auth, data=data, headers=headers)
-            # convert response to JSON and pull access_token value
-            access_token = response.json()['access_token']
-        except KeyError:
-            pass
-        else:
-            token_req = True
-    if not token_req:
-        print("Token could not be retrieved")
-        return
+            req = requests.get(f"https://oauth.reddit.com/search?q={self.address}",
+                               headers=headers)
 
-    # add authorization to our headers dictionary
-    headers = {**headers, 'Authorization': f"bearer {access_token}"}
-    requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
-
-    print(f"We got the token! (Took {counter} tries.)")
-    try:
-        req = requests.get(f"https://oauth.reddit.com/search?q={address}",
-                           headers=headers)
-
-        req.raise_for_status()
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
-    except Exception as err:
-        print(f'Other error occurred: {err}')
-    else:  # In case of success
-        print("Success!")
-        print(json.dumps(req.json(), indent=4, sort_keys=True))
+            req.raise_for_status()
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')
+        except Exception as err:
+            print(f'Other error occurred: {err}')
+        else:  # In case of success
+            print("Success!")
+            print(json.dumps(req.json(), indent=4, sort_keys=True))

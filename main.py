@@ -10,7 +10,9 @@ def main():
 
     # web_scraper.google_search()
 
-    web_scraper.twitter_search()
+    # web_scraper.twitter_search()
+
+    web_scraper.reddit_search()
 
     # search_reddit(address, credentials['reddit']['client_id'], credentials['reddit']['secret_token'],
     #               credentials['reddit']['username'], credentials['reddit']['password'])
