@@ -134,3 +134,47 @@ def search_twitter(address: str, bearer_token: str) -> None:
     else:
         print("Success!")
         print(json.dumps(response.json(), indent=4, sort_keys=True))
+
+
+def search_reddit(address: str, client_id: str, secret_token: str, username: str, password: str) -> None:
+    data = {'grant_type': 'password',
+            'username': f"{username}",
+            'password': f"{password}"}
+    auth = requests.auth.HTTPBasicAuth(client_id, secret_token)
+
+    headers = {'User-Agent': 'BTC_Tracker/0.0.1'}
+
+    token_req = False
+    counter = 0
+    while not token_req and counter < 10:
+        try:
+            counter += 1
+            response = requests.post('https://www.reddit.com/api/v1/access_token',
+                                     auth=auth, data=data, headers=headers)
+            # convert response to JSON and pull access_token value
+            access_token = response.json()['access_token']
+        except KeyError:
+            pass
+        else:
+            token_req = True
+    if not token_req:
+        print("Token could not be retrieved")
+        return
+
+    # add authorization to our headers dictionary
+    headers = {**headers, 'Authorization': f"bearer {access_token}"}
+    requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
+
+    print(f"We got the token! (Took {counter} tries.)")
+    try:
+        req = requests.get(f"https://oauth.reddit.com/search?q={address}",
+                           headers=headers)
+
+        req.raise_for_status()
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')
+    except Exception as err:
+        print(f'Other error occurred: {err}')
+    else:  # In case of success
+        print("Success!")
+        print(json.dumps(req.json(), indent=4, sort_keys=True))
