@@ -22,6 +22,9 @@ class Scraper:
         self.reddit_username = credentials['reddit']['username']
         self.reddit_password = credentials['reddit']['password']
 
+        self.reddit_access_token = self.get_reddit_token()
+        # TODO: Apparently token is valid for 2h, so we need to monitor that and ask for a new one is it expired.
+
     def setup(self) -> dict:
         """
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
@@ -138,11 +141,7 @@ class Scraper:
             print("Success!")
             print(json.dumps(response.json(), indent=4, sort_keys=True))
 
-    def reddit_search(self) -> None:
-        """
-        Gets potentially useful information from Reddit
-        :return: None
-        """
+    def get_reddit_token(self) -> str:
         data = {'grant_type': 'password',
                 'username': f"{self.reddit_username}",
                 'password': f"{self.reddit_password}"}
@@ -150,30 +149,34 @@ class Scraper:
 
         headers = {'User-Agent': 'BTC_Tracker/0.0.1'}
 
+        access_token = ""
         token_req = False
         counter = 0
-        while not token_req and counter < 10:
+        # We try at most 100 times to get the token if the request fails
+        while not token_req and counter < 100:
             try:
                 counter += 1
                 response = requests.post('https://www.reddit.com/api/v1/access_token',
                                          auth=auth, data=data, headers=headers)
-                # convert response to JSON and pull access_token value
-                # TODO: retrieve the access token when initialising the scraper,
-                #  and only retrieve it again when necessary
                 access_token = response.json()['access_token']
             except KeyError:
                 pass
             else:
                 token_req = True
-        if not token_req:
-            print("Token could not be retrieved")
-            return
+        return access_token
+
+    def reddit_search(self) -> None:
+        """
+        Gets potentially useful information from Reddit
+        :return: None
+        """
+        if not self.reddit_access_token:
+            print(f"Could not retrieve any information from Reddit, invalid access token! (={self.reddit_access_token})")
 
         # add authorization to our headers dictionary
-        headers = {**headers, 'Authorization': f"bearer {access_token}"}
+        headers = {'User-Agent': 'BTC_Tracker/0.0.1', 'Authorization': f"bearer {self.reddit_access_token}"}
         requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
 
-        print(f"We got the token! (Took {counter} tries.)")
         try:
             req = requests.get(f"https://oauth.reddit.com/search?q={self.address}",
                                headers=headers)
