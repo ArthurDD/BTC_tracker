@@ -23,7 +23,6 @@ class Scraper:
         self.reddit_password = credentials['reddit']['password']
 
         self.reddit_access_token = self.get_reddit_token()
-        # TODO: Apparently token is valid for 2h, so we need to monitor that and ask for a new one is it expired.
 
     def setup(self) -> dict:
         """
@@ -183,7 +182,11 @@ class Scraper:
 
             req.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
+            if req.status_code == 401:  # If the token is not valid anymore, we request a new one
+                self.reddit_access_token = self.get_reddit_token()
+                self.reddit_search()    # And we start the search again
+            else:
+                print(f'HTTP error occurred: {http_err}')
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:  # In case of success
