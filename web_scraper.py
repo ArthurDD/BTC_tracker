@@ -4,7 +4,7 @@ import json
 
 
 class Scraper:
-    def __init__(self, address):
+    def __init__(self, address=""):
         self.address: str = address
         self.bitcoinabuse_ids: dict = {}    # {'abuse_id': 'abuse_type, ...}
 
@@ -45,13 +45,15 @@ class Scraper:
                 dic = json.load(f)
             return dic
 
-    def bitcoinabuse_search(self) -> None:
+    def bitcoinabuse_search(self, address="") -> None:
         """
         Get last reports made on the address in input.
         :return: None
         """
+        if not address:
+            address = self.address
         try:
-            req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={self.address}"
+            req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={address}"
                                f"&api_token={self.bitcoinabuse_token}")
 
             # If the response was successful, no Exception will be raised
@@ -84,12 +86,14 @@ class Scraper:
                     keywords.append(line.strip())
         return keywords
 
-    def google_search(self) -> None:
+    def google_search(self, address="") -> None:
         """
         Gets potentially useful information from Google.
         """
+        if not address:
+            address = self.address
         try:
-            params = {'cx': self.google_custom_engine_id, 'q': self.address, 'key': self.google_custom_search_api_key}
+            params = {'cx': self.google_custom_engine_id, 'q': address, 'key': self.google_custom_search_api_key}
             req = requests.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -115,12 +119,15 @@ class Scraper:
             else:
                 print("No results found.")
 
-    def twitter_search(self) -> None:
+    def twitter_search(self, address="") -> None:
         """
         Gets potentially useful information from Twitter
         :return: None
         """
-        query = f"{self.address} lang:en -is:retweet -is:reply -is:quote"
+        if not address:
+            address = self.address
+
+        query = f"{address} lang:en -is:retweet -is:reply -is:quote"
         tweet_fields = "text,author_id,created_at,source"
         try:
             headers = {"Authorization": f"Bearer {self.twitter_bearer_token}"}
@@ -164,20 +171,24 @@ class Scraper:
                 token_req = True
         return access_token
 
-    def reddit_search(self) -> None:
+    def reddit_search(self, address="") -> None:
         """
         Gets potentially useful information from Reddit
         :return: None
         """
+        if not address:
+            address = self.address
+
         if not self.reddit_access_token:
             print(f"Could not retrieve any information from Reddit, invalid access token! (={self.reddit_access_token})")
+            return
 
         # add authorization to our headers dictionary
         headers = {'User-Agent': 'BTC_Tracker/0.0.1', 'Authorization': f"bearer {self.reddit_access_token}"}
         requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
 
         try:
-            req = requests.get(f"https://oauth.reddit.com/search?q={self.address}",
+            req = requests.get(f"https://oauth.reddit.com/search?q={address}",
                                headers=headers)
 
             req.raise_for_status()
