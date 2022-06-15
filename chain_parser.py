@@ -15,7 +15,6 @@ class ChainParser:
         self.nb_layers = nb_layers
         self.wallet_url = f"https://www.walletexplorer.com/address/{address}"
         self.transaction_list = []
-        self.transaction_dict = {}
         self.session = requests_cache.CachedSession('parser_cache')
         print(self.wallet_url)
 
@@ -27,7 +26,6 @@ class ChainParser:
         """
         # test_list = []
         try:
-            # TODO: Implement sessions to cache the request results (see requests_cache.CachedSession('demo_cache'))
             req = self.session.get(self.wallet_url)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -60,10 +58,6 @@ class ChainParser:
             print(f"Length of list: {len(self.transaction_list)}")
             print(f"Size of list: {sys.getsizeof(self.transaction_list)}")
 
-            print(f"Length of dict: {len(self.transaction_dict)}")
-            print(f"Size of dict: {sys.getsizeof(self.transaction_dict)}")
-            # print(f"\n\nList of txids: {self.transaction_dict.keys()}")
-
     def _get_txids(self, link):
         try:
             req = self.session.get(link)
@@ -82,7 +76,6 @@ class ChainParser:
                 tx_id = elt.find(class_="txid").text
 
                 self.transaction_list += [(tx_id, tx_amount)]
-                self.transaction_dict[tx_id] = [tx_amount]
 
 
 def test_limits():
