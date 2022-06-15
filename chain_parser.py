@@ -8,6 +8,9 @@ import sys
 import requests
 import requests_cache
 
+# TODO: Access transaction page thanks to their IDs, and parse sender address with their corresponding amount.
+#  Store it somewhere while keeping track on what layer it is.
+
 
 class ChainParser:
     def __init__(self, address, nb_layers):
@@ -35,7 +38,6 @@ class ChainParser:
             print(f'Other error occurred: {err}')
         else:
             print('Success!')
-            # test_list += [0]
             soup = BeautifulSoup(req.content, 'html.parser')
 
             nb_pages = soup.find('div', class_='paging').text
@@ -58,6 +60,8 @@ class ChainParser:
             print(f"Length of list: {len(self.transaction_list)}")
             print(f"Size of list: {sys.getsizeof(self.transaction_list)}")
 
+            print(f"Biggest transactions: {self.transaction_list[:15]}")
+
     def _get_txids(self, link):
         try:
             req = self.session.get(link)
@@ -72,17 +76,17 @@ class ChainParser:
         else:
             soup = BeautifulSoup(req.content, 'html.parser')
             for elt in soup.find_all(class_="received"):
-                tx_amount = elt.find(class_="amount diff").text
+                tx_amount = float(elt.find(class_="amount diff").text.strip())
                 tx_id = elt.find(class_="txid").text
 
                 self.transaction_list += [(tx_id, tx_amount)]
+        self.transaction_list.sort(key=lambda x: x[1], reverse=True)
 
 
 def test_limits():
     ended = False
     while not ended:
         try:
-            # TODO: Implement sessions to cache the request results (see requests_cache.CachedSession('demo_cache'))
             req = requests.get("https://www.walletexplorer.com/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
