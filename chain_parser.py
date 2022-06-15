@@ -1,24 +1,12 @@
-# def request_pool():
-#     with ThreadPoolExecutor() as executor:
-#         # Create a new partially applied function that stores the directory
-#         # argument.
-#         #
-#         # This allows the download_link function that normally takes two
-#         # arguments to work with the map function that expects a function of a
-#         # single argument.
-#         fn = partial(download_link, download_dir)
-#
-#         # Executes fn concurrently using threads on the links iterable. The
-#         # timeout is for the entire process, not a single call, so downloading
-#         # all images must complete within 30 seconds.
-#         executor.map(fn, links, timeout=30)
 from concurrent.futures import ThreadPoolExecutor
 import time
 from functools import partial
 from requests.exceptions import HTTPError
 from bs4 import *
+import sys
 
 import requests
+import requests_cache
 
 
 class ChainParser:
@@ -27,6 +15,8 @@ class ChainParser:
         self.nb_layers = nb_layers
         self.wallet_url = f"https://www.walletexplorer.com/address/{address}"
         self.transaction_list = []
+        self.transaction_dict = {}
+        self.session = requests_cache.CachedSession('parser_cache')
         print(self.wallet_url)
 
     def retrieve_transaction_ids(self):
@@ -38,7 +28,7 @@ class ChainParser:
         # test_list = []
         try:
             # TODO: Implement sessions to cache the request results (see requests_cache.CachedSession('demo_cache'))
-            req = requests.get(self.wallet_url)
+            req = self.session.get(self.wallet_url)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
@@ -49,18 +39,15 @@ class ChainParser:
             print('Success!')
             # test_list += [0]
             soup = BeautifulSoup(req.content, 'html.parser')
-            # print(soup.prettify())
-            self.transaction_list += [elt.text for elt in soup.find_all(class_="txid")]
-            # print("\n".join([elt.text for elt in txids]))
 
             nb_pages = soup.find('div', class_='paging').text
             index = nb_pages.find("1 /")
             nb_pages = int(nb_pages[index:].split(" ")[2])
             print(nb_pages)
 
-            page_links = [f"{self.wallet_url}?page={i}" for i in range(2, nb_pages+1)]
+            page_links = [f"{self.wallet_url}?page={i}" for i in range(1, nb_pages+1)]
             with ThreadPoolExecutor() as executor:
-                fn = partial(self._get_txids, self.transaction_list)  # test_list)
+                fn = partial(self._get_txids)  # test_list)
 
                 # Executes fn concurrently using threads on the links iterable. The
                 # timeout is for the entire process, not a single call, so downloading
@@ -70,12 +57,16 @@ class ChainParser:
             print(len(self.transaction_list))
             # print("Number of successful requests: ", len(test_list))
             print("Done")
+            print(f"Length of list: {len(self.transaction_list)}")
+            print(f"Size of list: {sys.getsizeof(self.transaction_list)}")
 
-    @staticmethod
-    def _get_txids(transaction_list, link):
+            print(f"Length of dict: {len(self.transaction_dict)}")
+            print(f"Size of dict: {sys.getsizeof(self.transaction_dict)}")
+            # print(f"\n\nList of txids: {self.transaction_dict.keys()}")
+
+    def _get_txids(self, link):
         try:
-            # TODO: Implement sessions to cache the request results (see requests_cache.CachedSession('demo_cache'))
-            req = requests.get(link)
+            req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
@@ -86,4 +77,26 @@ class ChainParser:
             print(f'Other error occurred: {err}')
         else:
             soup = BeautifulSoup(req.content, 'html.parser')
-            transaction_list += [elt.text for elt in soup.find_all(class_="txid")]
+            for elt in soup.find_all(class_="received"):
+                tx_amount = elt.find(class_="amount diff").text
+                tx_id = elt.find(class_="txid").text
+
+                self.transaction_list += [(tx_id, tx_amount)]
+                self.transaction_dict[tx_id] = [tx_amount]
+
+
+def test_limits():
+    ended = False
+    while not ended:
+        try:
+            # TODO: Implement sessions to cache the request results (see requests_cache.CachedSession('demo_cache'))
+            req = requests.get("https://www.walletexplorer.com/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
+            # If the response was successful, no Exception will be raised
+            req.raise_for_status()
+        except HTTPError as http_err:
+            print(f'HTTP error occurred: {http_err}')
+            time.sleep(10)
+        except Exception as err:
+            pass
+        else:
+            ended = True
