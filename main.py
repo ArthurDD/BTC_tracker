@@ -19,7 +19,7 @@ def try_scraper(address):
 
 
 def try_parser(address):
-    chain_parser = ChainParser(address, 1)
+    chain_parser = WEChainParser(address, 1)
     chain_parser.retrieve_transaction_ids()
     chain_parser.get_addresses_from_txid()
     # chain_parser._get_addresses("https://www.walletexplorer.com/txid/"

@@ -5,16 +5,13 @@ from functools import partial
 from requests.exceptions import HTTPError
 from bs4 import *
 import sys
-
+from progress.bar import Bar
 import requests
 import requests_cache
 
 
-# TODO: Access transaction page thanks to their IDs, and parse sender address with their corresponding amount.
-#  Store it somewhere while keeping track on what layer it is.
-
-
-class ChainParser:
+class WEChainParser:
+    # TODO: Not enough requests/min allowed with WalletExplorer (likely to be around 50/5 min), need to set a rate limit
     def __init__(self, address, nb_layers):
         self.address = address
         self.nb_layers = nb_layers
@@ -47,14 +44,20 @@ class ChainParser:
             nb_pages = int(nb_pages[index:].split(" ")[2])
             print(nb_pages)
 
-            page_links = [f"{self.wallet_url}?page={i}" for i in range(1, nb_pages + 1)]
-            with ThreadPoolExecutor() as executor:
-                fn = partial(self._get_txids)  # test_list)
+            tot_page_links = [f"{self.wallet_url}?page={i}" for i in range(1, nb_pages + 1)]
+            for i in range(len(tot_page_links) // 45 + 1):
+                if (i + 1)*45 >= len(tot_page_links):
+                    page_links = tot_page_links[i*45:]
+                else:
+                    page_links = tot_page_links[i*45: (i+1)*45]
+                with ThreadPoolExecutor() as executor:
+                    fn = partial(self._get_txids)  # test_list)
 
-                # Executes fn concurrently using threads on the links iterable. The
-                # timeout is for the entire process, not a single call, so downloading
-                # all images must complete within 30 seconds.
-                executor.map(fn, page_links, timeout=30)
+                    # Executes fn concurrently using threads on the links iterable. The
+                    # timeout is for the entire process, not a single call, so downloading
+                    # all images must complete within 30 seconds.
+                    executor.map(fn, page_links, timeout=30)
+                waiting_bar(5*60)     # Sleep 5min to reset the number of allowed requests
 
             self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
 
@@ -86,14 +89,22 @@ class ChainParser:
                 self.transaction_lists[0].append((tx_id, tx_amount))
 
     def get_addresses_from_txid(self):
-        url_list = [f"https://www.walletexplorer.com/txid/{tx[0]}" for tx in self.transaction_lists[self.layer_counter -1]]
-        with ThreadPoolExecutor() as executor:
-            fn = partial(self._get_addresses)  # test_list)
+        """
+        Requests every tx page of the current layer to get input addresses of that tx and their respective txid
+        :return:
+        """
+        tot_url_list = [f"https://www.walletexplorer.com/txid/{tx[0]}" for tx in self.transaction_lists[self.layer_counter - 1]]
+        for i in range(len(tot_url_list) // 45 + 1):
+            if (i + 1) * 45 >= len(tot_url_list):
+                url_list = tot_url_list[i * 45:]
+            else:
+                url_list = tot_url_list[i * 45: (i + 1) * 45]
+            with ThreadPoolExecutor() as executor:
+                fn = partial(self._get_addresses)  # test_list)
 
-            # Executes fn concurrently using threads on the links iterable. The
-            # timeout is for the entire process, not a single call, so downloading
-            # all images must complete within 30 seconds.
-            executor.map(fn, url_list, timeout=30)
+                executor.map(fn, url_list, timeout=30)
+            waiting_bar(5*60)
+
         print(self.transaction_lists[self.layer_counter], "\n\n")
         print(f"Layer 0: {len(self.transaction_lists[0])}")
         print(f"Layer 1: {len(self.transaction_lists[1])}")
@@ -150,3 +161,8 @@ def test_limits():
             pass
         else:
             ended = True
+
+
+def waiting_bar(seconds):
+    for i in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
+        time.sleep(1)
