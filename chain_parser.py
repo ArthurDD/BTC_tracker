@@ -18,14 +18,15 @@ class WEChainParser:
     def __init__(self, address, nb_layers):
         self.address = address
         self.nb_layers = nb_layers
-        self.wallet_url = f"https://www.walletexplorer.com/address/{address}"
+        self.wallet_url = f"https://www.walletexplorer.com/api/1/address?address={address}" \
+                          f"&from=0&count=100&caller=arthur"
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache')
         print(self.wallet_url)
         self.layer_counter = 1
         self.remaining_req = 45  # Number of requests that we are still allowed to make before reaching the limit
 
-    def retrieve_transaction_ids(self):
+    def get_wallet_transactions(self):
         """
         Requests on the wallet page to get all the transactions done to that address, stores the transaction ids in
         self.transaction_list
@@ -40,47 +41,39 @@ class WEChainParser:
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:
-            print('Success!')
-            soup = BeautifulSoup(req.content, 'html.parser')
+            print('Success! Starting retrieving Tx received from that address')
+            nb_tx = req.json()["txs_count"]
+            nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
+            tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
+                            f"&from={i * 100}&count=100&caller=arthur" for i in range(nb_req)]
 
-            nb_pages = soup.find('div', class_='paging').text
-            index = nb_pages.find("1 /")
-            nb_pages = int(nb_pages[index:].split(" ")[2])
-            print(nb_pages)
-
-            tot_page_links = [f"{self.wallet_url}?page={i}" for i in range(1, nb_pages + 1)]
             req_counter = 0
-            while req_counter < len(tot_page_links):
-                if req_counter + self.remaining_req > len(tot_page_links):
-                    page_links = tot_page_links[req_counter:]
+            print(f"Number of requests to make: {nb_req}")
+            while req_counter < nb_req:
+                if req_counter + self.remaining_req > nb_req:
+                    url_list = tot_url_list[req_counter:]
                     req_counter += self.remaining_req
-                    self.remaining_req -= (len(tot_page_links) - req_counter)
+                    self.remaining_req -= (nb_req - req_counter)
                 else:
-                    page_links = tot_page_links[req_counter: self.remaining_req]
+                    url_list = tot_url_list[req_counter: self.remaining_req]
                     req_counter += self.remaining_req
                     self.remaining_req = 0
 
                 print(f"Requests done so far: {req_counter}")
                 with ThreadPoolExecutor() as executor:
-                    fn = partial(self._get_txids)  # test_list)
+                    fn = partial(self._retrieve_txids)  # test_list)
+                    executor.map(fn, url_list, timeout=30)
 
-                    # Executes fn concurrently using threads on the links iterable. The
-                    # timeout is for the entire process, not a single call, so downloading
-                    # all images must complete within 30 seconds.
-                    executor.map(fn, page_links, timeout=30)
                 self.check_request_limit()
 
             self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
 
-            print(len(self.transaction_lists[0]))
-            # print("Number of successful requests: ", len(test_list))
-            print("Done")
             print(f"Length of list: {len(self.transaction_lists[0])}")
             print(f"Size of list: {sys.getsizeof(self.transaction_lists[0])}")
 
             print(f"Biggest transactions: {self.transaction_lists[0][:15]}")
 
-    def _get_txids(self, link):
+    def _retrieve_txids(self, link):
         try:
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
@@ -92,12 +85,10 @@ class WEChainParser:
             pass
             print(f'Other error occurred: {err}')
         else:
-            soup = BeautifulSoup(req.content, 'html.parser')
-            for elt in soup.find_all(class_="received"):
-                tx_amount = float(elt.find(class_="amount diff").text.strip())
-                tx_id = elt.find(class_="txid").text
-
-                self.transaction_lists[0].append((tx_id, tx_amount))
+            content = req.json()
+            for tx in content['txs']:
+                if tx["amount_received"] > 0:  # If it is a received transaction and not a sent one
+                    self.transaction_lists[0].append((tx["txid"], tx["amount_received"]))
 
     def get_addresses_from_txid(self):
         """
@@ -105,7 +96,8 @@ class WEChainParser:
         :return:
         """
         print(f"RETRIEVING ADDRESSES FROM TXID")
-        tot_url_list = [f"https://www.walletexplorer.com/txid/{tx[0]}" for tx in self.transaction_lists[self.layer_counter - 1]]
+        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx[0]}&caller=arthur" for tx in
+                        self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
         while req_counter < len(tot_url_list):
             if req_counter + self.remaining_req > len(tot_url_list):
@@ -147,19 +139,15 @@ class WEChainParser:
             pass
             print(f'Other error occurred: {err}')
         else:
-            soup = BeautifulSoup(req.content, 'html.parser')
-            addresses = []
-            for address in soup.find('table', class_="empty").find_all('tr'):
-                elt = address.find_all('td')
-                addresses.append((elt[2].find('a')['href'].strip().split('/')[2],
-                                  float(unicodedata.normalize("NFKD", elt[1].text).split(' ')[0]),
-                                  elt[0].find('a').text))
-                # (input_txid, amount, input_address) --> Here, input_txid is the txid of the btc in input
-            self.transaction_lists[self.layer_counter] = addresses
+            output_addresses = req.json()["in"]
+            addresses = [(add["next_tx"], add["amount"], add["address"])
+                         for add in output_addresses]
+            # (input_txid, amount, input_address) --> Here, input_txid is the txid of the btc in input
+            self.transaction_lists[self.layer_counter] += addresses
             # print(self.transaction_lists[self.layer_counter])
 
     def start_analysis(self):
-        self.retrieve_transaction_ids()
+        self.get_wallet_transactions()
 
         while self.layer_counter < self.nb_layers:
             self.get_addresses_from_txid()
@@ -171,7 +159,7 @@ class WEChainParser:
         :return:
         """
         if self.remaining_req == 0:
-            waiting_bar(300)
+            waiting_bar(10)
             self.remaining_req = 45
 
 
