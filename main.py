@@ -4,7 +4,7 @@ from chain_parser import *
 
 def main():
     # address = "bc1qc7fzv8z3damq0vrzn8se8rym8lhell4mwh25g4"
-    address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  # Satoshi's Address (50 mined BTC)
 
     # try_scraper(address)
     try_parser(address)

@@ -20,6 +20,7 @@ class WEChainParser:
         self.session = requests_cache.CachedSession('parser_cache')
         print(self.wallet_url)
         self.layer_counter = 1
+        self.remaining_req = 45  # Number of requests that we are still allowed to make before reaching the limit
 
     def retrieve_transaction_ids(self):
         """
@@ -45,11 +46,18 @@ class WEChainParser:
             print(nb_pages)
 
             tot_page_links = [f"{self.wallet_url}?page={i}" for i in range(1, nb_pages + 1)]
-            for i in range(len(tot_page_links) // 45 + 1):
-                if (i + 1)*45 >= len(tot_page_links):
-                    page_links = tot_page_links[i*45:]
+            req_counter = 0
+            while req_counter < len(tot_page_links):
+                if req_counter + self.remaining_req > len(tot_page_links):
+                    page_links = tot_page_links[req_counter:]
+                    req_counter += self.remaining_req
+                    self.remaining_req -= (len(tot_page_links) - req_counter)
                 else:
-                    page_links = tot_page_links[i*45: (i+1)*45]
+                    page_links = tot_page_links[req_counter: self.remaining_req]
+                    req_counter += self.remaining_req
+                    self.remaining_req = 0
+
+                print(f"Requests done so far: {req_counter}")
                 with ThreadPoolExecutor() as executor:
                     fn = partial(self._get_txids)  # test_list)
 
@@ -57,7 +65,7 @@ class WEChainParser:
                     # timeout is for the entire process, not a single call, so downloading
                     # all images must complete within 30 seconds.
                     executor.map(fn, page_links, timeout=30)
-                waiting_bar(5*60)     # Sleep 5min to reset the number of allowed requests
+                self.check_request_limit()
 
             self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
 
@@ -93,17 +101,26 @@ class WEChainParser:
         Requests every tx page of the current layer to get input addresses of that tx and their respective txid
         :return:
         """
+        print(f"RETRIEVING ADDRESSES FROM TXID")
         tot_url_list = [f"https://www.walletexplorer.com/txid/{tx[0]}" for tx in self.transaction_lists[self.layer_counter - 1]]
-        for i in range(len(tot_url_list) // 45 + 1):
-            if (i + 1) * 45 >= len(tot_url_list):
-                url_list = tot_url_list[i * 45:]
+        req_counter = 0
+        while req_counter < len(tot_url_list):
+            if req_counter + self.remaining_req > len(tot_url_list):
+                url_list = tot_url_list[req_counter:]
+                req_counter += self.remaining_req
+                self.remaining_req -= (len(tot_url_list) - req_counter)
             else:
-                url_list = tot_url_list[i * 45: (i + 1) * 45]
+                url_list = tot_url_list[req_counter: self.remaining_req]
+                req_counter += self.remaining_req
+                self.remaining_req = 0
+
             with ThreadPoolExecutor() as executor:
                 fn = partial(self._get_addresses)  # test_list)
 
                 executor.map(fn, url_list, timeout=30)
-            waiting_bar(5*60)
+
+            print(f"Requests done so far: {req_counter}")
+            self.check_request_limit()
 
         print(self.transaction_lists[self.layer_counter], "\n\n")
         print(f"Layer 0: {len(self.transaction_lists[0])}")
@@ -131,7 +148,6 @@ class WEChainParser:
             addresses = []
             for address in soup.find('table', class_="empty").find_all('tr'):
                 elt = address.find_all('td')
-                # print(elt[2].find('a')['href'].strip().split('/'))
                 addresses.append((elt[2].find('a')['href'].strip().split('/')[2],
                                   float(unicodedata.normalize("NFKD", elt[1].text).split(' ')[0]),
                                   elt[0].find('a').text))
@@ -145,6 +161,15 @@ class WEChainParser:
         while self.layer_counter < self.nb_layers:
             self.get_addresses_from_txid()
             self.layer_counter += 1
+
+    def check_request_limit(self):
+        """
+        Checks if we can still make requests. If we can't, we wait until we can.
+        :return:
+        """
+        if self.remaining_req == 0:
+            waiting_bar(300)
+            self.remaining_req = 45
 
 
 def test_limits():
@@ -164,5 +189,10 @@ def test_limits():
 
 
 def waiting_bar(seconds):
-    for i in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
+    """
+    Loading bar waiting for "seconds" sec
+    :param seconds: number of seconds to wait
+    :return:
+    """
+    for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
         time.sleep(1)
