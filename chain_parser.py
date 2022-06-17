@@ -11,7 +11,10 @@ import requests_cache
 
 
 class WEChainParser:
-    # TODO: Not enough requests/min allowed with WalletExplorer (likely to be around 50/5 min), need to set a rate limit
+    # TODO: Once all the requests have been made to retrieve input addresses and their respective txid, check if the
+    #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
+    #  another layer (until we reach our layer limit)
+    #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
     def __init__(self, address, nb_layers):
         self.address = address
         self.nb_layers = nb_layers
@@ -172,6 +175,16 @@ class WEChainParser:
             self.remaining_req = 45
 
 
+def waiting_bar(seconds):
+    """
+    Loading bar waiting for "seconds" sec
+    :param seconds: number of seconds to wait
+    :return:
+    """
+    for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
+        time.sleep(1)
+
+
 def test_limits():
     ended = False
     while not ended:
@@ -188,11 +201,3 @@ def test_limits():
             ended = True
 
 
-def waiting_bar(seconds):
-    """
-    Loading bar waiting for "seconds" sec
-    :param seconds: number of seconds to wait
-    :return:
-    """
-    for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
-        time.sleep(1)
