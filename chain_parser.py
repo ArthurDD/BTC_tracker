@@ -24,17 +24,16 @@ class WEChainParser:
         self.session = requests_cache.CachedSession('parser_cache')
         print(self.wallet_url)
         self.layer_counter = 1
-        self.remaining_req = 45  # Number of requests that we are still allowed to make before reaching the limit
+        self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
 
     def get_wallet_transactions(self):
         """
         Requests on the wallet page to get all the transactions done to that address, stores the transaction ids in
-        self.transaction_list
-        :return:
+        self.transaction_list[0] (we consider the wallet to be layer 0)
+        :return: None
         """
         try:
             req = self.session.get(self.wallet_url)
-            # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
@@ -49,6 +48,7 @@ class WEChainParser:
 
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
+            # We make all the requests
             while req_counter < nb_req:
                 if req_counter + self.remaining_req > nb_req:
                     url_list = tot_url_list[req_counter:]
@@ -59,12 +59,13 @@ class WEChainParser:
                     req_counter += self.remaining_req
                     self.remaining_req = 0
 
-                print(f"Requests done so far: {req_counter}")
                 with ThreadPoolExecutor() as executor:
-                    fn = partial(self._retrieve_txids)  # test_list)
+                    fn = partial(self._retrieve_txids_from_wallet)  # Not necessary for now, but will be needed in
+                    # the future
                     executor.map(fn, url_list, timeout=30)
 
-                self.check_request_limit()
+                print(f"Requests done so far: {req_counter}")
+                self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
 
             self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
 
@@ -73,7 +74,13 @@ class WEChainParser:
 
             print(f"Biggest transactions: {self.transaction_lists[0][:15]}")
 
-    def _retrieve_txids(self, link):
+    def _retrieve_txids_from_wallet(self, link):
+        """
+        Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
+        Stores everything in self.transaction_lists[0].
+        :param link: Link to make the request to.
+        :return: None
+        """
         try:
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
@@ -92,13 +99,16 @@ class WEChainParser:
 
     def get_addresses_from_txid(self):
         """
-        Requests every tx page of the current layer to get input addresses of that tx and their respective txid
-        :return:
+        Requests every tx page of the current layer (from txids stored in transaction_lists[i]) to get input addresses
+        of that tx and their respective txid
+        :return: None
         """
         print(f"RETRIEVING ADDRESSES FROM TXID")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx[0]}&caller=arthur" for tx in
                         self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
+
+        # We make sure all the requests are made
         while req_counter < len(tot_url_list):
             if req_counter + self.remaining_req > len(tot_url_list):
                 url_list = tot_url_list[req_counter:]
@@ -110,8 +120,8 @@ class WEChainParser:
                 self.remaining_req = 0
 
             with ThreadPoolExecutor() as executor:
-                fn = partial(self._get_addresses)  # test_list)
-
+                fn = partial(self._get_input_addresses)   # Not necessary for now, but will be needed in the future
+                # Timeout is so that if not every request is done under 30s, it stops
                 executor.map(fn, url_list, timeout=30)
 
             print(f"Requests done so far: {req_counter}")
@@ -121,8 +131,9 @@ class WEChainParser:
         print(f"Layer 0: {len(self.transaction_lists[0])}")
         print(f"Layer 1: {len(self.transaction_lists[1])}")
 
-    def _get_addresses(self, link):
+    def _get_input_addresses(self, link):
         """
+        Called by get_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
         associated txid.
         :param link: url of the page to parse
@@ -130,7 +141,6 @@ class WEChainParser:
         """
         try:
             req = self.session.get(link)
-            # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
@@ -144,7 +154,6 @@ class WEChainParser:
                          for add in output_addresses]
             # (input_txid, amount, input_address) --> Here, input_txid is the txid of the btc in input
             self.transaction_lists[self.layer_counter] += addresses
-            # print(self.transaction_lists[self.layer_counter])
 
     def start_analysis(self):
         self.get_wallet_transactions()
