@@ -1,9 +1,7 @@
-import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 import time
 from functools import partial
 from requests.exceptions import HTTPError
-from bs4 import *
 import sys
 from progress.bar import Bar
 import requests
