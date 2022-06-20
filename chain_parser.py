@@ -18,11 +18,12 @@ class WEChainParser:
         self.nb_layers = nb_layers
         self.wallet_url = f"https://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=arthur"
+        self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache')
-        print(self.wallet_url)
         self.layer_counter = 1
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
+        print(self.wallet_url)
 
     def get_wallet_transactions(self):
         """
@@ -118,10 +119,12 @@ class WEChainParser:
                 self.remaining_req = 0
 
             with ThreadPoolExecutor() as executor:
-                fn = partial(self._get_input_addresses)   # Not necessary for now, but will be needed in the future
+                fn = partial(self._get_input_addresses)  # Not necessary for now, but will be needed in the future
                 # Timeout is so that if not every request is done under 30s, it stops
-                executor.map(fn, url_list, timeout=30)
-
+                try:
+                    executor.map(fn, url_list, timeout=30)
+                except Exception as err:
+                    print(f"Error with a thread: {err}")
             print(f"Requests done so far: {req_counter}")
             self.check_request_limit()
 
@@ -147,11 +150,29 @@ class WEChainParser:
             pass
             print(f'Other error occurred: {err}')
         else:
-            output_addresses = req.json()["in"]
-            addresses = [(add["next_tx"], add["amount"], add["address"])
-                         for add in output_addresses]
+            output_addresses = req.json()
+            tx_id = link[link.find("txid="):].split("&")[0][5:]
+            if output_addresses["is_coinbase"]:  # If it's mined bitcoins
+                # We need to find the amount of BTC coming from that tx
+                addresses = [(None, None, None, True)]
+            else:
+                addresses = [(add["in"]["next_tx"], add["in"]["amount"], add["in"]["address"], False)
+                             for add in output_addresses]
             # (input_txid, amount, input_address) --> Here, input_txid is the txid of the btc in input
             self.transaction_lists[self.layer_counter] += addresses
+
+    def analyse_addresses(self, layer_number):
+        """
+        Go through all the transactions of a layer to check:
+        - If BTC have been mined (if it has, stop the crawling for these BTC)
+        - If the address has been identified already (might need to make requests to the wallet page)
+            --> If it has, we stop the crawling, otherwise, we continue
+        :param layer_number: Number of the layer to analyse
+        :return: None
+        """
+        for tx in self.transaction_lists[layer_number]:
+            if tx[3]:  # If these BTC have been mined:
+                self.identified_btc.append(("Mined", tx[1], tx[0]))
 
     def start_analysis(self):
         self.get_wallet_transactions()
@@ -166,7 +187,7 @@ class WEChainParser:
         :return:
         """
         if self.remaining_req == 0:
-            waiting_bar(10)
+            waiting_bar(5)  # Sleeps 5 seconds
             self.remaining_req = 45
 
 
