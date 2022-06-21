@@ -7,6 +7,8 @@ from progress.bar import Bar
 import requests
 import requests_cache
 
+from transaction import Transaction, find_transaction
+
 
 class WEChainParser:
     # TODO: Once all the requests have been made to retrieve input addresses and their respective txid, check if the
@@ -21,8 +23,9 @@ class WEChainParser:
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache')
-        self.layer_counter = 1
+        self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
+        self.added_before = []
         print(self.wallet_url)
 
     def get_wallet_transactions(self):
@@ -31,6 +34,7 @@ class WEChainParser:
         self.transaction_list[0] (we consider the wallet to be layer 0)
         :return: None
         """
+        print(f"--------- RETRIEVING TXIDS FROM WALLET ---------\n")
         try:
             req = self.session.get(self.wallet_url)
             req.raise_for_status()
@@ -39,7 +43,6 @@ class WEChainParser:
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:
-            print('Success! Starting retrieving Tx received from that address')
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
@@ -63,15 +66,21 @@ class WEChainParser:
                     # the future
                     executor.map(fn, url_list, timeout=30)
 
-                print(f"Requests done so far: {req_counter}")
+                if req_counter < nb_req:
+                    print(f"Requests done so far: {req_counter}")
                 self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
 
-            self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
+            # Once everything is done, increase layer counter
+            self.layer_counter += 1
 
-            print(f"Length of list: {len(self.transaction_lists[0])}")
-            print(f"Size of list: {sys.getsizeof(self.transaction_lists[0])}")
+            self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
 
-            print(f"Biggest transactions: {self.transaction_lists[0][:15]}")
+            print(f"Length of layer 0: {len(self.transaction_lists[0])}")
+            print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
+            print(f"List of tx in layer 0: ")
+            for tx in self.transaction_lists[0]:
+                print(tx)
+            print()
 
     def _retrieve_txids_from_wallet(self, link):
         """
@@ -93,8 +102,12 @@ class WEChainParser:
         else:
             content = req.json()
             for tx in content['txs']:
-                if tx["amount_received"] > 0:  # If it is a received transaction and not a sent one
-                    self.transaction_lists[0].append((tx["txid"], tx["amount_received"]))
+                if tx["amount_received"] > 0 and tx["amount_sent"] == 0:
+                    # If it is a received transaction and not a sent one, and if it's not a payment that he did re-using
+                    # his address (change-address = input address)
+                    self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
+                                                                                  output_addresses=[self.address],
+                                                                                  amount=tx["amount_received"]))
 
     def get_addresses_from_txid(self):
         """
@@ -102,9 +115,10 @@ class WEChainParser:
         of that tx and their respective txid
         :return: None
         """
-        print(f"RETRIEVING ADDRESSES FROM TXID")
-        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx[0]}&caller=arthur" for tx in
-                        self.transaction_lists[self.layer_counter - 1]]
+        print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID---------\n")
+        print(f"Layer_counter: {self.layer_counter}")
+        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=arthur"
+                        for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
 
         # We make sure all the requests are made
@@ -128,7 +142,11 @@ class WEChainParser:
             print(f"Requests done so far: {req_counter}")
             self.check_request_limit()
 
-        print(self.transaction_lists[self.layer_counter], "\n\n")
+        print(f"\n\nAdded before: {self.added_before}\n\n")
+        print(f"Tx of layer 1:")
+        for tx in self.transaction_lists[1]:
+            print(tx)
+
         print(f"Layer 0: {len(self.transaction_lists[0])}")
         print(f"Layer 1: {len(self.transaction_lists[1])}")
 
@@ -150,16 +168,31 @@ class WEChainParser:
             pass
             print(f'Other error occurred: {err}')
         else:
-            output_addresses = req.json()
+            tx_content = req.json()
             tx_id = link[link.find("txid="):].split("&")[0][5:]
-            if output_addresses["is_coinbase"]:  # If it's mined bitcoins
-                # We need to find the amount of BTC coming from that tx
-                addresses = [(None, None, None, True)]
+            if tx_content["is_coinbase"]:  # If it's mined bitcoins
+                print(f"MINED BITCOINS")
+                find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = "Mined"
+            elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
+                print(f"IDENTIFIED BITCOIN")
+                find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = tx_content['label']
+                # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
-                addresses = [(add["in"]["next_tx"], add["in"]["amount"], add["in"]["address"], False)
-                             for add in output_addresses]
-            # (input_txid, amount, input_address) --> Here, input_txid is the txid of the btc in input
-            self.transaction_lists[self.layer_counter] += addresses
+                print(f"Number of inputs: {len(tx_content['in'])}")
+                for add in tx_content['in']:
+                    if add['is_standard']:  # To manage the case with OPCODE (see notes)
+                        i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
+                        if i == -1:  # Means we have not added that txid to the next layer yet
+                            self.transaction_lists[self.layer_counter].append(
+                                Transaction(txid=add['next_tx'], prev_txid=tx_id,
+                                            amount=add['amount'],
+                                            output_addresses=add['address']))
+                        else:
+                            self.added_before.append(add['next_tx'])
+                            print("ADDED BEFORE")
+                            self.transaction_lists[self.layer_counter][i].amount += add['amount']
+                            if add['address'] not in self.transaction_lists[self.layer_counter][i].addresses:
+                                self.transaction_lists[self.layer_counter][i].addresses.append(add['address'])
 
     def analyse_addresses(self, layer_number):
         """
