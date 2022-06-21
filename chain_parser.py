@@ -7,6 +7,8 @@ from progress.bar import Bar
 import requests
 import requests_cache
 
+from transaction import Transaction, find_transaction
+
 
 class WEChainParser:
     # TODO: Once all the requests have been made to retrieve input addresses and their respective txid, check if the
@@ -21,7 +23,7 @@ class WEChainParser:
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache')
-        self.layer_counter = 1
+        self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         print(self.wallet_url)
 
@@ -66,12 +68,17 @@ class WEChainParser:
                 print(f"Requests done so far: {req_counter}")
                 self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
 
-            self.transaction_lists[0].sort(key=lambda x: x[1], reverse=True)
+            # Once everything is done, increase layer counter
+            self.layer_counter += 1
 
-            print(f"Length of list: {len(self.transaction_lists[0])}")
-            print(f"Size of list: {sys.getsizeof(self.transaction_lists[0])}")
+            self.transaction_lists[1].sort(key=lambda x: x.amount, reverse=True)
 
-            print(f"Biggest transactions: {self.transaction_lists[0][:15]}")
+            print(f"Length of list: {len(self.transaction_lists[1])}")
+            print(f"Size of list: {sys.getsizeof(self.transaction_lists[1])}")
+            print(self.transaction_lists[1][0])
+            print(f"Biggest transactions:")
+            for tx in self.transaction_lists[1][:5]:
+                print(tx)
 
     def _retrieve_txids_from_wallet(self, link):
         """
@@ -94,7 +101,9 @@ class WEChainParser:
             content = req.json()
             for tx in content['txs']:
                 if tx["amount_received"] > 0:  # If it is a received transaction and not a sent one
-                    self.transaction_lists[0].append((tx["txid"], tx["amount_received"]))
+                    self.transaction_lists[self.layer_counter + 1].append(Transaction(tx['txid'],
+                                                                                      output_addresses=[self.address],
+                                                                                      amount=tx["amount_received"]))
 
     def get_addresses_from_txid(self):
         """
