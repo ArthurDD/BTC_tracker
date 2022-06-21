@@ -1,7 +1,7 @@
 class Transaction:
-    def __init__(self, txid, next_txid=None, output_addresses=None, amount=0):
+    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0):
         self.txid = txid
-        self.next_txid = next_txid
+        self.prev_txid = prev_txid
         self.output_addresses = output_addresses
         self.amount = amount
         self.tag = None
