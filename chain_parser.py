@@ -115,8 +115,7 @@ class WEChainParser:
         of that tx and their respective txid
         :return: None
         """
-        print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID---------\n")
-        print(f"Layer_counter: {self.layer_counter}")
+        print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=arthur"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
@@ -143,12 +142,11 @@ class WEChainParser:
             self.check_request_limit()
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
-        print(f"Tx of layer 1:")
-        for tx in self.transaction_lists[1]:
+        print(f"Tx of layer {self.layer_counter}:")
+        for tx in self.transaction_lists[self.layer_counter]:
             print(tx)
 
-        print(f"Layer 0: {len(self.transaction_lists[0])}")
-        print(f"Layer 1: {len(self.transaction_lists[1])}")
+        self.layer_counter += 1
 
     def _get_input_addresses(self, link):
         """
@@ -178,7 +176,7 @@ class WEChainParser:
                 find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
-                print(f"Number of inputs: {len(tx_content['in'])}")
+                # print(f"Number of inputs: {len(tx_content['in'])}")
                 for add in tx_content['in']:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
@@ -189,7 +187,7 @@ class WEChainParser:
                                             output_addresses=add['address']))
                         else:
                             self.added_before.append(add['next_tx'])
-                            print("ADDED BEFORE")
+                            # print("ADDED BEFORE")
                             self.transaction_lists[self.layer_counter][i].amount += add['amount']
                             if add['address'] not in self.transaction_lists[self.layer_counter][i].addresses:
                                 self.transaction_lists[self.layer_counter][i].addresses.append(add['address'])
@@ -210,9 +208,13 @@ class WEChainParser:
     def start_analysis(self):
         self.get_wallet_transactions()
 
-        while self.layer_counter < self.nb_layers:
+        while self.layer_counter <= self.nb_layers:
+            print(f"Layer counter: {self.layer_counter}")
             self.get_addresses_from_txid()
-            self.layer_counter += 1
+
+        print(f"Layer 0: {len(self.transaction_lists[0])}")
+        print(f"Layer 1: {len(self.transaction_lists[1])}")
+        print(f"Layer 2: {len(self.transaction_lists[2])}")
 
     def check_request_limit(self):
         """
