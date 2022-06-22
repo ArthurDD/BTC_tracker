@@ -1,4 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor
+import concurrent
+from concurrent.futures import ThreadPoolExecutor, wait
 import time
 from functools import partial
 from requests.exceptions import HTTPError
@@ -26,7 +27,26 @@ class WEChainParser:
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
+
         print(self.wallet_url)
+
+    def thread_pool(self, function, url_list):
+        with ThreadPoolExecutor() as executor:
+            fn = partial(function)
+            finished = False
+            while not finished:
+                print("Starting threads")
+                futures = [executor.submit(fn, url) for url in url_list]
+
+                done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
+
+                if not not_done:
+                    finished = True
+                else:
+                    print("Error while making requests (Request limit exceeded). Retrying in 10s...")
+                    # Remove all the successful requests
+                    url_list = [url for url in url_list if url not in [result.result() for result in done]]
+                    time.sleep(5)
 
     def get_wallet_transactions(self):
         """
@@ -61,10 +81,7 @@ class WEChainParser:
                     req_counter += self.remaining_req
                     self.remaining_req = 0
 
-                with ThreadPoolExecutor() as executor:
-                    fn = partial(self._retrieve_txids_from_wallet)  # Not necessary for now, but will be needed in
-                    # the future
-                    executor.map(fn, url_list, timeout=30)
+                self.thread_pool(self._retrieve_txids_from_wallet, url_list)
 
                 if req_counter < nb_req:
                     print(f"Requests done so far: {req_counter}")
@@ -77,9 +94,9 @@ class WEChainParser:
 
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
-            print(f"List of tx in layer 0: ")
-            for tx in self.transaction_lists[0]:
-                print(tx)
+            # print(f"List of tx in layer 0: ")
+            # for tx in self.transaction_lists[0]:
+            #     print(tx)
             print()
 
     def _retrieve_txids_from_wallet(self, link):
@@ -95,19 +112,20 @@ class WEChainParser:
             req.raise_for_status()
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')
-            pass
+            raise Exception(f"HTTP error occurred: {http_err}")
         except Exception as err:
-            pass
-            print(f'Other error occurred: {err}')
+            print(f"Other error occurred: {err}")
+            raise Exception(f"Other error occurred: {err}")
         else:
             content = req.json()
             for tx in content['txs']:
                 if tx["amount_received"] > 0 and tx["amount_sent"] == 0:
-                    # If it is a received transaction and not a sent one, and if it's not a payment that he did re-using
-                    # his address (change-address = input address)
+                    # If it is a received transaction and not a sent one, and if it's not a payment that he did
+                    # re-using his address (change-address = input address)
                     self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"]))
+            return link
 
     def get_addresses_from_txid(self):
         """
@@ -131,14 +149,10 @@ class WEChainParser:
                 req_counter += self.remaining_req
                 self.remaining_req = 0
 
-            with ThreadPoolExecutor() as executor:
-                fn = partial(self._get_input_addresses)  # Not necessary for now, but will be needed in the future
-                # Timeout is so that if not every request is done under 30s, it stops
-                try:
-                    executor.map(fn, url_list, timeout=30)
-                except Exception as err:
-                    print(f"Error with a thread: {err}")
-            print(f"Requests done so far: {req_counter}")
+            self.thread_pool(self._get_input_addresses, url_list)
+
+            if req_counter < len(tot_url_list):
+                print(f"Requests done so far: {req_counter}")
             self.check_request_limit()
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
@@ -250,5 +264,3 @@ def test_limits():
             pass
         else:
             ended = True
-
-
