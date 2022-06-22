@@ -1,4 +1,5 @@
 import concurrent
+import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
 from functools import partial
@@ -30,23 +31,46 @@ class WEChainParser:
 
         print(self.wallet_url)
 
-    def thread_pool(self, function, url_list):
+    @staticmethod
+    def thread_pool(function, url_list):
+        """
+        :param function: Either self._get_input_addresses or self._retrieve_txids_from_wallet
+        :param url_list: List of URLs to parse
+        :return: None
+        """
+        print("Starting threads")
         with ThreadPoolExecutor() as executor:
             fn = partial(function)
             finished = False
             while not finished:
-                print("Starting threads")
+                finished = True     # Set it to True by default
                 futures = [executor.submit(fn, url) for url in url_list]
 
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-                if not not_done:
-                    finished = True
-                else:
-                    print("Error while making requests (Request limit exceeded). Retrying in 10s...")
+                print(f"Done: {done}")
+                print(f"not_done: {not_done}")
+                successful_urls = []
+                for future in done:  # The failed future has still finished, so we need to catch the exc. raised
+                    try:
+                        successful_urls.append(future.result())
+                    except RequestLimitReached:
+                        finished = False
+                        print(f"LIMIT REACHED")
+                        pass
+                    except Exception as err:
+                        raise err
+                        # print(f"Unexpected error. ({err})")
+
+                print(f"Successful URLS: {successful_urls}")
+                # If all the requests were successful or if we got an error that is not the RequestLimitReached,
+                # we get out of the while loop
+                if not finished:
+                    print("Error while making requests (Request limit exceeded). Retrying in 5s...")
                     # Remove all the successful requests
-                    url_list = [url for url in url_list if url not in [result.result() for result in done]]
-                    time.sleep(5)
+                    url_list = [url for url in url_list if url not in successful_urls]
+                    print(f"Length of url_list is now: {len(url_list)}")
+                    waiting_bar(15)   # Waiting for the limit to fade
 
     def get_wallet_transactions(self):
         """
@@ -59,9 +83,9 @@ class WEChainParser:
             req = self.session.get(self.wallet_url)
             req.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
+            print(f'get_wallet_transactions HTTP error occurred: {http_err}')
         except Exception as err:
-            print(f'Other error occurred: {err}')
+            print(f'get_wallet_transactions Other error occurred: {err}')
         else:
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
@@ -75,12 +99,13 @@ class WEChainParser:
                 if req_counter + self.remaining_req > nb_req:
                     url_list = tot_url_list[req_counter:]
                     req_counter += self.remaining_req
-                    self.remaining_req -= (nb_req - req_counter)
+                    self.remaining_req -= (nb_req - req_counter) if req_counter < nb_req else nb_req
                 else:
                     url_list = tot_url_list[req_counter: self.remaining_req]
                     req_counter += self.remaining_req
                     self.remaining_req = 0
 
+                print(f"Length of url_list: {len(url_list)}")
                 self.thread_pool(self._retrieve_txids_from_wallet, url_list)
 
                 if req_counter < nb_req:
@@ -107,15 +132,18 @@ class WEChainParser:
         :return: None
         """
         try:
+            time.sleep(random.randint(1, 3))
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
-            raise Exception(f"HTTP error occurred: {http_err}")
+            if "429 Client Error" in str(http_err):
+                raise RequestLimitReached(f"Request limit reached. ({http_err})")
+            else:
+                print(f'FUNCTION HTTP error occurred: {http_err}')
+                raise Exception(f"HTTP error occurred: {http_err}")
         except Exception as err:
-            print(f"Other error occurred: {err}")
-            raise Exception(f"Other error occurred: {err}")
+            raise Exception(f"FUNCTION Other error occurred: {err}")
         else:
             content = req.json()
             for tx in content['txs']:
@@ -137,18 +165,21 @@ class WEChainParser:
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=arthur"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
+        print(f"req_counter: {req_counter}")
+        print(f"Number of requests to make: {len(tot_url_list)}")
 
         # We make sure all the requests are made
         while req_counter < len(tot_url_list):
             if req_counter + self.remaining_req > len(tot_url_list):
                 url_list = tot_url_list[req_counter:]
                 req_counter += self.remaining_req
-                self.remaining_req -= (len(tot_url_list) - req_counter)
+                self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) else len(tot_url_list)
             else:
                 url_list = tot_url_list[req_counter: self.remaining_req]
                 req_counter += self.remaining_req
                 self.remaining_req = 0
 
+            print(f"Length of url_list: {len(url_list)}")
             self.thread_pool(self._get_input_addresses, url_list)
 
             if req_counter < len(tot_url_list):
@@ -171,14 +202,16 @@ class WEChainParser:
         :return:
         """
         try:
+            time.sleep(random.randint(1, 3))
             req = self.session.get(link)
             req.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
-            pass
+            if "429 Client Error" in str(http_err):
+                raise RequestLimitReached(f"Request limit reached. ({http_err})")
+            else:
+                raise Exception(f"HTTP error occurred: {http_err}")
         except Exception as err:
-            pass
-            print(f'Other error occurred: {err}')
+            raise Exception(f"Other error occurred: {err}")
         else:
             tx_content = req.json()
             tx_id = link[link.find("txid="):].split("&")[0][5:]
@@ -198,13 +231,14 @@ class WEChainParser:
                             self.transaction_lists[self.layer_counter].append(
                                 Transaction(txid=add['next_tx'], prev_txid=tx_id,
                                             amount=add['amount'],
-                                            output_addresses=add['address']))
+                                            output_addresses=[add['address']]))
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
                             self.transaction_lists[self.layer_counter][i].amount += add['amount']
-                            if add['address'] not in self.transaction_lists[self.layer_counter][i].addresses:
-                                self.transaction_lists[self.layer_counter][i].addresses.append(add['address'])
+                            if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
+                                self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
+            return link
 
     def analyse_addresses(self, layer_number):
         """
@@ -264,3 +298,11 @@ def test_limits():
             pass
         else:
             ended = True
+
+
+class RequestLimitReached(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
