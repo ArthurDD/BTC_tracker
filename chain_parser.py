@@ -22,7 +22,7 @@ class WEChainParser:
         self.address = address
         self.nb_layers = nb_layers
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
-                          f"&from=0&count=100&caller=arthur"
+                          f"&from=0&count=100&caller=3"
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache')
@@ -30,11 +30,11 @@ class WEChainParser:
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
 
-        self.proxy_list = []
-        self.proxy_used = []
+        # self.proxy_list = []
+        # self.proxy_used = []
 
-        self.read_proxy_list()  # Reads the proxies in http_proxies.txt
-        self.change_session_proxy()  # Initialises the session proxy
+        # self.read_proxy_list()  # Reads the proxies in http_proxies.txt
+        # self.change_session_proxy()  # Initialises the session proxy
         # self.session.proxies = {
         #     'http': 'http://20.110.214.83:80',
         #     'https': 'https://20.110.214.83:80',
@@ -59,7 +59,7 @@ class WEChainParser:
                 print(f"Allocating the tasks...")
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-                print(f"Length of Done: {done}")
+                print(f"Length of Done: {len(done)}")
                 print(f"not_done: {len(not_done)}")
                 successful_urls = []
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
@@ -82,9 +82,10 @@ class WEChainParser:
                     url_list = [url for url in url_list if url not in successful_urls]
                     print(f"Length of url_list is now: {len(url_list)}")
 
-                    self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
-
-                    # waiting_bar(15)   # Waiting for the limit to fade
+                    # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
+                    # self.session.close()
+                    waiting_bar(30)   # Waiting for the limit to fade
+                    # self.session = requests_cache.CachedSession('parser_cache')
 
     def get_wallet_transactions(self):
         """
@@ -105,7 +106,7 @@ class WEChainParser:
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
-                            f"&from={i * 100}&count=100&caller=arthur" for i in range(nb_req)]
+                            f"&from={i * 100}&count=100&caller={random.randint(1,500)}" for i in range(nb_req)]
 
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
@@ -163,7 +164,7 @@ class WEChainParser:
         :return: None
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
-        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?caller=arthur&txid={tx.txid}"
+        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller={random.randint(1,500)}"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
         print(f"req_counter: {req_counter}")
@@ -262,35 +263,35 @@ class WEChainParser:
             waiting_bar(5)  # Sleeps 5 seconds
             self.remaining_req = 45
 
-    def read_proxy_list(self):
-        with open("http_proxies.txt", "r") as f:
-            for line in f.readlines():
-                if line:
-                    self.proxy_list.append(line.strip())
-                    self.proxy_used.append(0)
-
-    def change_session_proxy(self):
-        proxy_found = False
-        proxy = 0
-        print("Changing proxy!")
-        if 0 not in self.proxy_used:
-            # If we have used every proxy (and potentially reached the req. limit on all of them)
-            print(f"No more proxy available, please wait until they are refreshed...")
-            waiting_bar(60)  # Wait for 60 seconds
-            self.proxy_used = [0 for _ in range(len(self.proxy_list))]  # Reset the list of used proxies
-
-        while not proxy_found:  # Since there is at least one 0 in the list, we will find an available proxy
-            proxy = random.randint(0, len(self.proxy_list) - 1)
-            print(f"Trying Proxy {proxy}")
-            if self.proxy_used[proxy] == 0:
-                self.proxy_used[proxy] = 1
-                proxy_found = True
-
-        print("Proxy found!")
-        self.session.proxies = {
-            'http': f"http://{self.proxy_list[proxy]}",  # 185.61.152.137:8080
-            'https': f"https://{self.proxy_list[proxy]}",
-        }
+    # def read_proxy_list(self):
+    #     with open("http_proxies.txt", "r") as f:
+    #         for line in f.readlines():
+    #             if line:
+    #                 self.proxy_list.append(line.strip())
+    #                 self.proxy_used.append(0)
+    #
+    # def change_session_proxy(self):
+    #     proxy_found = False
+    #     proxy = 0
+    #     print("Changing proxy!")
+    #     if 0 not in self.proxy_used:
+    #         # If we have used every proxy (and potentially reached the req. limit on all of them)
+    #         print(f"No more proxy available, please wait until they are refreshed...")
+    #         waiting_bar(60)  # Wait for 60 seconds
+    #         self.proxy_used = [0 for _ in range(len(self.proxy_list))]  # Reset the list of used proxies
+    #
+    #     while not proxy_found:  # Since there is at least one 0 in the list, we will find an available proxy
+    #         proxy = random.randint(0, len(self.proxy_list) - 1)
+    #         print(f"Trying Proxy {proxy}")
+    #         if self.proxy_used[proxy] == 0:
+    #             self.proxy_used[proxy] = 1
+    #             proxy_found = True
+    #
+        # print("Proxy found!")
+        # self.session.proxies = {
+        #     'http': f"http://{self.proxy_list[proxy]}",  # 185.61.152.137:8080
+        #     'https': f"https://{self.proxy_list[proxy]}",
+        # }
 
 
 def waiting_bar(seconds):
