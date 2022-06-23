@@ -21,7 +21,7 @@ class WEChainParser:
     def __init__(self, address, nb_layers):
         self.address = address
         self.nb_layers = nb_layers
-        self.wallet_url = f"https://www.walletexplorer.com/api/1/address?address={address}" \
+        self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=arthur"
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
@@ -35,7 +35,10 @@ class WEChainParser:
 
         self.read_proxy_list()  # Reads the proxies in http_proxies.txt
         self.change_session_proxy()  # Initialises the session proxy
-
+        # self.session.proxies = {
+        #     'http': 'http://20.110.214.83:80',
+        #     'https': 'https://20.110.214.83:80',
+        # }
         print(self.wallet_url)
 
     def thread_pool(self, function, url_list):
@@ -49,20 +52,21 @@ class WEChainParser:
             fn = partial(function)
             finished = False
             while not finished:
-                finished = True     # Set it to True by default
+                finished = True  # Set it to True by default
                 futures = [executor.submit(fn, url) for url in url_list]
 
                 # Wait for the first exception to occur
                 print(f"Allocating the tasks...")
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-                print(f"Length of Done: {len(done)}")
+                print(f"Length of Done: {done}")
                 print(f"not_done: {len(not_done)}")
                 successful_urls = []
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
                     except RequestLimitReached:
+                        print("LIMIT REACHED")
                         finished = False
                         pass
                     except Exception as err:
@@ -97,30 +101,17 @@ class WEChainParser:
         except Exception as err:
             print(f'get_wallet_transactions Other error occurred: {err}')
         else:
+            print(req.json())
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
-            tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
+            tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
                             f"&from={i * 100}&count=100&caller=arthur" for i in range(nb_req)]
 
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
-            # We make all the requests
-            # while req_counter < nb_req:
-            #     if req_counter + self.remaining_req > nb_req:
-            #         url_list = tot_url_list[req_counter:]
-            #         req_counter += self.remaining_req
-            #         self.remaining_req -= (nb_req - req_counter) if req_counter < nb_req else nb_req
-            #     else:
-            #         url_list = tot_url_list[req_counter: self.remaining_req]
-            #         req_counter += self.remaining_req
-            #         self.remaining_req = 0
 
             print(f"Length of url_list: {len(tot_url_list)}")
             self.thread_pool(self._retrieve_txids_from_wallet, tot_url_list)
-
-            # if req_counter < nb_req:
-            #     print(f"Requests done so far: {req_counter}")
-            # self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
 
             # Once everything is done, increase layer counter
             self.layer_counter += 1
@@ -172,30 +163,14 @@ class WEChainParser:
         :return: None
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
-        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=arthur"
+        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?caller=arthur&txid={tx.txid}"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
         print(f"req_counter: {req_counter}")
         print(f"Number of requests to make: {len(tot_url_list)}")
 
-        # We make sure all the requests are made
-        # while req_counter < len(tot_url_list):
-        #     if req_counter + self.remaining_req > len(tot_url_list):
-        #         url_list = tot_url_list[req_counter:]
-        #         req_counter += self.remaining_req
-        #         self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) \
-        #             else len(tot_url_list)
-        #     else:
-        #         url_list = tot_url_list[req_counter: self.remaining_req]
-        #         req_counter += self.remaining_req
-        #         self.remaining_req = 0
-
         print(f"Length of url_list: {len(tot_url_list)}")
         self.thread_pool(self._get_input_addresses, tot_url_list)
-
-        # if req_counter < len(tot_url_list):
-        #     print(f"Requests done so far: {req_counter}")
-        # self.check_request_limit()
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
         print(f"Tx of layer {self.layer_counter}:")
@@ -213,8 +188,9 @@ class WEChainParser:
         :return:
         """
         try:
-            time.sleep(random.randint(1, 3))
+            time.sleep(random.random())
             req = self.session.get(link)
+            # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
             if "429 Client Error" in str(http_err):
@@ -226,6 +202,8 @@ class WEChainParser:
         else:
             tx_content = req.json()
             tx_id = link[link.find("txid="):].split("&")[0][5:]
+            # print(f"Link: {link}")
+            # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 print(f"MINED BITCOINS")
                 find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = "Mined"
@@ -310,8 +288,8 @@ class WEChainParser:
 
         print("Proxy found!")
         self.session.proxies = {
-            'http': self.proxy_list[proxy],
-            'https': self.proxy_list[proxy],
+            'http': f"http://{self.proxy_list[proxy]}",  # 185.61.152.137:8080
+            'https': f"https://{self.proxy_list[proxy]}",
         }
 
 
