@@ -6,8 +6,9 @@ from functools import partial
 from requests.exceptions import HTTPError
 import sys
 from progress.bar import Bar
-import requests
+# import requests
 import requests_cache
+from request_limit_reached import RequestLimitReached
 
 from transaction import Transaction, find_transaction
 
@@ -173,7 +174,8 @@ class WEChainParser:
             if req_counter + self.remaining_req > len(tot_url_list):
                 url_list = tot_url_list[req_counter:]
                 req_counter += self.remaining_req
-                self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) else len(tot_url_list)
+                self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) \
+                    else len(tot_url_list)
             else:
                 url_list = tot_url_list[req_counter: self.remaining_req]
                 req_counter += self.remaining_req
@@ -282,27 +284,3 @@ def waiting_bar(seconds):
     """
     for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
         time.sleep(1)
-
-
-def test_limits():
-    ended = False
-    while not ended:
-        try:
-            req = requests.get("https://www.walletexplorer.com/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
-            # If the response was successful, no Exception will be raised
-            req.raise_for_status()
-        except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')
-            time.sleep(10)
-        except Exception as err:
-            pass
-        else:
-            ended = True
-
-
-class RequestLimitReached(Exception):
-    def __init__(self, message):
-        self.message = message
-
-    def __str__(self):
-        return self.message
