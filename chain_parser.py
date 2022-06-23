@@ -30,10 +30,15 @@ class WEChainParser:
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
 
+        self.proxy_list = []
+        self.proxy_used = []
+
+        self.read_proxy_list()  # Reads the proxies in http_proxies.txt
+        self.change_session_proxy()  # Initialises the session proxy
+
         print(self.wallet_url)
 
-    @staticmethod
-    def thread_pool(function, url_list):
+    def thread_pool(self, function, url_list):
         """
         :param function: Either self._get_input_addresses or self._retrieve_txids_from_wallet
         :param url_list: List of URLs to parse
@@ -47,23 +52,24 @@ class WEChainParser:
                 finished = True     # Set it to True by default
                 futures = [executor.submit(fn, url) for url in url_list]
 
+                # Wait for the first exception to occur
+                print(f"Allocating the tasks...")
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-                print(f"Done: {done}")
-                print(f"not_done: {not_done}")
+                print(f"Length of Done: {len(done)}")
+                print(f"not_done: {len(not_done)}")
                 successful_urls = []
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
                     except RequestLimitReached:
                         finished = False
-                        print(f"LIMIT REACHED")
                         pass
                     except Exception as err:
                         raise err
                         # print(f"Unexpected error. ({err})")
 
-                print(f"Successful URLS: {successful_urls}")
+                print(f"Length of successful URLs: {len(successful_urls)}")
                 # If all the requests were successful or if we got an error that is not the RequestLimitReached,
                 # we get out of the while loop
                 if not finished:
@@ -71,7 +77,10 @@ class WEChainParser:
                     # Remove all the successful requests
                     url_list = [url for url in url_list if url not in successful_urls]
                     print(f"Length of url_list is now: {len(url_list)}")
-                    waiting_bar(15)   # Waiting for the limit to fade
+
+                    self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
+
+                    # waiting_bar(15)   # Waiting for the limit to fade
 
     def get_wallet_transactions(self):
         """
@@ -96,22 +105,22 @@ class WEChainParser:
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
             # We make all the requests
-            while req_counter < nb_req:
-                if req_counter + self.remaining_req > nb_req:
-                    url_list = tot_url_list[req_counter:]
-                    req_counter += self.remaining_req
-                    self.remaining_req -= (nb_req - req_counter) if req_counter < nb_req else nb_req
-                else:
-                    url_list = tot_url_list[req_counter: self.remaining_req]
-                    req_counter += self.remaining_req
-                    self.remaining_req = 0
+            # while req_counter < nb_req:
+            #     if req_counter + self.remaining_req > nb_req:
+            #         url_list = tot_url_list[req_counter:]
+            #         req_counter += self.remaining_req
+            #         self.remaining_req -= (nb_req - req_counter) if req_counter < nb_req else nb_req
+            #     else:
+            #         url_list = tot_url_list[req_counter: self.remaining_req]
+            #         req_counter += self.remaining_req
+            #         self.remaining_req = 0
 
-                print(f"Length of url_list: {len(url_list)}")
-                self.thread_pool(self._retrieve_txids_from_wallet, url_list)
+            print(f"Length of url_list: {len(tot_url_list)}")
+            self.thread_pool(self._retrieve_txids_from_wallet, tot_url_list)
 
-                if req_counter < nb_req:
-                    print(f"Requests done so far: {req_counter}")
-                self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
+            # if req_counter < nb_req:
+            #     print(f"Requests done so far: {req_counter}")
+            # self.check_request_limit()  # If we reached the limit, we pause for a few seconds.
 
             # Once everything is done, increase layer counter
             self.layer_counter += 1
@@ -133,7 +142,7 @@ class WEChainParser:
         :return: None
         """
         try:
-            time.sleep(random.randint(1, 3))
+            time.sleep(random.random())
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -170,29 +179,29 @@ class WEChainParser:
         print(f"Number of requests to make: {len(tot_url_list)}")
 
         # We make sure all the requests are made
-        while req_counter < len(tot_url_list):
-            if req_counter + self.remaining_req > len(tot_url_list):
-                url_list = tot_url_list[req_counter:]
-                req_counter += self.remaining_req
-                self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) \
-                    else len(tot_url_list)
-            else:
-                url_list = tot_url_list[req_counter: self.remaining_req]
-                req_counter += self.remaining_req
-                self.remaining_req = 0
+        # while req_counter < len(tot_url_list):
+        #     if req_counter + self.remaining_req > len(tot_url_list):
+        #         url_list = tot_url_list[req_counter:]
+        #         req_counter += self.remaining_req
+        #         self.remaining_req -= (len(tot_url_list) - req_counter) if req_counter < len(tot_url_list) \
+        #             else len(tot_url_list)
+        #     else:
+        #         url_list = tot_url_list[req_counter: self.remaining_req]
+        #         req_counter += self.remaining_req
+        #         self.remaining_req = 0
 
-            print(f"Length of url_list: {len(url_list)}")
-            self.thread_pool(self._get_input_addresses, url_list)
+        print(f"Length of url_list: {len(tot_url_list)}")
+        self.thread_pool(self._get_input_addresses, tot_url_list)
 
-            if req_counter < len(tot_url_list):
-                print(f"Requests done so far: {req_counter}")
-            self.check_request_limit()
+        # if req_counter < len(tot_url_list):
+        #     print(f"Requests done so far: {req_counter}")
+        # self.check_request_limit()
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
         print(f"Tx of layer {self.layer_counter}:")
-        for tx in self.transaction_lists[self.layer_counter]:
+        for tx in self.transaction_lists[self.layer_counter][:15]:
             print(tx)
-
+        print("...")
         self.layer_counter += 1
 
     def _get_input_addresses(self, link):
@@ -274,6 +283,36 @@ class WEChainParser:
         if self.remaining_req == 0:
             waiting_bar(5)  # Sleeps 5 seconds
             self.remaining_req = 45
+
+    def read_proxy_list(self):
+        with open("http_proxies.txt", "r") as f:
+            for line in f.readlines():
+                if line:
+                    self.proxy_list.append(line.strip())
+                    self.proxy_used.append(0)
+
+    def change_session_proxy(self):
+        proxy_found = False
+        proxy = 0
+        print("Changing proxy!")
+        if 0 not in self.proxy_used:
+            # If we have used every proxy (and potentially reached the req. limit on all of them)
+            print(f"No more proxy available, please wait until they are refreshed...")
+            waiting_bar(60)  # Wait for 60 seconds
+            self.proxy_used = [0 for _ in range(len(self.proxy_list))]  # Reset the list of used proxies
+
+        while not proxy_found:  # Since there is at least one 0 in the list, we will find an available proxy
+            proxy = random.randint(0, len(self.proxy_list) - 1)
+            print(f"Trying Proxy {proxy}")
+            if self.proxy_used[proxy] == 0:
+                self.proxy_used[proxy] = 1
+                proxy_found = True
+
+        print("Proxy found!")
+        self.session.proxies = {
+            'http': self.proxy_list[proxy],
+            'https': self.proxy_list[proxy],
+        }
 
 
 def waiting_bar(seconds):
