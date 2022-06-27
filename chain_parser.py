@@ -119,9 +119,6 @@ class WEChainParser:
 
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
-            # print(f"List of tx in layer 0: ")
-            # for tx in self.transaction_lists[0]:
-            #     print(tx)
             print()
 
     def _retrieve_txids_from_wallet(self, link):
@@ -202,13 +199,12 @@ class WEChainParser:
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 print(f"MINED BITCOINS")
-                find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = "Mined"
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
                 print(f"IDENTIFIED BITCOIN")
-                if tx_id == "99fd988bf60ff67847488ceeb76d08a8fcca7bde80bb0b06be2ef4a0055c3ba7":
-                    print(f"tx_id: {tx_id}")
-                    print(f"layer counter: {self.layer_counter - 1}")
-                find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = tx_content['label']
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
                 # print(f"Number of inputs: {len(tx_content['in'])}")
@@ -250,9 +246,18 @@ class WEChainParser:
             print(f"Layer counter: {self.layer_counter}")
             self.get_addresses_from_txid()
 
-        print(f"Layer 0: {len(self.transaction_lists[0])}")
-        print(f"Layer 1: {len(self.transaction_lists[1])}")
-        print(f"Layer 2: {len(self.transaction_lists[2])}")
+        print(f"\n\n\n--------- FINAL RESULTS ---------\n")
+        for i in range(self.nb_layers):
+            print(f"Layer {i}: {len(self.transaction_lists[i])}")
+
+        print("\n\n")
+        for i in range(self.nb_layers):
+            print(f"Tx of layer {i}:")
+            for tx in self.transaction_lists[i][:15]:
+                print(tx)
+            if len(self.transaction_lists[i]) >= 15:
+                print("...")
+            print("\n")
 
     def check_request_limit(self):
         """
@@ -260,7 +265,7 @@ class WEChainParser:
         :return:
         """
         if self.remaining_req == 0:
-            waiting_bar(5)  # Sleeps 5 seconds
+            waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
 
     # def read_proxy_list(self):
