@@ -230,6 +230,8 @@ class WEChainParser:
 
     def analyse_addresses(self, layer_number):
         """
+        CURRENTLY NOT IN USE
+
         Go through all the transactions of a layer to check:
         - If BTC have been mined (if it has, stop the crawling for these BTC)
         - If the address has been identified already (might need to make requests to the wallet page)
