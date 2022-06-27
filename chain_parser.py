@@ -97,10 +97,8 @@ class WEChainParser:
         try:
             req = self.session.get(self.wallet_url)
             req.raise_for_status()
-        except HTTPError as http_err:
-            print(f'get_wallet_transactions HTTP error occurred: {http_err}')
         except Exception as err:
-            print(f'get_wallet_transactions Other error occurred: {err}')
+            print(f'get_wallet_transactions - Error occurred: {err}')
         else:
             print(req.json())
             nb_tx = req.json()["txs_count"]
@@ -138,14 +136,12 @@ class WEChainParser:
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
-        except HTTPError as http_err:
-            if "429 Client Error" in str(http_err):
-                raise RequestLimitReached(f"Request limit reached. ({http_err})")
-            else:
-                print(f'FUNCTION HTTP error occurred: {http_err}')
-                raise Exception(f"HTTP error occurred: {http_err}")
         except Exception as err:
-            raise Exception(f"FUNCTION Other error occurred: {err}")
+            if "429 Client Error" in str(err):
+                raise RequestLimitReached(f"Request limit reached. ({err})")
+            else:
+                print(f'retrieve_txids_from_wallet - Error occurred: {err}')
+                raise Exception(f"Error occurred: {err}")
         else:
             content = req.json()
             for tx in content['txs']:
@@ -193,13 +189,12 @@ class WEChainParser:
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
-        except HTTPError as http_err:
-            if "429 Client Error" in str(http_err):
-                raise RequestLimitReached(f"Request limit reached. ({http_err})")
-            else:
-                raise Exception(f"HTTP error occurred: {http_err}")
         except Exception as err:
-            raise Exception(f"Other error occurred: {err}")
+            if "429 Client Error" in str(err):
+                raise RequestLimitReached(f"Request limit reached. ({err})")
+            else:
+                print(f'retrieve_txids_from_wallet - Error occurred: {err}')
+                raise Exception(f"Error occurred: {err}")
         else:
             tx_content = req.json()
             tx_id = link[link.find("txid="):].split("&")[0][5:]
@@ -210,6 +205,9 @@ class WEChainParser:
                 find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
                 print(f"IDENTIFIED BITCOIN")
+                if tx_id == "99fd988bf60ff67847488ceeb76d08a8fcca7bde80bb0b06be2ef4a0055c3ba7":
+                    print(f"tx_id: {tx_id}")
+                    print(f"layer counter: {self.layer_counter - 1}")
                 find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id).tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
