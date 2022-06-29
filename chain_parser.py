@@ -247,11 +247,11 @@ class WEChainParser:
             self.get_addresses_from_txid()
 
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")
-        for i in range(self.nb_layers):
+        for i in range(self.nb_layers + 1):
             print(f"Layer {i}: {len(self.transaction_lists[i])}")
 
         print("\n\n")
-        for i in range(self.nb_layers):
+        for i in range(self.nb_layers + 1):
             print(f"Tx of layer {i}:")
             for tx in self.transaction_lists[i][:15]:
                 print(tx)
