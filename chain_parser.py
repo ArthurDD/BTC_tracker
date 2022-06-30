@@ -194,28 +194,34 @@ class WEChainParser:
                 raise Exception(f"Error occurred: {err}")
         else:
             tx_content = req.json()
-            tx_id = link[link.find("txid="):].split("&")[0][5:]
+            txid = link[link.find("txid="):].split("&")[0][5:]
             # print(f"Link: {link}")
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 print(f"MINED BITCOINS")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
                 print(f"IDENTIFIED BITCOIN")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
                 # print(f"Number of inputs: {len(tx_content['in'])}")
-                for add in tx_content['in']:
+                # We select the inputs that we want to keep
+                if len(tx_content['in']) > 1:  # and len(tx_content['out']) > 1:
+                    selected_inputs = self.select_inputs(tx_content, txid)
+                else:
+                    selected_inputs = tx_content['in']
+                for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.layer_counter].append(
-                                Transaction(txid=add['next_tx'], prev_txid=tx_id,
+                                Transaction(txid=add['next_tx'], prev_txid=txid,
                                             amount=add['amount'],
-                                            output_addresses=[add['address']]))
+                                            output_addresses=[add['address']],
+                                            is_special=add['special'] if 'special' in add else None))
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
@@ -223,6 +229,65 @@ class WEChainParser:
                             if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
                                 self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
             return link
+
+    def select_inputs(self, tx_content, txid):
+        """
+        Selects inputs that we will continue to investigate. Check decision tree to have a better understand on how
+        we decided to handle the different cases
+        :param txid: Transaction ID
+        :param tx_content: Content of the transaction that we are currently looking.
+        :return: selected input addresses
+        """
+
+        # We sort in and out lists as it will be necessary in a further step
+        tx_content['in'].sort(key=lambda x: x['amount'])
+        tx_content['out'].sort(key= lambda x: x['amount'])
+        input_values = [add['amount'] for add in tx_content['in']]
+        output_values = [add['amount'] for add in tx_content['out']]
+
+        if len(output_values) > 1:
+            # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
+            tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+            if tx_index == -1:
+                print(f"Error, something went wrong. Selecting all inputs by default.")
+                return tx_content['in']
+            else:
+                observed_addresses = self.transaction_lists[self.layer_counter - 1][tx_index].output_addresses
+                observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
+
+            # First check: input_values match with output_values AND that we have the same number of input/outputs
+            if input_values == output_values:
+                # Only ONE input value matches our output value(s) - there can be multiple output addresses to look at
+                used_indexes = set()
+                for add in observed_outputs:
+                    if add['amount'] in input_values and output_values.index(add['amount'])not in used_indexes:
+                        used_indexes.add(input_values.index(add['amount']))
+                if len(used_indexes) == len(observed_addresses):  # If it's the case:
+                    for i in used_indexes:
+                        tx_content['in'][i]['special'] = True
+                    return [tx_content['in'][i] for i in used_indexes]
+
+            # Second check: there is a sublist of input values whose sum equals our output values (two by two)
+            # - Again, there can be multiple output values to look at
+            # TODO: Implement that part, complexity of !n so we need to find another way.
+            # used_indexes = set()
+            # all_good = True
+            # for add in observed_outputs:
+            #     indexes = sub_array_sum(input_values, add['value'])
+            #     if indexes:
+            #         in_set = False
+            #         for index in indexes:
+            #             if index in used_indexes:
+            #                 all_good = False
+            #                 break
+            #         used_indexes.update(indexes)
+            #     else:
+            #         break
+            if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the total
+                tx_content['in'][-1]['special'] = True
+                return [tx_content['in'][-1]]
+
+            return tx_content['in']
 
     def start_analysis(self):
         self.get_wallet_transactions()
@@ -292,3 +357,23 @@ def waiting_bar(seconds):
     """
     for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
         time.sleep(1)
+
+
+def sub_array_sum(arr, sum_):
+    curr_sum = arr[0]
+    start = 0
+
+    i = 1
+    while i <= len(arr):
+        while curr_sum > sum_ and start < i - 1:
+            curr_sum = curr_sum - arr[start]
+            start += 1
+
+        if curr_sum == sum_:
+            return [k for k in range(start, i)]
+
+        if i < len(arr):
+            curr_sum = curr_sum + arr[i]
+        i += 1
+
+    return []

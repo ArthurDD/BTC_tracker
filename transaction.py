@@ -1,5 +1,5 @@
 class Transaction:
-    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0):
+    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, is_special=None):
         """
 
         :param txid: Transaction ID of that transaction
@@ -14,6 +14,7 @@ class Transaction:
         self.output_addresses = output_addresses
         self.amount = amount
         self.tag = None
+        self.is_special = is_special     # Used to indicate if we pruned the tree based on that tx
 
     def __str__(self):
         # print(f"'txid': {self.txid}, 'next_txid': {self.next_txid}, 'output_addresses': {self.output_addresses}, "
