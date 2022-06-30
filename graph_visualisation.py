@@ -1,4 +1,3 @@
-import pygraphviz as pgv
 import graphviz
 
 
@@ -40,5 +39,5 @@ class GraphVisualisation:
             print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
-                    print(f"Tag! {tx.tag} -- {tx.txid}")
-                    self.dot.node(tx.txid, color='red', style='filled', fillcolor='lightblue2')
+                    self.dot.node(tx.txid, color='red', style='filled', fillcolor='lightblue2',
+                                  label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}")
