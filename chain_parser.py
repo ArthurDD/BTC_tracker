@@ -224,21 +224,6 @@ class WEChainParser:
                                 self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
             return link
 
-    def analyse_addresses(self, layer_number):
-        """
-        CURRENTLY NOT IN USE
-
-        Go through all the transactions of a layer to check:
-        - If BTC have been mined (if it has, stop the crawling for these BTC)
-        - If the address has been identified already (might need to make requests to the wallet page)
-            --> If it has, we stop the crawling, otherwise, we continue
-        :param layer_number: Number of the layer to analyse
-        :return: None
-        """
-        for tx in self.transaction_lists[layer_number]:
-            if tx[3]:  # If these BTC have been mined:
-                self.identified_btc.append(("Mined", tx[1], tx[0]))
-
     def start_analysis(self):
         self.get_wallet_transactions()
 
