@@ -83,9 +83,9 @@ class WEChainParser:
                     print(f"Length of url_list is now: {len(url_list)}")
 
                     # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
-                    # self.session.close()
+                    self.session.close()
                     waiting_bar(30)   # Waiting for the limit to fade
-                    # self.session = requests_cache.CachedSession('parser_cache')
+                    self.session = requests_cache.CachedSession('parser_cache')
 
     def get_wallet_transactions(self):
         """
@@ -207,12 +207,13 @@ class WEChainParser:
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
-                # print(f"Number of inputs: {len(tx_content['in'])}")
+                # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
                 if len(tx_content['in']) > 1:  # and len(tx_content['out']) > 1:
                     selected_inputs = self.select_inputs(tx_content, txid)
                 else:
                     selected_inputs = tx_content['in']
+
                 for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
@@ -287,7 +288,7 @@ class WEChainParser:
                 tx_content['in'][-1]['special'] = True
                 return [tx_content['in'][-1]]
 
-            return tx_content['in']
+        return tx_content['in']
 
     def start_analysis(self):
         self.get_wallet_transactions()

@@ -22,7 +22,7 @@ def try_scraper(address):
 
 
 def try_parser(address):
-    chain_parser = WEChainParser(address, 2)
+    chain_parser = WEChainParser(address, 5)
     # chain_parser.get_wallet_transactions()
     # chain_parser.get_addresses_from_txid()
     chain_parser.start_analysis()
