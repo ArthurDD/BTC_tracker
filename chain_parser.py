@@ -2,6 +2,7 @@ import concurrent
 import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
+from datetime import timedelta
 from functools import partial
 from requests.exceptions import HTTPError
 import sys
@@ -322,6 +323,32 @@ class WEChainParser:
         if self.remaining_req == 0:
             waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
+
+    def get_statistics(self):
+        """
+        Prints the number of pruned tx and identified tx per layer
+        :return: None
+        """
+        print(f"\n\n\n--------- STATISTICS ---------\n")
+        pruned_tx_lists = {}
+        tagged_tx_lists = {}
+
+        for layer in range(self.layer_counter):
+            pruned_tx_lists[layer] = []
+            tagged_tx_lists[layer] = []
+            for tx in self.transaction_lists[layer]:
+                if tx.tag:
+                    tagged_tx_lists[layer].append(tx)
+                if tx.is_special:
+                    pruned_tx_lists[layer].append(tx)
+
+        print(f"Number of tagged transactions by layer: \n" +
+              "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
+                         for layer in range(self.layer_counter)]) + "\n")
+
+        print(f"Number of pruned transactions by layer: \n" +
+              "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
+                         for layer in range(self.layer_counter)]) + "\n\n\n")
 
     # def read_proxy_list(self):
     #     with open("http_proxies.txt", "r") as f:

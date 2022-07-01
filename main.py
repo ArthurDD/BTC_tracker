@@ -22,10 +22,11 @@ def try_scraper(address):
 
 
 def try_parser(address):
-    chain_parser = WEChainParser(address, 5)
+    chain_parser = WEChainParser(address, 4)
     # chain_parser.get_wallet_transactions()
     # chain_parser.get_addresses_from_txid()
     chain_parser.start_analysis()
+    chain_parser.get_statistics()
     tree = GraphVisualisation(chain_parser.transaction_lists)
     tree.build_tree()
     # chain_parser._get_addresses("https://www.walletexplorer.com/txid/"
