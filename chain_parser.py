@@ -25,7 +25,11 @@ class WEChainParser:
                           f"&from=0&count=100&caller=3"
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
-        self.session = requests_cache.CachedSession('parser_cache')
+        self.session = requests_cache.CachedSession('parser_cache',
+                                                    use_cache_dir=True,                # Save files in the default user cache dir
+                                                    cache_control=True,                # Use Cache-Control headers for expiration, if available
+                                                    expire_after=timedelta(days=14),    # Otherwise expire responses after one day)
+                                                    )
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
@@ -104,7 +108,7 @@ class WEChainParser:
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
-                            f"&from={i * 100}&count=100&caller={random.randint(1,500)}" for i in range(nb_req)]
+                            f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
 
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
@@ -157,7 +161,7 @@ class WEChainParser:
         :return: None
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
-        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller={random.randint(1,500)}"
+        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
         print(f"req_counter: {req_counter}")
