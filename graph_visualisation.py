@@ -37,7 +37,6 @@ class GraphVisualisation:
         :return: None
         """
         for layer in range(self.depth):
-            print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
                     self.dot.node(tx.txid, color='red', style='filled', fillcolor='lightblue2',
@@ -50,5 +49,5 @@ class GraphVisualisation:
         """
         for layer in range(self.depth):
             for tx in self.transaction_lists[layer]:
-                if tx.is_special:
+                if tx.is_special and tx.tag is None:
                     self.dot.node(tx.txid, color='green', style='filled', fillcolor='wheat1')
