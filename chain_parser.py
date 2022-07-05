@@ -1,4 +1,5 @@
 import concurrent
+import math
 import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
@@ -67,6 +68,7 @@ class WEChainParser:
                 print(f"Length of Done: {len(done)}")
                 print(f"not_done: {len(not_done)}")
                 successful_urls = []
+                nb_tries = 5
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
@@ -75,7 +77,13 @@ class WEChainParser:
                         finished = False
                         pass
                     except Exception as err:
-                        raise err
+                        if nb_tries == 0:
+                            raise err
+                        else:
+                            finished = False
+                            nb_tries -= 1
+                            print(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            pass
                         # print(f"Unexpected error. ({err})")
 
                 print(f"Length of successful URLs: {len(successful_urls)}")
@@ -238,8 +246,8 @@ class WEChainParser:
 
     def select_inputs(self, tx_content, txid):
         """
-        Selects inputs that we will continue to investigate. Check decision tree to have a better understand on how
-        we decided to handle the different cases
+        Selects inputs that we will continue to investigate. Refer to the decision tree to have a better understanding
+        on how we decided to handle the different cases
         :param txid: Transaction ID
         :param tx_content: Content of the transaction that we are currently looking.
         :return: selected input addresses
@@ -250,7 +258,6 @@ class WEChainParser:
         tx_content['out'].sort(key= lambda x: x['amount'])
         input_values = [add['amount'] for add in tx_content['in']]
         output_values = [add['amount'] for add in tx_content['out']]
-
         if len(output_values) > 1:
             # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
             tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
@@ -289,10 +296,14 @@ class WEChainParser:
             #         used_indexes.update(indexes)
             #     else:
             #         break
-            if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the total
-                tx_content['in'][-1]['special'] = True
-                return [tx_content['in'][-1]]
-
+        if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the total
+            tx_content['in'][-1]['special'] = True
+            return [tx_content['in'][-1]]
+        else:
+            # We also want to prune tx if a number -let's say 20%- of tx represents more than 70% of the total
+            nb_tx = math.ceil(len(input_values) * 0.2)
+            if sum(input_values[-1 - nb_tx: -1]) / sum(input_values) > 0.70:
+                return tx_content['in'][-1 - nb_tx: -1]
         return tx_content['in']
 
     def start_analysis(self):
