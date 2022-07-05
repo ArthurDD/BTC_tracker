@@ -24,6 +24,7 @@ class WEChainParser:
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
     def __init__(self, address, nb_layers):
         self.address = address
+        self.root_value = 0
         self.nb_layers = nb_layers
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
@@ -128,6 +129,9 @@ class WEChainParser:
 
             self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
 
+            self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+            print(f"Root value: {self.root_value}")
+
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
             print()
@@ -160,7 +164,8 @@ class WEChainParser:
                     # re-using his address (change-address = input address)
                     self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
                                                                                   output_addresses=[self.address],
-                                                                                  amount=tx["amount_received"]))
+                                                                                  amount=tx["amount_received"],
+                                                                                  rto=tx["amount_received"]))
             self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
             return link
 
@@ -221,10 +226,7 @@ class WEChainParser:
             else:
                 # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
-                if len(tx_content['in']) > 1:  # and len(tx_content['out']) > 1:
-                    selected_inputs = self.select_inputs(tx_content, txid)
-                else:
-                    selected_inputs = tx_content['in']
+                selected_inputs = self.select_inputs(tx_content, txid)
 
                 for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
@@ -258,27 +260,34 @@ class WEChainParser:
         tx_content['out'].sort(key=lambda x: x['amount'])
         input_values = [add['amount'] for add in tx_content['in']]
         output_values = [add['amount'] for add in tx_content['out']]
-        if len(output_values) > 1:
-            # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
-            tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
-            if tx_index == -1:
-                print(f"Error, something went wrong. Selecting all inputs by default.")
-                return tx_content['in']
-            else:
-                observed_addresses = self.transaction_lists[self.layer_counter - 1][tx_index].output_addresses
-                observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
 
+        # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
+        # This transaction is unique.
+        tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+        if tx_index == -1:  # This case should never happen
+            print(f"Error, something went wrong. Selecting all inputs by default.")
+            self.set_rto(tx_content['in'], -1)
+            return tx_content['in']
+        else:
+            observed_addresses = self.transaction_lists[self.layer_counter - 1][tx_index].output_addresses
+            observed_rto = self.transaction_lists[self.layer_counter - 1][tx_index].rto
+            observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
+
+        if len(input_values) > 1:
             # First check: input_values match with output_values AND that we have the same number of input/outputs
             if input_values == output_values:
-                # Only ONE input value matches our output value(s) - there can be multiple output addresses to look at
+                # Only ONE input value matches our output value(s) (two by two)
+                # - there can be multiple output addresses to look at
                 used_indexes = set()
                 for add in observed_outputs:
-                    if add['amount'] in input_values and output_values.index(add['amount'])not in used_indexes:
+                    if add['amount'] in input_values and output_values.index(add['amount']) not in used_indexes:
                         used_indexes.add(input_values.index(add['amount']))
                 if len(used_indexes) == len(observed_addresses):  # If it's the case:
-                    for i in used_indexes:
-                        tx_content['in'][i]['special'] = True
-                    return [tx_content['in'][i] for i in used_indexes]
+                    selected_inputs = [tx_content['in'][i] for i in used_indexes]
+                    for tx_input in selected_inputs:
+                        tx_input['special'] = True
+                else:
+                    selected_inputs = tx_content['in']
 
             # Second check: there is a sublist of input values whose sum equals our output values (two by two)
             # - Again, there can be multiple output values to look at
@@ -296,15 +305,50 @@ class WEChainParser:
             #         used_indexes.update(indexes)
             #     else:
             #         break
-        if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the total
-            tx_content['in'][-1]['special'] = True
-            return [tx_content['in'][-1]]
+            elif input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the tot.
+                tx_content['in'][-1]['special'] = True
+                selected_inputs = [tx_content['in'][-1]]
+
+            else:
+                # We also want to prune tx if a number -let's say 20%- of tx represents more than 70% of the total
+                nb_tx = math.ceil(len(input_values) * 0.2)
+                if sum(input_values[-1 - nb_tx: -1]) / sum(input_values) > 0.70:
+                    selected_inputs = tx_content['in'][-1 - nb_tx: -1]
+                    for tx_input in selected_inputs:    # Set the status of "pruned"
+                        tx_input['special'] = True
+                elif len(input_values) > 50:
+                    selected_inputs = tx_content['in'][-1 - 10: -1]
+                else:
+                    selected_inputs = tx_content['in']
+
         else:
-            # We also want to prune tx if a number -let's say 20%- of tx represents more than 70% of the total
-            nb_tx = math.ceil(len(input_values) * 0.2)
-            if sum(input_values[-1 - nb_tx: -1]) / sum(input_values) > 0.70:
-                return tx_content['in'][-1 - nb_tx: -1]
-        return tx_content['in']
+            # Need to add the rto to the only input transaction (= to previous rto)
+            selected_inputs = tx_content['in']
+
+        self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
+        return selected_inputs
+
+    def set_rto(self, input_list, rto):
+        """
+        Set rto to each of the tx that are in input_list according to their value
+        :param input_list: Dict of the inputs of a transaction (i.e. future transactions in the next layer)
+        :param rto: rto of the current transaction to share between the next transactions
+        :return: None
+        """
+        sum_value = sum([float(tx['amount']) for tx in input_list])
+        # print(f"\n\nSum value: {sum_value}")
+        # print(f"Previous RTO: {rto}")
+        threshold = self.root_value * 0.0001
+        # print(f"Threshold: {threshold}")
+        for i in range(len(input_list)-1, -1, -1):
+            # print(f"AMount of the input: {input_list[i]['amount']}")
+            input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
+
+            # print(f'RTO: {input_list[i]["rto"]}\n')
+
+            # We only keep transactions with RTOs > 0.1% of the initial received amount from the root address
+            if input_list[i]['rto'] < threshold:
+                input_list.pop(i)
 
     def start_analysis(self):
         self.get_wallet_transactions()
@@ -326,7 +370,7 @@ class WEChainParser:
                 print("...")
             print("\n")
 
-        self.display_time_stats()
+        # self.display_time_stats()
 
     def check_request_limit(self):
         """
