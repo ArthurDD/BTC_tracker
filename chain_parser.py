@@ -7,10 +7,10 @@ from datetime import timedelta
 from functools import partial
 from requests.exceptions import HTTPError
 import sys
-from progress.bar import Bar
 # import requests
 import requests_cache
 from request_limit_reached import RequestLimitReached
+from tqdm import tqdm
 
 from transaction import Transaction, find_transaction
 
@@ -27,7 +27,7 @@ class WEChainParser:
                           f"&from=0&count=100&caller=3"
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
-        self.session = requests_cache.CachedSession('parser_cache',
+        self.session = requests_cache.CachedSession('parser_cache_test',
                                                     use_cache_dir=True,                # Save files in the default user cache dir
                                                     cache_control=True,                # Use Cache-Control headers for expiration, if available
                                                     expire_after=timedelta(days=14),    # Otherwise expire responses after one day)
@@ -36,15 +36,6 @@ class WEChainParser:
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
 
-        # self.proxy_list = []
-        # self.proxy_used = []
-
-        # self.read_proxy_list()  # Reads the proxies in http_proxies.txt
-        # self.change_session_proxy()  # Initialises the session proxy
-        # self.session.proxies = {
-        #     'http': 'http://20.110.214.83:80',
-        #     'https': 'https://20.110.214.83:80',
-        # }
         print(self.wallet_url)
 
     def thread_pool(self, function, url_list):
@@ -54,26 +45,32 @@ class WEChainParser:
         :return: None
         """
         print("Starting threads")
-        with ThreadPoolExecutor() as executor:
-            fn = partial(function)
+        with ThreadPoolExecutor(max_workers=5) as executor, \
+                tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
+            fn = partial(function, p_bar)
             finished = False
             while not finished:
                 finished = True  # Set it to True by default
-                futures = [executor.submit(fn, url) for url in url_list]
+                futures = []
+                for url in url_list:
+                    futures.append(executor.submit(fn, url))
+                    if url not in self.session.cache.urls:  # If the URL has not been cached before
+                        # We will have to respect the request limit of 2req/sec
+                        time.sleep(0.5)
 
                 # Wait for the first exception to occur
-                print(f"Allocating the tasks...")
+                p_bar.write(f"Allocating the tasks...")
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
-                print(f"Length of Done: {len(done)}")
-                print(f"not_done: {len(not_done)}")
+                p_bar.write(f"Length of Done: {len(done)}")
+                p_bar.write(f"not_done: {len(not_done)}")
                 successful_urls = []
                 nb_tries = 5
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
                     except RequestLimitReached:
-                        print("LIMIT REACHED")
+                        p_bar.write("LIMIT REACHED")
                         finished = False
                         pass
                     except Exception as err:
@@ -82,18 +79,18 @@ class WEChainParser:
                         else:
                             finished = False
                             nb_tries -= 1
-                            print(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
                             pass
                         # print(f"Unexpected error. ({err})")
 
-                print(f"Length of successful URLs: {len(successful_urls)}")
+                p_bar.write(f"Length of successful URLs: {len(successful_urls)}")
                 # If all the requests were successful or if we got an error that is not the RequestLimitReached,
                 # we get out of the while loop
                 if not finished:
-                    print("Error while making requests (Request limit exceeded). Retrying in 5s...")
+                    p_bar.write("Error while making requests (Request limit exceeded). Retrying in 5s...")
                     # Remove all the successful requests
                     url_list = [url for url in url_list if url not in successful_urls]
-                    print(f"Length of url_list is now: {len(url_list)}")
+                    p_bar.write(f"Length of url_list is now: {len(url_list)}")
 
                     # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
                     self.session.close()
@@ -134,7 +131,7 @@ class WEChainParser:
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
             print()
 
-    def _retrieve_txids_from_wallet(self, link):
+    def _retrieve_txids_from_wallet(self, p_bar, link):
         """
         Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
         Stores everything in self.transaction_lists[0].
@@ -153,6 +150,7 @@ class WEChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            p_bar.update(1)
             content = req.json()
             for tx in content['txs']:
                 if tx["amount_received"] > 0 and tx["amount_sent"] == 0:
@@ -186,7 +184,7 @@ class WEChainParser:
         print("...")
         self.layer_counter += 1
 
-    def _get_input_addresses(self, link):
+    def _get_input_addresses(self, p_bar, link):
         """
         Called by get_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
@@ -206,16 +204,17 @@ class WEChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
             # print(f"Link: {link}")
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
-                print(f"MINED BITCOINS")
+                # print(f"MINED BITCOINS")
                 i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
-                print(f"IDENTIFIED BITCOIN")
+                # print(f"IDENTIFIED BITCOIN")
                 i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
@@ -398,7 +397,7 @@ def waiting_bar(seconds):
     :param seconds: number of seconds to wait
     :return:
     """
-    for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
+    for _ in tqdm(range(seconds)):
         time.sleep(1)
 
 
