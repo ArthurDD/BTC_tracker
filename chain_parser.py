@@ -28,9 +28,9 @@ class WEChainParser:
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache_test',
-                                                    use_cache_dir=True,                # Save files in the default user cache dir
-                                                    cache_control=True,                # Use Cache-Control headers for expiration, if available
-                                                    expire_after=timedelta(days=14),    # Otherwise expire responses after one day)
+                                                    use_cache_dir=True,       # Save files in the default user cache dir
+                                                    cache_control=True,       # Use Cache-Control headers for expiration, if available
+                                                    expire_after=timedelta(days=14),    # Otherwise expire responses after 14 days)
                                                     )
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
@@ -170,11 +170,8 @@ class WEChainParser:
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
-        req_counter = 0
-        print(f"req_counter: {req_counter}")
         print(f"Number of requests to make: {len(tot_url_list)}")
 
-        print(f"Length of url_list: {len(tot_url_list)}")
         self.thread_pool(self._get_input_addresses, tot_url_list)
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
@@ -207,7 +204,6 @@ class WEChainParser:
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
-            # print(f"Link: {link}")
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 # print(f"MINED BITCOINS")
@@ -254,7 +250,7 @@ class WEChainParser:
 
         # We sort in and out lists as it will be necessary in a further step
         tx_content['in'].sort(key=lambda x: x['amount'])
-        tx_content['out'].sort(key= lambda x: x['amount'])
+        tx_content['out'].sort(key=lambda x: x['amount'])
         input_values = [add['amount'] for add in tx_content['in']]
         output_values = [add['amount'] for add in tx_content['out']]
         if len(output_values) > 1:
