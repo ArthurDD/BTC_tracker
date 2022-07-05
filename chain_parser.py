@@ -5,12 +5,14 @@ from concurrent.futures import ThreadPoolExecutor, wait
 import time
 from datetime import timedelta
 from functools import partial
-from requests.exceptions import HTTPError
+# from requests.exceptions import HTTPError
 import sys
 # import requests
 import requests_cache
 from request_limit_reached import RequestLimitReached
 from tqdm import tqdm
+import numpy as np
+import matplotlib.pyplot as plt
 
 from transaction import Transaction, find_transaction
 
@@ -36,6 +38,8 @@ class WEChainParser:
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
 
+        self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
+
         print(self.wallet_url)
 
     def thread_pool(self, function, url_list):
@@ -45,7 +49,7 @@ class WEChainParser:
         :return: None
         """
         print("Starting threads")
-        with ThreadPoolExecutor(max_workers=5) as executor, \
+        with ThreadPoolExecutor(max_workers=20) as executor, \
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
             finished = False
@@ -116,9 +120,6 @@ class WEChainParser:
             tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
                             f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
 
-            req_counter = 0
-            print(f"Number of requests to make: {nb_req}")
-
             print(f"Length of url_list: {len(tot_url_list)}")
             self.thread_pool(self._retrieve_txids_from_wallet, tot_url_list)
 
@@ -138,6 +139,7 @@ class WEChainParser:
         :param link: Link to make the request to.
         :return: None
         """
+        t_0 = time.time()
         try:
             time.sleep(random.random())
             req = self.session.get(link)
@@ -159,6 +161,7 @@ class WEChainParser:
                     self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"]))
+            self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
             return link
 
     def get_addresses_from_txid(self):
@@ -189,6 +192,7 @@ class WEChainParser:
         :param link: url of the page to parse
         :return:
         """
+        t_0 = time.time()
         try:
             time.sleep(random.random())
             req = self.session.get(link)
@@ -237,6 +241,7 @@ class WEChainParser:
                             self.transaction_lists[self.layer_counter][i].amount += add['amount']
                             if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
                                 self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
+            self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
             return link
 
     def select_inputs(self, tx_content, txid):
@@ -321,6 +326,8 @@ class WEChainParser:
                 print("...")
             print("\n")
 
+        self.display_time_stats()
+
     def check_request_limit(self):
         """
         Checks if we can still make requests. If we can't, we wait until we can.
@@ -356,35 +363,21 @@ class WEChainParser:
               "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
                          for layer in range(self.layer_counter)]) + "\n\n\n")
 
-    # def read_proxy_list(self):
-    #     with open("http_proxies.txt", "r") as f:
-    #         for line in f.readlines():
-    #             if line:
-    #                 self.proxy_list.append(line.strip())
-    #                 self.proxy_used.append(0)
-    #
-    # def change_session_proxy(self):
-    #     proxy_found = False
-    #     proxy = 0
-    #     print("Changing proxy!")
-    #     if 0 not in self.proxy_used:
-    #         # If we have used every proxy (and potentially reached the req. limit on all of them)
-    #         print(f"No more proxy available, please wait until they are refreshed...")
-    #         waiting_bar(60)  # Wait for 60 seconds
-    #         self.proxy_used = [0 for _ in range(len(self.proxy_list))]  # Reset the list of used proxies
-    #
-    #     while not proxy_found:  # Since there is at least one 0 in the list, we will find an available proxy
-    #         proxy = random.randint(0, len(self.proxy_list) - 1)
-    #         print(f"Trying Proxy {proxy}")
-    #         if self.proxy_used[proxy] == 0:
-    #             self.proxy_used[proxy] = 1
-    #             proxy_found = True
-    #
-        # print("Proxy found!")
-        # self.session.proxies = {
-        #     'http': f"http://{self.proxy_list[proxy]}",  # 185.61.152.137:8080
-        #     'https': f"https://{self.proxy_list[proxy]}",
-        # }
+    def display_time_stats(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
+        layers = [f"L-{i} ({len(self.time_stat_dict[i])} req.)" for i in range(self.nb_layers + 1)]
+        y_pos = np.arange(0, len(layers))
+        avg_time = [np.mean(time_l) for time_l in self.time_stat_dict.values()]
+
+        ax.bar(y_pos, avg_time, align='center')
+        ax.set_xticks(y_pos, labels=layers)
+        # ax.invert_yaxis()  # labels read top-to-bottom
+        ax.set_ylabel('Time (s)')
+        ax.set_title('Average request time per layer')
+
+        plt.show()
 
 
 def waiting_bar(seconds):
