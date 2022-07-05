@@ -27,6 +27,7 @@ class GraphVisualisation:
                     if tx.prev_txid == txx.txid:
                         self.dot.edge(txx.txid, tx.txid)
         self.add_labels()
+        self.set_special()
         self.dot.render(directory='doctest-output', view=True)
         print("Tree done!")
 
@@ -36,8 +37,17 @@ class GraphVisualisation:
         :return: None
         """
         for layer in range(self.depth):
-            print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
                     self.dot.node(tx.txid, color='red', style='filled', fillcolor='lightblue2',
                                   label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}")
+
+    def set_special(self):
+        """
+        Change the border color for special transactions (see Transaction Class)
+        :return: None
+        """
+        for layer in range(self.depth):
+            for tx in self.transaction_lists[layer]:
+                if tx.is_special and tx.tag is None:
+                    self.dot.node(tx.txid, color='green', style='filled', fillcolor='wheat1')

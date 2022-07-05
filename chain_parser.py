@@ -1,7 +1,9 @@
 import concurrent
+import math
 import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
+from datetime import timedelta
 from functools import partial
 from requests.exceptions import HTTPError
 import sys
@@ -25,7 +27,11 @@ class WEChainParser:
                           f"&from=0&count=100&caller=3"
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
-        self.session = requests_cache.CachedSession('parser_cache')
+        self.session = requests_cache.CachedSession('parser_cache',
+                                                    use_cache_dir=True,                # Save files in the default user cache dir
+                                                    cache_control=True,                # Use Cache-Control headers for expiration, if available
+                                                    expire_after=timedelta(days=14),    # Otherwise expire responses after one day)
+                                                    )
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
@@ -62,6 +68,7 @@ class WEChainParser:
                 print(f"Length of Done: {len(done)}")
                 print(f"not_done: {len(not_done)}")
                 successful_urls = []
+                nb_tries = 5
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
@@ -70,7 +77,13 @@ class WEChainParser:
                         finished = False
                         pass
                     except Exception as err:
-                        raise err
+                        if nb_tries == 0:
+                            raise err
+                        else:
+                            finished = False
+                            nb_tries -= 1
+                            print(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            pass
                         # print(f"Unexpected error. ({err})")
 
                 print(f"Length of successful URLs: {len(successful_urls)}")
@@ -83,9 +96,9 @@ class WEChainParser:
                     print(f"Length of url_list is now: {len(url_list)}")
 
                     # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
-                    # self.session.close()
+                    self.session.close()
                     waiting_bar(30)   # Waiting for the limit to fade
-                    # self.session = requests_cache.CachedSession('parser_cache')
+                    self.session = requests_cache.CachedSession('parser_cache')
 
     def get_wallet_transactions(self):
         """
@@ -104,7 +117,7 @@ class WEChainParser:
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
-                            f"&from={i * 100}&count=100&caller={random.randint(1,500)}" for i in range(nb_req)]
+                            f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
 
             req_counter = 0
             print(f"Number of requests to make: {nb_req}")
@@ -157,7 +170,7 @@ class WEChainParser:
         :return: None
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
-        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller={random.randint(1,500)}"
+        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
                         for tx in self.transaction_lists[self.layer_counter - 1]]
         req_counter = 0
         print(f"req_counter: {req_counter}")
@@ -194,28 +207,35 @@ class WEChainParser:
                 raise Exception(f"Error occurred: {err}")
         else:
             tx_content = req.json()
-            tx_id = link[link.find("txid="):].split("&")[0][5:]
+            txid = link[link.find("txid="):].split("&")[0][5:]
             # print(f"Link: {link}")
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 print(f"MINED BITCOINS")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
                 print(f"IDENTIFIED BITCOIN")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], tx_id)
+                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
-                # print(f"Number of inputs: {len(tx_content['in'])}")
-                for add in tx_content['in']:
+                # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
+                # We select the inputs that we want to keep
+                if len(tx_content['in']) > 1:  # and len(tx_content['out']) > 1:
+                    selected_inputs = self.select_inputs(tx_content, txid)
+                else:
+                    selected_inputs = tx_content['in']
+
+                for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.layer_counter].append(
-                                Transaction(txid=add['next_tx'], prev_txid=tx_id,
+                                Transaction(txid=add['next_tx'], prev_txid=txid,
                                             amount=add['amount'],
-                                            output_addresses=[add['address']]))
+                                            output_addresses=[add['address']],
+                                            is_special=add['special'] if 'special' in add else None))
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
@@ -223,6 +243,68 @@ class WEChainParser:
                             if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
                                 self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
             return link
+
+    def select_inputs(self, tx_content, txid):
+        """
+        Selects inputs that we will continue to investigate. Refer to the decision tree to have a better understanding
+        on how we decided to handle the different cases
+        :param txid: Transaction ID
+        :param tx_content: Content of the transaction that we are currently looking.
+        :return: selected input addresses
+        """
+
+        # We sort in and out lists as it will be necessary in a further step
+        tx_content['in'].sort(key=lambda x: x['amount'])
+        tx_content['out'].sort(key= lambda x: x['amount'])
+        input_values = [add['amount'] for add in tx_content['in']]
+        output_values = [add['amount'] for add in tx_content['out']]
+        if len(output_values) > 1:
+            # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
+            tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+            if tx_index == -1:
+                print(f"Error, something went wrong. Selecting all inputs by default.")
+                return tx_content['in']
+            else:
+                observed_addresses = self.transaction_lists[self.layer_counter - 1][tx_index].output_addresses
+                observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
+
+            # First check: input_values match with output_values AND that we have the same number of input/outputs
+            if input_values == output_values:
+                # Only ONE input value matches our output value(s) - there can be multiple output addresses to look at
+                used_indexes = set()
+                for add in observed_outputs:
+                    if add['amount'] in input_values and output_values.index(add['amount'])not in used_indexes:
+                        used_indexes.add(input_values.index(add['amount']))
+                if len(used_indexes) == len(observed_addresses):  # If it's the case:
+                    for i in used_indexes:
+                        tx_content['in'][i]['special'] = True
+                    return [tx_content['in'][i] for i in used_indexes]
+
+            # Second check: there is a sublist of input values whose sum equals our output values (two by two)
+            # - Again, there can be multiple output values to look at
+            # TODO: Implement that part, complexity of !n so we need to find another way.
+            # used_indexes = set()
+            # all_good = True
+            # for add in observed_outputs:
+            #     indexes = sub_array_sum(input_values, add['value'])
+            #     if indexes:
+            #         in_set = False
+            #         for index in indexes:
+            #             if index in used_indexes:
+            #                 all_good = False
+            #                 break
+            #         used_indexes.update(indexes)
+            #     else:
+            #         break
+        if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the total
+            tx_content['in'][-1]['special'] = True
+            return [tx_content['in'][-1]]
+        else:
+            # We also want to prune tx if a number -let's say 20%- of tx represents more than 70% of the total
+            nb_tx = math.ceil(len(input_values) * 0.2)
+            if sum(input_values[-1 - nb_tx: -1]) / sum(input_values) > 0.70:
+                return tx_content['in'][-1 - nb_tx: -1]
+        return tx_content['in']
 
     def start_analysis(self):
         self.get_wallet_transactions()
@@ -252,6 +334,32 @@ class WEChainParser:
         if self.remaining_req == 0:
             waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
+
+    def get_statistics(self):
+        """
+        Prints the number of pruned tx and identified tx per layer
+        :return: None
+        """
+        print(f"\n\n\n--------- STATISTICS ---------\n")
+        pruned_tx_lists = {}
+        tagged_tx_lists = {}
+
+        for layer in range(self.layer_counter):
+            pruned_tx_lists[layer] = []
+            tagged_tx_lists[layer] = []
+            for tx in self.transaction_lists[layer]:
+                if tx.tag:
+                    tagged_tx_lists[layer].append(tx)
+                if tx.is_special:
+                    pruned_tx_lists[layer].append(tx)
+
+        print(f"Number of tagged transactions by layer: \n" +
+              "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
+                         for layer in range(self.layer_counter)]) + "\n")
+
+        print(f"Number of pruned transactions by layer: \n" +
+              "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
+                         for layer in range(self.layer_counter)]) + "\n\n\n")
 
     # def read_proxy_list(self):
     #     with open("http_proxies.txt", "r") as f:
@@ -292,3 +400,23 @@ def waiting_bar(seconds):
     """
     for _ in Bar('Waiting for request limit', suffix='%(percent)d%%').iter(range(1, seconds + 1)):
         time.sleep(1)
+
+
+def sub_array_sum(arr, sum_):
+    curr_sum = arr[0]
+    start = 0
+
+    i = 1
+    while i <= len(arr):
+        while curr_sum > sum_ and start < i - 1:
+            curr_sum = curr_sum - arr[start]
+            start += 1
+
+        if curr_sum == sum_:
+            return [k for k in range(start, i)]
+
+        if i < len(arr):
+            curr_sum = curr_sum + arr[i]
+        i += 1
+
+    return []
