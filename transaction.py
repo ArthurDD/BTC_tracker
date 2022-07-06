@@ -1,5 +1,5 @@
 class Transaction:
-    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, is_special=None):
+    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, rto=0, is_special=None, rto_threshold=0):
         """
 
         :param txid: Transaction ID of that transaction
@@ -13,6 +13,9 @@ class Transaction:
         self.prev_txid = prev_txid
         self.output_addresses = output_addresses
         self.amount = amount
+        self.rto = rto  # Ratio To Original - contains the amount of original btc that the transaction is supposed to
+        # represent
+        self.is_below_rto_threshold = False if rto > rto_threshold else True
         self.tag = None
         self.is_special = is_special     # Used to indicate if we pruned the tree based on that tx
 
@@ -27,3 +30,10 @@ def find_transaction(tx_list, txid):
         if tx.txid == txid:
             return i
     return -1
+
+
+def get_prev_transaction_ids(tx_list):
+    id_list = set()
+    for tx in tx_list:
+        id_list.add(tx.prev_txid)
+    return list(id_list)
