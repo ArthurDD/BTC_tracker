@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from transaction import Transaction, find_transaction
 
 
-class WEChainParser:
+class ChainParser:
     # TODO: Once all the requests have been made to retrieve input addresses and their respective txid, check if the
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
@@ -51,7 +51,7 @@ class WEChainParser:
         :return: None
         """
         print("Starting threads")
-        with ThreadPoolExecutor(max_workers=20) as executor, \
+        with ThreadPoolExecutor(max_workers=40) as executor, \
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
             finished = False
@@ -374,7 +374,6 @@ class WEChainParser:
             print("\n")
 
         print(f"RTO threshold is: {self.rto_threshold}")
-        # self.display_time_stats()
 
     def check_request_limit(self):
         """
@@ -393,13 +392,16 @@ class WEChainParser:
         print(f"\n\n\n--------- STATISTICS ---------\n")
         pruned_tx_lists = {}
         tagged_tx_lists = {}
+        tagged_tx_rto = {}
 
         for layer in range(self.layer_counter):
             pruned_tx_lists[layer] = []
             tagged_tx_lists[layer] = []
+            tagged_tx_rto[layer] = 0
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
                     tagged_tx_lists[layer].append(tx)
+                    tagged_tx_rto[layer] += tx.rto
                 if tx.is_special:
                     pruned_tx_lists[layer].append(tx)
 
@@ -411,20 +413,67 @@ class WEChainParser:
               "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
                          for layer in range(self.layer_counter)]) + "\n\n\n")
 
-    def display_time_stats(self):
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
+        print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
+              f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
+
+        self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto)
+
+    def display_time_stats(self, ax=None):
+        """
+        Displays the average request time per layer
+        :param ax: If set to none, displays the bar chart on its own plot. If not, builds the chart on ax directly
+        :return: None
+        """
+        display = False
+        if not ax:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            display = True
 
         layers = [f"L-{i} ({len(self.time_stat_dict[i])} req.)" for i in range(self.nb_layers + 1)]
-        y_pos = np.arange(0, len(layers))
+        x_pos = np.arange(0, len(layers))
         avg_time = [np.mean(time_l) for time_l in self.time_stat_dict.values()]
 
-        ax.bar(y_pos, avg_time, align='center')
-        ax.set_xticks(y_pos, labels=layers)
-        # ax.invert_yaxis()  # labels read top-to-bottom
+        ax.bar(x_pos, avg_time, align='center', width=0.5)
+        ax.set_xlabel('Layers')
         ax.set_ylabel('Time (s)')
         ax.set_title('Average request time per layer')
 
+        if display:
+            plt.show()
+
+    def display_tagged_stats(self, tagged_tx_lists, tagged_tx_rto):
+        """
+        Displays 2 graphs: one with how many transactions were tagged per layer, and one with rto information
+        :return: None
+        """
+        figure, axis = plt.subplots(2, 2)
+
+        tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
+        layers = [i for i in range(len(tagged_by_layer))]
+
+        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i+1]) for i in range(len(tagged_tx_rto))]
+
+        axis[0, 0].bar(layers, tagged_by_layer, color='blue')
+        axis[0, 0].set_ylabel("Tagged tx")
+        axis[0, 0].set_xlabel("Layers")
+        axis[0, 0].set_title("Tagged transactions by layer")
+
+        axis[0, 1].bar(layers, tagged_tx_rto.values(), color='orange')
+        axis[0, 1].set_ylabel("RTO")
+        axis[0, 1].set_xlabel("Layers")
+        axis[0, 1].set_title("Sum of tagged tx's RTO by layer")
+
+        ax_twin = axis[0, 1].twinx()
+        ax_twin.plot(layers, sum_rto_by_layer, color='green')
+        ax_twin.set_ylabel("Total (BTC)")
+
+        self.display_time_stats(axis[1, 0])
+
+        # plt.subplots_adjust(wspace=0.3, hspace=0.3)
+
+        # plt.show()
+        plt.tight_layout()
         plt.show()
 
 
