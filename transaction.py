@@ -32,8 +32,8 @@ def find_transaction(tx_list, txid):
     return -1
 
 
-def get_transaction_ids(tx_list):
+def get_prev_transaction_ids(tx_list):
     id_list = set()
     for tx in tx_list:
-        id_list.add(tx.txid)
+        id_list.add(tx.prev_txid)
     return list(id_list)
