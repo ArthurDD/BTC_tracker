@@ -22,7 +22,7 @@ class WEChainParser:
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
-    def __init__(self, address, nb_layers):
+    def __init__(self, address, nb_layers, rto_threshold=0.1):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers
@@ -38,6 +38,7 @@ class WEChainParser:
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
+        self.rto_threshold = rto_threshold  # rto_threshold is in percentage
 
         self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
 
@@ -64,7 +65,7 @@ class WEChainParser:
                         time.sleep(0.5)
 
                 # Wait for the first exception to occur
-                p_bar.write(f"Allocating the tasks...")
+                # p_bar.write(f"Allocating the tasks...")
                 done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
 
                 p_bar.write(f"Length of Done: {len(done)}")
@@ -130,6 +131,7 @@ class WEChainParser:
             self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
 
             self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+            self.rto_threshold = self.root_value * (self.rto_threshold / 100)
             print(f"Root value: {self.root_value}")
 
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
@@ -177,7 +179,7 @@ class WEChainParser:
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
-                        for tx in self.transaction_lists[self.layer_counter - 1]]
+                        for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_below_rto_threshold]
         print(f"Number of requests to make: {len(tot_url_list)}")
 
         self.thread_pool(self._get_input_addresses, tot_url_list)
@@ -235,8 +237,10 @@ class WEChainParser:
                             self.transaction_lists[self.layer_counter].append(
                                 Transaction(txid=add['next_tx'], prev_txid=txid,
                                             amount=add['amount'],
+                                            rto=add['rto'],
                                             output_addresses=[add['address']],
-                                            is_special=add['special'] if 'special' in add else None))
+                                            is_special=add['special'] if 'special' in add else None,
+                                            rto_threshold=self.rto_threshold))
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
@@ -276,6 +280,8 @@ class WEChainParser:
         if len(input_values) > 1:
             # First check: input_values match with output_values AND that we have the same number of input/outputs
             if input_values == output_values:
+                # TODO: This will never work because of the fee deducted from one of the outputs.
+                #  Instead we could check that input values are almost the same (be careful with the complexity)
                 # Only ONE input value matches our output value(s) (two by two)
                 # - there can be multiple output addresses to look at
                 used_indexes = set()
@@ -284,14 +290,14 @@ class WEChainParser:
                         used_indexes.add(input_values.index(add['amount']))
                 if len(used_indexes) == len(observed_addresses):  # If it's the case:
                     selected_inputs = [tx_content['in'][i] for i in used_indexes]
-                    for tx_input in selected_inputs:
-                        tx_input['special'] = True
+                    # self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+
                 else:
                     selected_inputs = tx_content['in']
 
             # Second check: there is a sublist of input values whose sum equals our output values (two by two)
             # - Again, there can be multiple output values to look at
-            # TODO: Implement that part, complexity of !n so we need to find another way.
+            # TODO: Implement that part, complexity of n! so we need to find another way.
             # used_indexes = set()
             # all_good = True
             # for add in observed_outputs:
@@ -306,18 +312,16 @@ class WEChainParser:
             #     else:
             #         break
             elif input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the tot.
-                tx_content['in'][-1]['special'] = True
                 selected_inputs = [tx_content['in'][-1]]
 
             else:
-                # We also want to prune tx if a number -let's say 20%- of tx represents more than 70% of the total
+                # We also want to prune tx if a number -let's say 20%- of tx represents more than 80% of the total
                 nb_tx = math.ceil(len(input_values) * 0.2)
-                if sum(input_values[-1 - nb_tx: -1]) / sum(input_values) > 0.70:
-                    selected_inputs = tx_content['in'][-1 - nb_tx: -1]
-                    for tx_input in selected_inputs:    # Set the status of "pruned"
-                        tx_input['special'] = True
-                elif len(input_values) > 50:
-                    selected_inputs = tx_content['in'][-1 - 10: -1]
+                if sum(input_values[-1 - nb_tx:]) / sum(input_values) > 0.80:
+                    selected_inputs = tx_content['in'][-1 - nb_tx:]
+
+                elif len(input_values) > 50:    # If too many transactions, we prune them and only take the 10 biggest
+                    selected_inputs = tx_content['in'][-1 - 10:]
                 else:
                     selected_inputs = tx_content['in']
 
@@ -325,6 +329,8 @@ class WEChainParser:
             # Need to add the rto to the only input transaction (= to previous rto)
             selected_inputs = tx_content['in']
 
+        if len(selected_inputs) != len(tx_content['in']):
+            self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
         return selected_inputs
 
@@ -338,16 +344,13 @@ class WEChainParser:
         sum_value = sum([float(tx['amount']) for tx in input_list])
         # print(f"\n\nSum value: {sum_value}")
         # print(f"Previous RTO: {rto}")
-        threshold = self.root_value * 0.0001
-        # print(f"Threshold: {threshold}")
+
         for i in range(len(input_list)-1, -1, -1):
-            # print(f"AMount of the input: {input_list[i]['amount']}")
+            # print(f"Amount of the input: {input_list[i]['amount']}")
             input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
 
-            # print(f'RTO: {input_list[i]["rto"]}\n')
-
-            # We only keep transactions with RTOs > 0.1% of the initial received amount from the root address
-            if input_list[i]['rto'] < threshold:
+            # We only keep transactions with RTOs > threshold
+            if input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
 
     def start_analysis(self):
@@ -370,6 +373,7 @@ class WEChainParser:
                 print("...")
             print("\n")
 
+        print(f"RTO threshold is: {self.rto_threshold}")
         # self.display_time_stats()
 
     def check_request_limit(self):
