@@ -3,3 +3,5 @@ credentials.json
 /test.py
 /.idea/
 /Manual.pages
+parser_cache.sqlite
+/Temp
