@@ -9,13 +9,15 @@ class GraphVisualisation:
         self.dot.graph_attr['rankdir'] = 'LR'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
 
+        self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+
     def build_tree(self):
         self.dot.node_attr['shape'] = 'record'
-        self.dot.node('root', self.root_address)
+        self.dot.node('root', rf"self.root_address\nReceived: {self.root_value}")
         # First, we add all the nodes to the graph
         for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
-                self.dot.node(tx.txid, label=rf"{tx.txid[:8]}...\n {tx.amount} BTC")
+                self.dot.node(tx.txid, label=rf"{tx.txid[:8]}...\n {tx.amount} BTC\n{tx.rto} RTO")
 
         # Add edges between the root node (= input address) and its associated transactions
         self.dot.edges(('root', add.txid) for add in self.transaction_lists[0])
@@ -40,7 +42,7 @@ class GraphVisualisation:
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
                     self.dot.node(tx.txid, color='red', style='filled', fillcolor='lightblue2',
-                                  label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}")
+                                  label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
 
     def set_special(self):
         """
