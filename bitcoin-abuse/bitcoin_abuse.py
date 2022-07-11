@@ -1,5 +1,7 @@
 import gc
+import sys
 import time
+import traceback
 
 import torch
 from torch.utils.data import DataLoader
@@ -8,6 +10,7 @@ from transformers import BertTokenizer, TrainingArguments, IntervalStrategy
 from data_building import build_sets
 from evaluate import evaluate
 from bert_model import BertBA, TrainerBA
+from logger import Logger, ErrorLogger
 
 
 def train_model(train_dataset, eval_dataset, params):
@@ -91,4 +94,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.stdout = Logger()
+    sys.stderr = ErrorLogger(sys.stdout)
+    try:
+        main()
+    except:
+        traceback.print_exc(file=sys.stderr)
+    sys.stdout.terminate()
+
