@@ -27,7 +27,7 @@ def main():
     tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
     # Train the model:
-    param_list = [{"id_param": 0, "epochs": 3, "batch_size": 32, "learning_rate": 0.0005}]
+    param_list = [{"id_param": 0, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005}]
     # {"id_param": 1, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005,},
     # {"id_param": 2, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005,},
     # {"id_param": 3, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005,}]
@@ -50,8 +50,8 @@ def main():
         print(f"\n\n--------- EVALUATION ON THE DEV DATASET ---------")
         report = evaluate(model, tokenizer, test_loader)
         print(f"Accuracry: {report['accuracy']}")
-        print(f"non-PCL f1-score: {report['Fake_Report']['f1-score']}")
-        print(f"PCL f1-score: {report['Genuine_Report']['f1-score']}")
+        print(f"non-PCL f1-score: {report['Fake_Reports']['f1-score']}")
+        print(f"PCL f1-score: {report['Genuine_Reports']['f1-score']}")
 
 
 if __name__ == "__main__":
