@@ -4,7 +4,7 @@ import json
 import langdetect.lang_detect_exception
 import pandas as pd
 
-from report_dataset import ReportDataset
+from report_dataset import BADataset
 import numpy as np
 
 
@@ -51,9 +51,9 @@ def build_sets(tokenizer):
     train_set, dev_set, test_set = split_sets(dataset, 0.8)
 
     # Data augmentation happens inside PatronizingDataset class.
-    train_dataset = ReportDataset(tokenizer, train_set)
-    dev_dataset = ReportDataset(tokenizer, dev_set)
-    test_dataset = ReportDataset(tokenizer, test_set)
+    train_dataset = BADataset(tokenizer, train_set)
+    dev_dataset = BADataset(tokenizer, dev_set)
+    test_dataset = BADataset(tokenizer, test_set)
 
     print(f"\nSize of training_set: {len(train_dataset.labels)}\n"
           f"Fake reports: {len([elt for elt in train_dataset.labels if elt == 0])}\n"

@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class ReportDataset(Dataset):
+class BADataset(Dataset):
 
     def __init__(self, tokenizer, input_set):
         self.tokenizer = tokenizer
