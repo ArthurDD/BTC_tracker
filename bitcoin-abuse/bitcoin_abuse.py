@@ -11,7 +11,6 @@ from evaluate import evaluate
 
 
 def main():
-
     if not torch.cuda.is_available():
         print('WARNING: You may want to change the runtime to GPU for faster training!')
         DEVICE = 'cpu'
@@ -27,10 +26,10 @@ def main():
     tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
     # Train the model:
-    param_list = [{"id_param": 0, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005}]
-    # {"id_param": 1, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005,},
-    # {"id_param": 2, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005,},
-    # {"id_param": 3, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005,}]
+    param_list = [{"id_param": 0, "epochs": 1, "batch_size": 32, "learning_rate": 0.0005},
+                  {"id_param": 1, "epochs": 1, "batch_size": 16, "learning_rate": 0.0005},
+                  {"id_param": 2, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005},
+                  {"id_param": 3, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005}]
 
     train_dataset, dev_dataset, test_dataset = build_sets(tokenizer)
 
