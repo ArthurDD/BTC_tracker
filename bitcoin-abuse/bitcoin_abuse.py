@@ -40,7 +40,7 @@ def main():
 
         # Evaluate the model:
         # your saved model name here
-        model_name = f'./models/ht_bert_finetuned_{params["id_param"]}/'
+        model_name = f'./bitcoin-abuse/models/ht_bert_finetuned_{params["id_param"]}/'
         # model_name = f'./models/ht_bert_best'     # Best trained model
         model = BertBA.from_pretrained(model_name)
 
@@ -49,7 +49,7 @@ def main():
         # FINAL EVALUATION ON THE TEST DATASET:
         print(f"\n\n--------- EVALUATION ON THE DEV DATASET ---------")
         report = evaluate(model, tokenizer, test_loader)
-        print(f"Accuracry: {report['accuracy']}")
+        print(f"Accurary: {report['accuracy']}")
         print(f"non-PCL f1-score: {report['Fake_Reports']['f1-score']}")
         print(f"PCL f1-score: {report['Genuine_Reports']['f1-score']}")
 

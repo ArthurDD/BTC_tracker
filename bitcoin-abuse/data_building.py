@@ -45,7 +45,7 @@ def build_sets(tokenizer):
     :return: train_dataset, dev_dataset, test_dataset, experiments
     """
     # {'texts': texts, 'labels': labels}
-    dataset = pd.read_csv('dataset.csv')
+    dataset = pd.read_csv('./bitcoin-abuse/dataset.csv')
 
     # Split train dataset in train and test dataset:
     train_set, dev_set, test_set = split_sets(dataset, 0.8)
@@ -74,7 +74,7 @@ def build_sets(tokenizer):
 
 # Functions to build dataset
 def retrieve_data(overwrite=True):
-    with open("../credentials.json", "r") as f:
+    with open("./credentials.json", "r") as f:
         dic = json.load(f)
         token = dic['bitcoinabuse']['token']
     url = f"https://www.bitcoinabuse.com/api/download/30d?api_token={token}"
@@ -134,5 +134,5 @@ def filter_data():
 
 
 def data_stats():
-    df = pd.read_csv('dataset.csv')
+    df = pd.read_csv('./bitcoin-abuse/dataset.csv')
     print(df.label.value_counts())

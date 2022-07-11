@@ -11,7 +11,7 @@ def train_model(train_dataset, eval_dataset, params):
     model = BertBA.from_pretrained("bert-base-cased")
 
     training_args = TrainingArguments(
-        output_dir='./experiment/BA',
+        output_dir='./bitcoin-abuse/experiment/BA',
         learning_rate=params["learning_rate"],
         logging_steps=100,
         evaluation_strategy="steps",
@@ -42,4 +42,4 @@ def train_model(train_dataset, eval_dataset, params):
 
     trainer.train()
 
-    trainer.save_model(f"./models/ht_bert_finetuned_{params['id_param']}/")
+    trainer.save_model(f"./bitcoin-abuse/models/ht_bert_finetuned_{params['id_param']}/")
