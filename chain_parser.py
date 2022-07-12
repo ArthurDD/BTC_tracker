@@ -386,7 +386,9 @@ class ChainParser:
 
     def get_statistics(self):
         """
-        Prints the number of pruned tx and identified tx per layer
+        Main function to display stats.
+        - Prints the number of pruned tx and identified tx per layer.
+        - Calls methods to display other stats/charts
         :return: None
         """
         print(f"\n\n\n--------- STATISTICS ---------\n")
