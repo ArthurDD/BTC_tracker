@@ -64,6 +64,8 @@ class Scraper:
         if not address:
             address = self.address
         try:
+            link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}&api_token={self.bitcoinabuse_token}"
+            print(f"Link is: {link}")
             req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={address}"
                                f"&api_token={self.bitcoinabuse_token}")
 
