@@ -22,7 +22,7 @@ class ChainParser:
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
-    def __init__(self, address, nb_layers, rto_threshold=0.1):
+    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers
@@ -33,7 +33,7 @@ class ChainParser:
         self.session = requests_cache.CachedSession('parser_cache_test',
                                                     use_cache_dir=True,       # Save files in the default user cache dir
                                                     cache_control=True,       # Use Cache-Control headers for expiration, if available
-                                                    expire_after=timedelta(days=14),    # Otherwise expire responses after 14 days)
+                                                    expire_after=timedelta(days=cache_expire),    # Otherwise expire responses after 14 days)
                                                     )
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
