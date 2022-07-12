@@ -6,3 +6,4 @@ credentials.json
 parser_cache.sqlite
 /Temp
 /bitcoin_abuse/logs
+/bitcoin_abuse/models/
