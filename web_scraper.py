@@ -1,6 +1,12 @@
 import requests
 from requests.exceptions import HTTPError
 import json
+from functools import partial
+
+from transformers import BertTokenizer
+
+from bitcoin_abuse.bert_model import BertBA
+from bitcoin_abuse.evaluate import predict_BA
 
 
 class Scraper:
@@ -10,6 +16,9 @@ class Scraper:
 
         credentials = self.setup()
         self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
+        self.BA_model = BertBA.from_pretrained(f'./bitcoin_abuse/models/ht_bert_finetuned_{0}/')
+        self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+        self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
 
         self.google_keywords: list = self.get_google_keywords()
         self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']
@@ -45,10 +54,12 @@ class Scraper:
                 dic = json.load(f)
             return dic
 
-    def bitcoinabuse_search(self, address="") -> None:
+    def bitcoinabuse_search(self, address="", display=False) -> dict:
         """
         Get last reports made on the address in input.
-        :return: None
+        :param address: Address to find information for
+        :param display: Whether we print information or we return them.
+        :return: dict of information about the reports
         """
         if not address:
             address = self.address
@@ -65,13 +76,20 @@ class Scraper:
         else:
             print('Success!')
             content = req.json()
+            print(content)
             if content['count'] > 0:
-                print(f"Address reported {content['count']} time(s) in the past: "
-                      f"(Last time reported: {content['last_seen']})")
-                print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  {elt['description']}"
-                                                       for elt in content['recent']]))
+                if display:
+                    print(f"Address reported {content['count']} time(s) in the past: "
+                          f"(Last time reported: {content['last_seen']})")
+                    print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  "
+                                                           f"{elt['description']}"
+                                                           for elt in content['recent']]))
+                else:
+                    return {'found': True, 'report_count': content['count'], 'last_reported': content['last_seen'],
+                            'recent_reports': content['recent']}
             else:
                 print(f"This address has never been reported before.")
+                return {'found': False}
 
     @staticmethod
     def get_google_keywords() -> list:
