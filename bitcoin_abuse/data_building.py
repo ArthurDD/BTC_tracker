@@ -45,7 +45,7 @@ def build_sets(tokenizer):
     :return: train_dataset, dev_dataset, test_dataset, experiments
     """
     # {'texts': texts, 'labels': labels}
-    dataset = pd.read_csv('./bitcoin-abuse/dataset.csv')
+    dataset = pd.read_csv('./bitcoin_abuse/dataset.csv')
 
     # Split train dataset in train and test dataset:
     train_set, dev_set, test_set = split_sets(dataset, 0.8)
@@ -146,11 +146,11 @@ def set_label_manually(row):
 
 
 def enter_labels():
-    dataset = pd.read_csv('./bitcoin-abuse/dataset_real_labels.csv')
+    dataset = pd.read_csv('./bitcoin_abuse/dataset_real_labels.csv')
     dataset['label'] = dataset.apply(set_label_manually, axis=1)
-    dataset.to_csv('./bitcoin-abuse/dataset_real_labels_test.csv', columns=['description', 'label'])
+    dataset.to_csv('./bitcoin_abuse/dataset_real_labels_test.csv', columns=['description', 'label'])
 
 
 def data_stats():
-    df = pd.read_csv('./bitcoin-abuse/dataset.csv')
+    df = pd.read_csv('./bitcoin_abuse/dataset.csv')
     print(df.label.value_counts())
