@@ -38,7 +38,7 @@ class ChainParser:
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
-        self.rto_threshold = rto_threshold  # rto_threshold is in percentage
+        self.rto_threshold = rto_threshold  # rto_threshold is in percentage of the total address received amount
 
         self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
 
