@@ -133,6 +133,24 @@ def filter_data():
     print(df.size)
 
 
+def set_label_manually(row):
+    keywords = ['http']
+    for keyword in keywords:
+        if keyword in row['description']:
+            print("\n\n------------------------------")
+            print(f"{row['description']}")
+            # label = input("Label: ")
+            label = 1
+            return label
+    return row['label']
+
+
+def enter_labels():
+    dataset = pd.read_csv('./bitcoin-abuse/dataset_real_labels.csv')
+    dataset['label'] = dataset.apply(set_label_manually, axis=1)
+    dataset.to_csv('./bitcoin-abuse/dataset_real_labels_test.csv', columns=['description', 'label'])
+
+
 def data_stats():
     df = pd.read_csv('./bitcoin-abuse/dataset.csv')
     print(df.label.value_counts())

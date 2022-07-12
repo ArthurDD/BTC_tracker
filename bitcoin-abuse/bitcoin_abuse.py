@@ -75,6 +75,7 @@ def main():
 
     train_dataset, dev_dataset, test_dataset = build_sets(tokenizer)
 
+    param_list = {}
     for params in param_list:
         print(f"Params used: {params}")
         train_model(train_dataset, dev_dataset, params)

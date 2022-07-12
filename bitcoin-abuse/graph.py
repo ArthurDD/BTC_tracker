@@ -124,4 +124,4 @@ def table(log_name):
     print(tabulate(df_stats, headers='keys', tablefmt='latex'))
 
 
-build_graph("logfile_NLP.txt")  # log_name)
+build_graph("BA_log_2022-07-11_18:12:43.txt")  # log_name)
