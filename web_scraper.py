@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import requests
+import requests_cache
 from requests.exceptions import HTTPError
 import json
 from functools import partial
@@ -10,9 +13,20 @@ from bitcoin_abuse.evaluate import predict_BA
 
 
 class Scraper:
-    def __init__(self, address=""):
+    def __init__(self, address="", session=None):
+        if session is None:
+            self.session = requests_cache.CachedSession('parser_cache_test',
+                                                        use_cache_dir=True,  # Save files in the default user cache dir
+                                                        cache_control=True,
+                                                        # Use Cache-Control headers for expiration, if available
+                                                        expire_after=timedelta(days=14),
+                                                        # Otherwise expire responses after 14 days)
+                                                        )
+        else:
+            self.session = session
+
         self.address: str = address
-        self.bitcoinabuse_ids: dict = {}    # {'abuse_id': 'abuse_type, ...}
+        self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
 
         credentials = self.setup()
         self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
@@ -39,7 +53,7 @@ class Scraper:
         :return: bitcoinabuse API token
         """
         try:
-            req = requests.get(f"https://www.bitcoinabuse.com/api/abuse-types")
+            req = self.session.get(f"https://www.bitcoinabuse.com/api/abuse-types")
 
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -64,34 +78,43 @@ class Scraper:
         if not address:
             address = self.address
         try:
-            link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}&api_token={self.bitcoinabuse_token}"
-            print(f"Link is: {link}")
-            req = requests.get(f"https://www.bitcoinabuse.com/api/reports/check?address={address}"
-                               f"&api_token={self.bitcoinabuse_token}")
+            link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}" \
+                   f"&api_token={self.bitcoinabuse_token}"
+            # print(f"Link is: {link}")
+            req = self.session.get(link)
 
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
-        except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f'bitcoinabuse_search - Error occurred: {err}')
+            return {}
         else:
-            print('Success!')
+            # print('Success!')
             content = req.json()
-            print(content)
             if content['count'] > 0:
+                abuse_type_dict = {f'{key}': 0 for key in self.bitcoinabuse_ids.values()}
+
+                for i in range(len(content['recent']) - 1, -1, -1):
+                    # If it's a genuine report:
+                    if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
+                        # Count abuse types
+                        abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
+                    else:  # We remove fake reports
+                        content['recent'].pop(i)
                 if display:
-                    print(f"Address reported {content['count']} time(s) in the past: "
-                          f"(Last time reported: {content['last_seen']})")
-                    print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  "
-                                                           f"{elt['description']}"
-                                                           for elt in content['recent']]))
-                else:
-                    return {'found': True, 'report_count': content['count'], 'last_reported': content['last_seen'],
-                            'recent_reports': content['recent']}
+                    pass
+                    # print(f"Address ({address[:10]}...)reported {content['count']} time(s) in the past: "
+                    #       f"(Last time reported: {content['last_seen']})")
+                    # print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  "
+                    #                                        f"{elt['description']}"
+                    #                                        for elt in content['recent']]))
+
+                return {'found': True, 'address': address, 'total_report_count': content['count'],
+                        'last_reported': content['last_seen'], 'genuine_report': content['recent'],
+                        'genuine_recent_count': len(content['recent']), 'report_types': abuse_type_dict}
             else:
-                print(f"This address has never been reported before.")
-                return {'found': False}
+                # print(f"This address has never been reported before.")
+                return {'found': False, 'address': address}
 
     @staticmethod
     def get_google_keywords() -> list:
@@ -114,7 +137,7 @@ class Scraper:
             address = self.address
         try:
             params = {'cx': self.google_custom_engine_id, 'q': address, 'key': self.google_custom_search_api_key}
-            req = requests.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
+            req = self.session.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
@@ -122,7 +145,7 @@ class Scraper:
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:
-            print('Success!')
+            # print('Success!')
 
             content = req.json()
             search_info = content['searchInformation']
@@ -153,10 +176,11 @@ class Scraper:
             headers = {"Authorization": f"Bearer {self.twitter_bearer_token}"}
             params = {'query': query, 'tweet.fields': {tweet_fields}, 'max_results': 10}
 
-            response = requests.get("https://api.twitter.com/2/tweets/search/recent", headers=headers, params=params)
+            response = self.session.get("https://api.twitter.com/2/tweets/search/recent",
+                                        headers=headers, params=params)
 
             # To get user's username from its ID
-            # response2 = requests.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
+            # response2 = self.session.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
 
         except HTTPError as http_err:
             print(f'HTTP error occurred: {http_err}')  # Python 3.6
@@ -200,22 +224,23 @@ class Scraper:
             address = self.address
 
         if not self.reddit_access_token:
-            print(f"Could not retrieve any information from Reddit, invalid access token! (={self.reddit_access_token})")
+            print(
+                f"Could not retrieve any information from Reddit, invalid access token! (={self.reddit_access_token})")
             return
 
         # add authorization to our headers dictionary
         headers = {'User-Agent': 'BTC_Tracker/0.0.1', 'Authorization': f"bearer {self.reddit_access_token}"}
-        requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
+        self.session.get('https://oauth.reddit.com/api/v1/me', headers=headers)
 
         try:
-            req = requests.get(f"https://oauth.reddit.com/search?q={address}",
-                               headers=headers)
+            req = self.session.get(f"https://oauth.reddit.com/search?q={address}",
+                                   headers=headers)
 
             req.raise_for_status()
         except HTTPError as http_err:
             if req.status_code == 401:  # If the token is not valid anymore, we request a new one
                 self.reddit_access_token = self.get_reddit_token()
-                self.reddit_search()    # And we start the search again
+                self.reddit_search()  # And we start the search again
             else:
                 print(f'HTTP error occurred: {http_err}')
         except Exception as err:

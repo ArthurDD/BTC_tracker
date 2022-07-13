@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from transaction import Transaction, find_transaction
+from web_scraper import Scraper
 
 
 class ChainParser:
@@ -31,21 +32,29 @@ class ChainParser:
         self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache_test',
-                                                    use_cache_dir=True,       # Save files in the default user cache dir
-                                                    cache_control=True,       # Use Cache-Control headers for expiration, if available
-                                                    expire_after=timedelta(days=cache_expire),    # Otherwise expire responses after 14 days)
+                                                    use_cache_dir=True,  # Save files in the default user cache dir
+                                                    cache_control=True,
+                                                    # Use Cache-Control headers for expiration, if available
+                                                    expire_after=timedelta(days=cache_expire),
+                                                    # Otherwise expire responses after 14 days)
                                                     )
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
         self.rto_threshold = rto_threshold  # rto_threshold is in percentage of the total address received amount
 
+        print(f"Session is: {self.session}")
+        self.web_scraper = Scraper(self.address, self.session)
+        self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
+        self.ba_reports['root'] = []
+
         self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
 
         print(self.wallet_url)
 
-    def thread_pool(self, function, url_list):
+    def thread_pool(self, function, url_list, address_list=None):
         """
+        :param address_list: List of list of output addresses that we need to request reports for from bitcoinabuse.com.
         :param function: Either self._get_input_addresses or self._retrieve_txids_from_wallet
         :param url_list: List of URLs to parse
         :return: None
@@ -55,11 +64,18 @@ class ChainParser:
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
             finished = False
+            nb_tries = 5
             while not finished:
                 finished = True  # Set it to True by default
                 futures = []
-                for url in url_list:
-                    futures.append(executor.submit(fn, url))
+                for i in range(len(url_list)):
+                    url = url_list[i]
+                    if address_list:
+                        output_addresses = address_list[i]
+                    else:
+                        output_addresses = []
+
+                    futures.append(executor.submit(fn, (url, output_addresses)))
                     if url not in self.session.cache.urls:  # If the URL has not been cached before
                         # We will have to respect the request limit of 2req/sec
                         time.sleep(0.5)
@@ -71,7 +87,6 @@ class ChainParser:
                 p_bar.write(f"Length of Done: {len(done)}")
                 p_bar.write(f"not_done: {len(not_done)}")
                 successful_urls = []
-                nb_tries = 5
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
@@ -100,7 +115,7 @@ class ChainParser:
 
                     # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
                     self.session.close()
-                    waiting_bar(30)   # Waiting for the limit to fade
+                    waiting_bar(30)  # Waiting for the limit to fade
                     self.session = requests_cache.CachedSession('parser_cache')
 
     def get_wallet_transactions(self):
@@ -117,6 +132,10 @@ class ChainParser:
             print(f'get_wallet_transactions - Error occurred: {err}')
         else:
             print(req.json())
+
+            # Get the potential reports on the root address (doesn't need to be a list, but for uniformity purposes)
+            self.ba_reports['root'].append(self.web_scraper.bitcoinabuse_search(self.address))
+
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
@@ -138,7 +157,7 @@ class ChainParser:
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
             print()
 
-    def _retrieve_txids_from_wallet(self, p_bar, link):
+    def _retrieve_txids_from_wallet(self, p_bar, req_info):
         """
         Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
         Stores everything in self.transaction_lists[0].
@@ -148,6 +167,7 @@ class ChainParser:
         t_0 = time.time()
         try:
             time.sleep(random.random())
+            link = req_info[0]  # Don't need to request BA in this function as the only add is the root address
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -180,9 +200,16 @@ class ChainParser:
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
                         for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_below_rto_threshold]
+        tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]
+                            if not tx.is_below_rto_threshold]
+        # tot_address_list = list(set(address for address in [tx.output_addresses
+        #                                                     for tx in self.transaction_lists[self.layer_counter - 1]
+        #                                                     if not tx.is_below_rto_threshold]))
+        # print(f"Tot_address_list: {tot_address_list}")
+        print(f"Length of tot_address_list: {len(tot_address_list)}")
         print(f"Number of requests to make: {len(tot_url_list)}")
 
-        self.thread_pool(self._get_input_addresses, tot_url_list)
+        self.thread_pool(self._get_input_addresses, tot_url_list, tot_address_list)
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
         print(f"Tx of layer {self.layer_counter}:")
@@ -191,7 +218,7 @@ class ChainParser:
         print("...")
         self.layer_counter += 1
 
-    def _get_input_addresses(self, p_bar, link):
+    def _get_input_addresses(self, p_bar, req_info):
         """
         Called by get_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
@@ -200,6 +227,10 @@ class ChainParser:
         :return:
         """
         t_0 = time.time()
+        link = req_info[0]
+        # print(f"Link: {link}")
+        output_addresses = req_info[1]
+        # print(f"Output_addresses: {output_addresses}\n\n")
         try:
             time.sleep(random.random())
             req = self.session.get(link)
@@ -212,6 +243,17 @@ class ChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            # We do bitcoinabuse requests:
+            for add in output_addresses:
+                # We first check that the address is not already in ba_reports
+                time.sleep(random.random())  # Since requests are made (almost) simultaneously, sometimes they are not
+                # added fast enough to the list, and are therefore queried multiple times
+                # (only an issue for the first layer and when the tx requests have been cached)
+                if not self.already_queried(add):
+                    ba_info = self.web_scraper.bitcoinabuse_search(add)
+                    if ba_info:
+                        # p_bar.write(f"ba_reports: {self.ba_reports[self.layer_counter - 1]}")
+                        self.ba_reports[self.layer_counter - 1].append(ba_info)
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
@@ -320,7 +362,7 @@ class ChainParser:
                 if sum(input_values[-1 - nb_tx:]) / sum(input_values) > 0.80:
                     selected_inputs = tx_content['in'][-1 - nb_tx:]
 
-                elif len(input_values) > 50:    # If too many transactions, we prune them and only take the 10 biggest
+                elif len(input_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
                     selected_inputs = tx_content['in'][-1 - 10:]
                 else:
                     selected_inputs = tx_content['in']
@@ -345,13 +387,36 @@ class ChainParser:
         # print(f"\n\nSum value: {sum_value}")
         # print(f"Previous RTO: {rto}")
 
-        for i in range(len(input_list)-1, -1, -1):
+        for i in range(len(input_list) - 1, -1, -1):
             # print(f"Amount of the input: {input_list[i]['amount']}")
             input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
 
             # We only keep transactions with RTOs > threshold
             if input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
+
+    def already_queried(self, address):
+        """
+        Returns whether the address has already been queried on BitcoinAbuse or not.
+        :param address: address to look
+        :return: Bool -> False if not queried yet, True if already in the report list.
+        """
+        for elt in self.ba_reports[self.layer_counter - 1]:
+            if elt['address'] == address:
+                return True
+        return False
+
+    def clean_reports(self):
+        """
+        Removes reports that are in the same layer more than once (happens because the requests are made too fast
+        for the function to not make the request if the address is already in the list)
+        Also removes empty reports (i.e. found = False)
+        :return: None
+        """
+        for i in range(self.nb_layers + 1):
+            for k in range(len(self.ba_reports[i]) - 1, -1, -1):
+                if not self.ba_reports[i][k]['found'] or self.ba_reports[i][k] in self.ba_reports[i][:k]:
+                    self.ba_reports[i].pop(k)
 
     def start_analysis(self):
         self.get_wallet_transactions()
@@ -372,6 +437,10 @@ class ChainParser:
             if len(self.transaction_lists[i]) >= 15:
                 print("...")
             print("\n")
+
+        print("\n\n")
+        self.clean_reports()    # Removes all the reports that are more than once in the list and that are empty
+        print(f"BA_reports: {self.ba_reports}\n\n")
 
         print(f"RTO threshold is: {self.rto_threshold}")
 
@@ -454,7 +523,7 @@ class ChainParser:
         tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
         layers = [i for i in range(len(tagged_by_layer))]
 
-        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i+1]) for i in range(len(tagged_tx_rto))]
+        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
 
         axis[0, 0].bar(layers, tagged_by_layer, color='blue')
         axis[0, 0].set_ylabel("Tagged tx")

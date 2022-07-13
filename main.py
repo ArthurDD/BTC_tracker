@@ -9,14 +9,15 @@ def main():
     address = "115ZFznB6rTteLDF18AQTf2SWNBtoywoxb"  # Smaller address
     # address = "1MTKuR4CHJEZ1qSvoHyE8MDrVs4f1HQP5L"
 
-    scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
-    try_scraper(scamming_address)
-    # try_parser(address)
+    # scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
+    # try_scraper(scamming_address)
+    try_parser(address)
 
 
 def try_scraper(address):
     web_scraper = Scraper(address)
-    web_scraper.bitcoinabuse_search()
+    resp = web_scraper.bitcoinabuse_search(display=True)
+    print(resp)
     # web_scraper.google_search()
     # web_scraper.twitter_search()
     # web_scraper.reddit_search("Arthur")
@@ -24,9 +25,9 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    chain_parser = ChainParser(address, 15)
+    chain_parser = ChainParser(address, 4)
     chain_parser.start_analysis()
-    chain_parser.get_statistics()
+    # chain_parser.get_statistics()
 
     # Build the tree
     tree = GraphVisualisation(chain_parser.transaction_lists)
