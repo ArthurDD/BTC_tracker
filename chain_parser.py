@@ -43,7 +43,6 @@ class ChainParser:
         self.added_before = []
         self.rto_threshold = rto_threshold  # rto_threshold is in percentage of the total address received amount
 
-        print(f"Session is: {self.session}")
         self.web_scraper = Scraper(self.address, self.session)
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
         self.ba_reports['root'] = []
@@ -161,7 +160,8 @@ class ChainParser:
         """
         Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
         Stores everything in self.transaction_lists[0].
-        :param link: Link to make the request to.
+        :param p_bar: tqdm progress bar, to print without messing the bar display
+        :param req_info: Tuple of url to make the request to, and the addresses to query from BA. (url, [ad1, ad2..])
         :return: None
         """
         t_0 = time.time()
@@ -223,7 +223,8 @@ class ChainParser:
         Called by get_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
         associated txid.
-        :param link: url of the page to parse
+        :param p_bar: tqdm progress bar, to print without messing the bar display
+        :param req_info: Tuple of url to make the request to, and the addresses to query from BA. (url, [ad1, ad2..])
         :return:
         """
         t_0 = time.time()
@@ -419,6 +420,7 @@ class ChainParser:
                     self.ba_reports[i].pop(k)
 
     def start_analysis(self):
+        """ Method to start the analysis of the root address. Builds every layer. """
         self.get_wallet_transactions()
 
         while self.layer_counter <= self.nb_layers:
@@ -440,7 +442,7 @@ class ChainParser:
 
         print("\n\n")
         self.clean_reports()    # Removes all the reports that are more than once in the list and that are empty
-        print(f"BA_reports: {self.ba_reports}\n\n")
+        print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
 
         print(f"RTO threshold is: {self.rto_threshold}")
 
