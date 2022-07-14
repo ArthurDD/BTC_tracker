@@ -54,7 +54,7 @@ class GraphVisualisation:
         """
         for layer in range(self.depth):
             for tx in self.transaction_lists[layer]:
-                if tx.is_special and tx.tag is None:
+                if tx.is_pruned and tx.tag is None:
                     self.dot.node(tx.txid, color='green', style='filled', fillcolor='lightblue2')
 
     def set_low_rto(self):
@@ -66,6 +66,6 @@ class GraphVisualisation:
         for layer in range(self.depth - 1):
             txid_list = get_prev_transaction_ids(self.transaction_lists[layer + 1])
             for tx in self.transaction_lists[layer]:
-                if not tx.is_special and not tx.tag and tx.txid not in txid_list:
+                if not tx.is_pruned and not tx.tag and tx.txid not in txid_list:
                     # If this tx has nothing special and is not linked to any future transaction
                     self.dot.node(tx.txid, color='blue', style='filled', fillcolor='azure3')

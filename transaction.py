@@ -1,5 +1,5 @@
 class Transaction:
-    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, rto=0, is_special=None, rto_threshold=0):
+    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, rto=0, is_pruned=None, rto_threshold=0):
         """
 
         :param txid: Transaction ID of that transaction
@@ -17,7 +17,7 @@ class Transaction:
         # represent
         self.is_below_rto_threshold = False if rto > rto_threshold else True
         self.tag = None
-        self.is_special = is_special     # Used to indicate if we pruned the tree based on that tx
+        self.is_pruned = is_pruned     # Used to indicate if we pruned the tree based on that tx
 
     def __str__(self):
         # print(f"'txid': {self.txid}, 'next_txid': {self.next_txid}, 'output_addresses': {self.output_addresses}, "

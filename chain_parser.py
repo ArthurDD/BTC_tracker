@@ -280,7 +280,7 @@ class ChainParser:
                                             amount=add['amount'],
                                             rto=add['rto'],
                                             output_addresses=[add['address']],
-                                            is_special=add['special'] if 'special' in add else None,
+                                            is_pruned=add['pruned'] if 'pruned' in add else None,   # Not used anymore
                                             rto_threshold=self.rto_threshold))
                         else:
                             self.added_before.append(add['next_tx'])
@@ -321,7 +321,7 @@ class ChainParser:
         if len(input_values) > 1:
             # First, we calculate the tx fee by adding all the input values and subtracting the output values
             tx_fee = sum(input_values) - sum(output_values)
-            print(f"tx_fee for {txid}: {tx_fee}")
+            # print(f"tx_fee for {txid}: {tx_fee}")
             # Then, 1st check: input_values match with output_values AND that we have the same number of input/outputs
             for i in range(len(output_values)):
                 output_values[i] += tx_fee
@@ -334,7 +334,8 @@ class ChainParser:
                             used_indexes.add(input_values.index(add['amount']))
                     if len(used_indexes) == len(observed_addresses):  # If it's the case:
                         selected_inputs = [tx_content['in'][i] for i in used_indexes]
-                        # self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+                        print(f"FACULTY")
+                        # self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
                     else:
                         selected_inputs = tx_content['in']
 
@@ -363,7 +364,7 @@ class ChainParser:
             selected_inputs = tx_content['in']
 
         if len(selected_inputs) != len(tx_content['in']):
-            self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+            self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
 
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
 
@@ -465,7 +466,7 @@ class ChainParser:
                 if tx.tag:
                     tagged_tx_lists[layer].append(tx)
                     tagged_tx_rto[layer] += tx.rto
-                if tx.is_special:
+                if tx.is_pruned:
                     pruned_tx_lists[layer].append(tx)
 
         print(f"Number of tagged transactions by layer: \n" +
