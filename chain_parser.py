@@ -319,40 +319,32 @@ class ChainParser:
             observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
 
         if len(input_values) > 1:
-            # First check: input_values match with output_values AND that we have the same number of input/outputs
-            if input_values == output_values:
-                # TODO: This will never work because of the fee deducted from one of the outputs.
-                #  Instead we could check that input values are almost the same (be careful with the complexity)
-                # Only ONE input value matches our output value(s) (two by two)
-                # - there can be multiple output addresses to look at
-                used_indexes = set()
-                for add in observed_outputs:
-                    if add['amount'] in input_values and output_values.index(add['amount']) not in used_indexes:
-                        used_indexes.add(input_values.index(add['amount']))
-                if len(used_indexes) == len(observed_addresses):  # If it's the case:
-                    selected_inputs = [tx_content['in'][i] for i in used_indexes]
-                    # self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+            # First, we calculate the tx fee by adding all the input values and subtracting the output values
+            tx_fee = sum(input_values) - sum(output_values)
+            print(f"tx_fee for {txid}: {tx_fee}")
+            # Then, 1st check: input_values match with output_values AND that we have the same number of input/outputs
+            for i in range(len(output_values)):
+                output_values[i] += tx_fee
+                if input_values == output_values:
+                    # Only ONE input value matches our output value(s) (two by two)
+                    # - there can be multiple output addresses to look at
+                    used_indexes = set()
+                    for add in observed_outputs:
+                        if add['amount'] in input_values and output_values.index(add['amount']) not in used_indexes:
+                            used_indexes.add(input_values.index(add['amount']))
+                    if len(used_indexes) == len(observed_addresses):  # If it's the case:
+                        selected_inputs = [tx_content['in'][i] for i in used_indexes]
+                        # self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+                    else:
+                        selected_inputs = tx_content['in']
 
-                else:
-                    selected_inputs = tx_content['in']
+                    return selected_inputs
 
             # Second check: there is a sublist of input values whose sum equals our output values (two by two)
             # - Again, there can be multiple output values to look at
             # TODO: Implement that part, complexity of n! so we need to find another way.
-            # used_indexes = set()
-            # all_good = True
-            # for add in observed_outputs:
-            #     indexes = sub_array_sum(input_values, add['value'])
-            #     if indexes:
-            #         in_set = False
-            #         for index in indexes:
-            #             if index in used_indexes:
-            #                 all_good = False
-            #                 break
-            #         used_indexes.update(indexes)
-            #     else:
-            #         break
-            elif input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the tot.
+
+            if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the tot.
                 selected_inputs = [tx_content['in'][-1]]
 
             else:
@@ -372,7 +364,9 @@ class ChainParser:
 
         if len(selected_inputs) != len(tx_content['in']):
             self.transaction_lists[self.layer_counter - 1][tx_index].is_special = True
+
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
+
         return selected_inputs
 
     def set_rto(self, input_list, rto):
