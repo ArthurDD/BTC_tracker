@@ -5,4 +5,5 @@ credentials.json
 /Manual.pages
 parser_cache.sqlite
 /Temp
-/bitcoin-abuse/logs
+/bitcoin_abuse/logs
+/bitcoin_abuse/models/

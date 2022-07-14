@@ -3,7 +3,7 @@ import traceback
 from datetime import datetime
 
 
-log_folder = "bitcoin-abuse/logs"
+log_folder = "bitcoin_abuse/logs"
 
 
 class ErrorLogger:

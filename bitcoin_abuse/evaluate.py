@@ -3,7 +3,7 @@ from sklearn.metrics import classification_report
 from tqdm import tqdm
 
 
-def predict_BA(input, tokenizer, model):
+def predict_BA(tokenizer, model, input):
     """
     Predicts the label of the input according to the model.
     :param input: texts to predict label of.
@@ -44,7 +44,7 @@ def run_evaluation(model, tokenizer, data_loader):
             tweets = data['text']
             labels = data['label']
 
-            pred = predict_BA(tweets, tokenizer, model)
+            pred = predict_BA(tokenizer, model, tweets)
 
             preds.append(pred['prediction'].tolist())
             true_labels.append(labels.tolist())
