@@ -45,7 +45,7 @@ class ChainParser:
 
         self.web_scraper = Scraper(self.address, self.session)
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
-        self.ba_reports['root'] = []
+        self.already_queried_addresses = set()
 
         self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
 
@@ -130,10 +130,7 @@ class ChainParser:
         except Exception as err:
             print(f'get_wallet_transactions - Error occurred: {err}')
         else:
-            print(req.json())
-
-            # Get the potential reports on the root address (doesn't need to be a list, but for uniformity purposes)
-            self.ba_reports['root'].append(self.web_scraper.bitcoinabuse_search(self.address))
+            # print(req.json())
 
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
@@ -250,7 +247,8 @@ class ChainParser:
                 time.sleep(random.random())  # Since requests are made (almost) simultaneously, sometimes they are not
                 # added fast enough to the list, and are therefore queried multiple times
                 # (only an issue for the first layer and when the tx requests have been cached)
-                if not self.already_queried(add):
+                if add not in self.already_queried_addresses:
+                    self.already_queried_addresses.add(add)
                     ba_info = self.web_scraper.bitcoinabuse_search(add)
                     if ba_info:
                         # p_bar.write(f"ba_reports: {self.ba_reports[self.layer_counter - 1]}")
