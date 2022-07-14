@@ -209,7 +209,7 @@ class Scraper:
         token_req = False
         counter = 0
         # We try at most 100 times to get the token if the request fails
-        while not token_req and counter < 100:
+        while not token_req and counter < 5:
             try:
                 counter += 1
                 response = requests.post('https://www.reddit.com/api/v1/access_token',
@@ -219,6 +219,8 @@ class Scraper:
                 pass
             else:
                 token_req = True
+        if not token_req:
+            raise "Error while requesting reddit access token."
         return access_token
 
     def reddit_search(self, address="") -> None:
@@ -246,7 +248,7 @@ class Scraper:
         except HTTPError as http_err:
             if req.status_code == 401:  # If the token is not valid anymore, we request a new one
                 self.reddit_access_token = self.get_reddit_token()
-                self.reddit_search()  # And we start the search again
+                self.reddit_search(address)  # And we start the search again
             else:
                 print(f'HTTP error occurred: {http_err}')
         except Exception as err:
