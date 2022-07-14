@@ -413,9 +413,7 @@ class ChainParser:
         :return: None
         """
         for i in range(self.nb_layers + 1):
-            for k in range(len(self.ba_reports[i]) - 1, -1, -1):
-                if not self.ba_reports[i][k]['found'] or self.ba_reports[i][k] in self.ba_reports[i][:k]:
-                    self.ba_reports[i].pop(k)
+            self.ba_reports[i] = list(filter(lambda elt: elt['found'] is True, self.ba_reports[i]))
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
@@ -439,7 +437,7 @@ class ChainParser:
             print("\n")
 
         print("\n\n")
-        self.clean_reports()    # Removes all the reports that are more than once in the list and that are empty
+        self.clean_reports()  # Removes empty reports
         print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
 
         print(f"RTO threshold is: {self.rto_threshold}")
