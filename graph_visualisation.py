@@ -29,10 +29,14 @@ class GraphVisualisation:
             for tx in self.transaction_lists[layer]:
                 for txx in self.transaction_lists[layer - 1]:
                     if tx.prev_txid == txx.txid:
-                        self.dot.edge(txx.txid, tx.txid)
+                        if not txx.is_pruned:
+                            self.dot.edge(txx.txid, tx.txid)
+                        else:
+                            self.dot.edge(txx.txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
-        self.set_special()
+        # self.set_special()
         self.set_low_rto()
+        self.make_legend()
         self.dot.render(directory='doctest-output', view=True)
         print("Tree done!")
 
@@ -44,7 +48,7 @@ class GraphVisualisation:
         for layer in range(self.depth):
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
-                    self.dot.node(tx.txid, color='red', style='filled, bold', fillcolor='orange',
+                    self.dot.node(tx.txid, style='filled', fillcolor='orange',
                                   label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
 
     def set_special(self):
@@ -52,10 +56,12 @@ class GraphVisualisation:
         Change the border colour for special transactions (see Transaction Class)
         :return: None
         """
-        for layer in range(self.depth):
+        for layer in range(1, self.depth):
             for tx in self.transaction_lists[layer]:
-                if tx.is_pruned and tx.tag is None:
-                    self.dot.node(tx.txid, color='green', style='filled', fillcolor='lightblue2')
+                for txx in self.transaction_lists[layer - 1]:
+                    if tx.prev_txid == txx.txid and txx.is_pruned:
+                        self.dot.edge(txx.txid, tx.txid, style='dashed, bold', color="azure3")
+                        # self.dot.node(tx.txid, color='green', style='filled', fillcolor='lightblue2')
 
     def set_low_rto(self):
         """
@@ -69,3 +75,13 @@ class GraphVisualisation:
                 if not tx.is_pruned and not tx.tag and tx.txid not in txid_list:
                     # If this tx has nothing special and is not linked to any future transaction
                     self.dot.node(tx.txid, color='blue', style='filled', fillcolor='azure3')
+
+    def make_legend(self):
+        with self.dot.subgraph(name='cluster_legend') as c:
+            c.attr(label="Legend", color='blue')
+            c.node("pruned_tx", label="", penwidth='0')
+            c.node("pruned_tx_end", label="", penwidth='0')
+            c.edge("pruned_tx", "pruned_tx_end", label="Pruned Tx", style='dashed, bold', color="azure3")
+            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='azure3')
+            c.node("tagged_tx", label="Tagged TX", color='orange', style='filled', fillcolor='orange')
+            c.node("reported_add", label="Reported Address", color='red', style='bold')
