@@ -34,6 +34,8 @@ class Scraper:
         self.BA_model = BertBA.from_pretrained(f'./bitcoin_abuse/models/ht_bert_finetuned_{0}/')
         self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
+        self.ba_wait = False
+        self.ba_time = 0
 
         self.google_keywords: list = self.get_google_keywords()
         self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']
@@ -76,51 +78,69 @@ class Scraper:
         :param display: Whether we print information or we return them.
         :return: dict of information about the reports
         """
-        if not address:
-            address = self.address
+        self.check_ba_wait()
+        if not self.ba_wait:
+            if not address:
+                address = self.address
 
-        nb_tries = 0
-        while nb_tries < 5:
-            try:
-                link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}" \
-                       f"&api_token={self.bitcoinabuse_token}"
-                # print(f"Link is: {link}")
-                req = self.session.get(link)
+            nb_tries = 0
+            while nb_tries < 5 and not self.ba_wait:
+                try:
+                    link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}" \
+                           f"&api_token={self.bitcoinabuse_token}"
+                    # print(f"Link is: {link}")
+                    req = self.session.get(link)
 
-                # If the response was successful, no Exception will be raised
-                req.raise_for_status()
-            except Exception as err:
-                nb_tries += 1
-                print(f'bitcoinabuse_search - Error occurred: {err}\n Retrying in 3s...')
-                time.sleep(3)   # Sleep for 3 seconds to make the request again
-            else:
-                content = req.json()
-                if content['count'] > 0:
-                    abuse_type_dict = {f'{key}': 0 for key in self.bitcoinabuse_ids.values()}
-
-                    for i in range(len(content['recent']) - 1, -1, -1):
-                        # If it's a genuine report:
-                        if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
-                            # Count abuse types
-                            abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
-                        else:  # We remove fake reports
-                            content['recent'].pop(i)
-                    if display:
-                        print(f"Address ({address[:10]}...)reported {content['count']} time(s) in the past: "
-                              f"(Last time reported: {content['last_seen']})")
-                        print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  "
-                                                               f"{elt['description']}"
-                                                               for elt in content['recent']]))
-
-                    return {'found': True, 'address': address, 'total_report_count': content['count'],
-                            'last_reported': content['last_seen'], 'genuine_report': content['recent'],
-                            'genuine_recent_count': len(content['recent']), 'report_types': abuse_type_dict}
+                    # If the response was successful, no Exception will be raised
+                    req.raise_for_status()
+                except Exception as err:
+                    if "Too Many Requests" in str(err):
+                        self.ba_wait = True
+                        self.ba_time = time.time()
+                    else:
+                        nb_tries += 1
+                        if nb_tries >= 5:
+                            print(f"bitcoinabuse_search - Error occurred: {err} \n"
+                                  f"Can't retrieve information for address {address}\n")
+                        else:
+                            print(f'bitcoinabuse_search - Error occurred: {err} \nRetrying in 3s...')
+                            time.sleep(3)   # Sleep for 3 seconds to make the request again
                 else:
-                    # print(f"This address has never been reported before.")
-                    return {'found': False, 'address': address}
+                    content = req.json()
+                    if content['count'] > 0:
+                        abuse_type_dict = {f'{key}': 0 for key in self.bitcoinabuse_ids.values()}
+
+                        for i in range(len(content['recent']) - 1, -1, -1):
+                            # If it's a genuine report:
+                            if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
+                                # Count abuse types
+                                abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
+                            else:  # We remove fake reports
+                                content['recent'].pop(i)
+                        if display:
+                            print(f"Address ({address[:10]}...)reported {content['count']} time(s) in the past: "
+                                  f"(Last time reported: {content['last_seen']})")
+                            print("Recent reports:\n" + '\n'.join([f"- {self.bitcoinabuse_ids[elt['abuse_type_id']]}:  "
+                                                                   f"{elt['description']}"
+                                                                   for elt in content['recent']]))
+
+                        return {'found': True, 'address': address, 'total_report_count': content['count'],
+                                'last_reported': content['last_seen'], 'genuine_report': content['recent'],
+                                'genuine_recent_count': len(content['recent']), 'report_types': abuse_type_dict}
+                    else:
+                        # print(f"This address has never been reported before.")
+                        return {'found': False, 'address': address}
 
             # We only get here if we failed to make the request 5 times.
             return {'found': False, 'address': address}
+
+    def check_ba_wait(self):
+        if not self.ba_wait:
+            return
+        elif time.time() - self.ba_time > 60:
+            self.ba_wait = False
+        else:
+            return
 
     @staticmethod
     def get_google_keywords() -> list:

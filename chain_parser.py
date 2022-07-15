@@ -241,18 +241,6 @@ class ChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
-            # We do bitcoinabuse requests:
-            for add in output_addresses:
-                # We first check that the address is not already in ba_reports
-                time.sleep(random.random())  # Since requests are made (almost) simultaneously, sometimes they are not
-                # added fast enough to the list, and are therefore queried multiple times
-                # (only an issue for the first layer and when the tx requests have been cached)
-                if add not in self.already_queried_addresses:
-                    self.already_queried_addresses.add(add)
-                    ba_info = self.web_scraper.bitcoinabuse_search(add)
-                    if ba_info:
-                        # p_bar.write(f"ba_reports: {self.ba_reports[self.layer_counter - 1]}")
-                        self.ba_reports[self.layer_counter - 1].append(ba_info)
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
@@ -280,14 +268,18 @@ class ChainParser:
                                             amount=add['amount'],
                                             rto=add['rto'],
                                             output_addresses=[add['address']],
-                                            is_pruned=add['pruned'] if 'pruned' in add else None,   # Not used anymore
                                             rto_threshold=self.rto_threshold))
+
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
                             self.transaction_lists[self.layer_counter][i].amount += add['amount']
                             if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
                                 self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
+
+                        # We do bitcoinabuse requests:
+                        # self.make_ba_request(add['address'])
+
             self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
             return link
 
@@ -395,10 +387,18 @@ class ChainParser:
         :param address: address to look
         :return: Bool -> False if not queried yet, True if already in the report list.
         """
-        for elt in self.ba_reports[self.layer_counter - 1]:
+        for elt in self.ba_reports[self.layer_counter]:  # - 1]:
             if elt['address'] == address:
                 return True
         return False
+
+    def make_ba_request(self, add):
+        # We first check that the address is not already in ba_reports
+        if add not in self.already_queried_addresses:
+            self.already_queried_addresses.add(add)
+            ba_info = self.web_scraper.bitcoinabuse_search(add)
+            if ba_info:
+                self.ba_reports[self.layer_counter].append(ba_info)     # removed - 1 from self.layer_counter
 
     def clean_reports(self):
         """
@@ -409,6 +409,13 @@ class ChainParser:
         """
         for i in range(self.nb_layers + 1):
             self.ba_reports[i] = list(filter(lambda elt: elt['found'] is True, self.ba_reports[i]))
+
+    def set_reported_addresses(self):
+        for layer in range(self.nb_layers + 1):
+            for report in self.ba_reports[layer]:
+                if report['genuine_recent_count'] > 0:
+                    add = report['address']
+                    # Find all the transactions that have output_add == add
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
