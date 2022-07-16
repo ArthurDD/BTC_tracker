@@ -29,7 +29,6 @@ class ChainParser:
         self.nb_layers = nb_layers
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
-        self.identified_btc = []
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
         self.session = requests_cache.CachedSession('parser_cache_test',
                                                     use_cache_dir=True,  # Save files in the default user cache dir
@@ -41,7 +40,7 @@ class ChainParser:
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
-        self.rto_threshold = rto_threshold  # rto_threshold is in percentage of the total address received amount
+        self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
 
         self.web_scraper = Scraper(self.address, self.session)
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
@@ -58,7 +57,7 @@ class ChainParser:
         :param url_list: List of URLs to parse
         :return: None
         """
-        print("Starting threads")
+        print("Starting threads...")
         with ThreadPoolExecutor(max_workers=40) as executor, \
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
@@ -86,12 +85,14 @@ class ChainParser:
                 p_bar.write(f"Length of Done: {len(done)}")
                 p_bar.write(f"not_done: {len(not_done)}")
                 successful_urls = []
+                reason = ""
                 for future in done:  # The failed future has still finished, so we need to catch the exc. raised
                     try:
                         successful_urls.append(future.result())
                     except RequestLimitReached:
-                        p_bar.write("LIMIT REACHED")
                         finished = False
+                        nb_tries -= 1
+                        reason = "Request Limit reached"
                         pass
                     except Exception as err:
                         if nb_tries == 0:
@@ -100,19 +101,18 @@ class ChainParser:
                             finished = False
                             nb_tries -= 1
                             p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            reason = str(err)
                             pass
-                        # print(f"Unexpected error. ({err})")
 
                 p_bar.write(f"Length of successful URLs: {len(successful_urls)}")
-                # If all the requests were successful or if we got an error that is not the RequestLimitReached,
-                # we get out of the while loop
+                # If all the requests were successful, we get out of the loop.
+                # If we got RequestLimitError or another error, we wait for 30s and we try again if nb_tries > 0
                 if not finished:
-                    p_bar.write("Error while making requests (Request limit exceeded). Retrying in 5s...")
+                    p_bar.write(f"Error while making requests ({reason}). Retrying in 30s...")
                     # Remove all the successful requests
                     url_list = [url for url in url_list if url not in successful_urls]
-                    p_bar.write(f"Length of url_list is now: {len(url_list)}")
+                    p_bar.write(f"{len(url_list)} requests are yet to be made.")
 
-                    # self.change_session_proxy()  # Change the proxy of the session (and potentially wait for 60s)
                     self.session.close()
                     waiting_bar(30)  # Waiting for the limit to fade
                     self.session = requests_cache.CachedSession('parser_cache')
@@ -130,11 +130,9 @@ class ChainParser:
         except Exception as err:
             print(f'get_wallet_transactions - Error occurred: {err}')
         else:
-            # print(req.json())
-
             nb_tx = req.json()["txs_count"]
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
-            tot_url_list = [f"http://www.walletexplorer.com/api/1/address?address={self.address}"
+            tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
                             f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
 
             print(f"Length of url_list: {len(tot_url_list)}")
@@ -143,8 +141,9 @@ class ChainParser:
             # Once everything is done, increase layer counter
             self.layer_counter += 1
 
-            self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
+            self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)  # Ordering tx acc. to their amount
 
+            # Initializing values
             self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
             self.rto_threshold = self.root_value * (self.rto_threshold / 100)
             print(f"Root value: {self.root_value}")
@@ -195,20 +194,16 @@ class ChainParser:
         :return: None
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
-        tot_url_list = [f"http://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
-                        for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_below_rto_threshold]
-        tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]
-                            if not tx.is_below_rto_threshold]
-        # tot_address_list = list(set(address for address in [tx.output_addresses
-        #                                                     for tx in self.transaction_lists[self.layer_counter - 1]
-        #                                                     if not tx.is_below_rto_threshold]))
-        # print(f"Tot_address_list: {tot_address_list}")
+        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
+                        for tx in self.transaction_lists[self.layer_counter - 1]]
+        tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]]
+
         print(f"Length of tot_address_list: {len(tot_address_list)}")
         print(f"Number of requests to make: {len(tot_url_list)}")
 
         self.thread_pool(self._get_input_addresses, tot_url_list, tot_address_list)
 
-        print(f"\n\nAdded before: {self.added_before}\n\n")
+        print(f"\n\n Transactions added before: {self.added_before}\n\n")
         # print(f"Tx of layer {self.layer_counter}:")
         # for tx in self.transaction_lists[self.layer_counter][:15]:
         #     print(tx)
@@ -226,8 +221,8 @@ class ChainParser:
         """
         t_0 = time.time()
         link = req_info[0]
-        # print(f"Link: {link}")
-        output_addresses = req_info[1]
+
+        # output_addresses = req_info[1]
         # print(f"Output_addresses: {output_addresses}\n\n")
         try:
             time.sleep(random.random())
@@ -244,14 +239,11 @@ class ChainParser:
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
-            # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
-                # print(f"MINED BITCOINS")
                 i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag
                 # to the tx it comes from
-                # print(f"IDENTIFIED BITCOIN")
                 i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
@@ -305,14 +297,14 @@ class ChainParser:
         # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
         # This transaction is unique.
         tx_index = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
-        if tx_index == -1:  # This case should never happen
+        if tx_index == -1:  # This case should never happen in theory
             print(f"Error, something went wrong. Selecting all inputs by default.")
             self.set_rto(tx_content['in'], -1)
             return tx_content['in']
         else:
             observed_addresses = self.transaction_lists[self.layer_counter - 1][tx_index].output_addresses
             observed_rto = self.transaction_lists[self.layer_counter - 1][tx_index].rto
-            observed_outputs = [add for add in tx_content['out'] if add in observed_addresses]
+            observed_outputs = [add for add in tx_content['out'] if add['address'] in observed_addresses]
 
         if len(input_values) > 1:
             # First, we calculate the tx fee by adding all the input values and subtracting the output values
@@ -335,6 +327,7 @@ class ChainParser:
                     else:
                         selected_inputs = tx_content['in']
 
+                    self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
                     return selected_inputs
 
             # Second check: there is a sublist of input values whose sum equals our output values (two by two)
@@ -374,11 +367,8 @@ class ChainParser:
         :return: None
         """
         sum_value = sum([float(tx['amount']) for tx in input_list])
-        # print(f"\n\nSum value: {sum_value}")
-        # print(f"Previous RTO: {rto}")
 
         for i in range(len(input_list) - 1, -1, -1):
-            # print(f"Amount of the input: {input_list[i]['amount']}")
             input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
 
             # We only keep transactions with RTOs > threshold

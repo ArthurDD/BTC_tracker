@@ -35,7 +35,6 @@ class GraphVisualisation:
                         else:
                             self.dot.edge(prev_txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
-        # self.set_special()
         self.set_low_rto()
         self.make_legend()
         self.dot.render(directory='doctest-output', view=True)
@@ -75,13 +74,6 @@ class GraphVisualisation:
         nodes_to_highlight = list(txid_set - prev_txid_set)
         for txid in nodes_to_highlight:
             self.dot.node(txid, color='blue', style='filled', fillcolor='azure3')
-        # for layer in range(self.depth - 1):
-        #     # txid_list = get_prev_transaction_ids(self.transaction_lists[layer])
-        #     for tx in self.transaction_lists[layer]:
-        #         # if not tx.is_pruned and not tx.tag and tx.txid not in txid_list:
-        #         if tx.is_below_rto_threshold:
-        #             print(f"Below threshold: {tx}")
-        #             # If this tx has nothing special and is not linked to any future transaction
 
     def make_legend(self):
         with self.dot.subgraph(name='cluster_legend') as c:

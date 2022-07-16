@@ -23,8 +23,6 @@ class Transaction:
         self.is_pruned = is_pruned     # Used to indicate if we pruned the tree based on that tx
 
     def __str__(self):
-        # print(f"'txid': {self.txid}, 'next_txid': {self.next_txid}, 'output_addresses': {self.output_addresses}, "
-        #       f"'amount': {self.amount}, 'tag': {self.tag}")
         return str(self.__dict__)
 
 
