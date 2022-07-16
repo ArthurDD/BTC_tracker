@@ -209,10 +209,10 @@ class ChainParser:
         self.thread_pool(self._get_input_addresses, tot_url_list, tot_address_list)
 
         print(f"\n\nAdded before: {self.added_before}\n\n")
-        print(f"Tx of layer {self.layer_counter}:")
-        for tx in self.transaction_lists[self.layer_counter][:15]:
-            print(tx)
-        print("...")
+        # print(f"Tx of layer {self.layer_counter}:")
+        # for tx in self.transaction_lists[self.layer_counter][:15]:
+        #     print(tx)
+        # print("...")
         self.layer_counter += 1
 
     def _get_input_addresses(self, p_bar, req_info):
@@ -247,11 +247,12 @@ class ChainParser:
             # print(tx_content)
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
                 # print(f"MINED BITCOINS")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
-            elif "label" in tx_content:  # If the input address has been identified, we add the tag to the tx
+            elif "label" in tx_content:  # If the input address has been identified, we add the tag
+                # to the tx it comes from
                 # print(f"IDENTIFIED BITCOIN")
-                i = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             else:
@@ -261,10 +262,10 @@ class ChainParser:
 
                 for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
-                        i = find_transaction(self.transaction_lists[self.layer_counter], add["next_tx"])
+                        pot_layer, i = find_transaction(self.transaction_lists, add["next_tx"])
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.layer_counter].append(
-                                Transaction(txid=add['next_tx'], prev_txid=txid,
+                                Transaction(txid=add['next_tx'], prev_txid=[(txid, self.layer_counter - 1)],
                                             amount=add['amount'],
                                             rto=add['rto'],
                                             output_addresses=[add['address']],
@@ -273,9 +274,12 @@ class ChainParser:
                         else:
                             self.added_before.append(add['next_tx'])
                             # print("ADDED BEFORE")
-                            self.transaction_lists[self.layer_counter][i].amount += add['amount']
-                            if add['address'] not in self.transaction_lists[self.layer_counter][i].output_addresses:
-                                self.transaction_lists[self.layer_counter][i].output_addresses.append(add['address'])
+                            if add['address'] not in self.transaction_lists[pot_layer][i].output_addresses:
+                                # If the address is already in the list, it means that we ended up on a loop
+                                self.transaction_lists[pot_layer][i].amount += add['amount']
+                                self.transaction_lists[pot_layer][i].prev_txid.append((txid, self.layer_counter - 1))
+                                self.transaction_lists[pot_layer][i].output_addresses.append(add['address'])
+                                self.transaction_lists[pot_layer][i].rto += add['rto']
 
                         # We do bitcoinabuse requests:
                         # self.make_ba_request(add['address'])
@@ -300,7 +304,7 @@ class ChainParser:
 
         # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
         # This transaction is unique.
-        tx_index = find_transaction(self.transaction_lists[self.layer_counter - 1], txid)
+        tx_index = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
         if tx_index == -1:  # This case should never happen
             print(f"Error, something went wrong. Selecting all inputs by default.")
             self.set_rto(tx_content['in'], -1)
@@ -415,7 +419,7 @@ class ChainParser:
             for report in self.ba_reports[layer]:
                 if report['genuine_recent_count'] > 0:
                     add = report['address']
-                    # Find all the transactions that have output_add == add
+                    # Find all the transactions that have add in output_add and tag them
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
@@ -430,17 +434,18 @@ class ChainParser:
             print(f"Layer {i}: {len(self.transaction_lists[i])}")
 
         print("\n\n")
-        for i in range(self.nb_layers + 1):
-            print(f"Tx of layer {i}:")
-            for tx in self.transaction_lists[i][:15]:
-                print(tx)
-            if len(self.transaction_lists[i]) >= 15:
-                print("...")
-            print("\n")
+        # for i in range(self.nb_layers + 1):
+        #     print(f"Tx of layer {i}:")
+        #     for tx in self.transaction_lists[i][:15]:
+        #         print(tx)
+        #     if len(self.transaction_lists[i]) >= 15:
+        #         print("...")
+        #     print("\n")
 
-        print("\n\n")
-        self.clean_reports()  # Removes empty reports
-        print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
+        # print("\n\n")
+        # self.clean_reports()  # Removes empty reports
+        # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
+        # self.check_duplicates()
 
         print(f"RTO threshold is: {self.rto_threshold}")
 
@@ -546,6 +551,30 @@ class ChainParser:
         # plt.show()
         plt.tight_layout()
         plt.show()
+
+    def find_transactions(self):
+        print(f"Finding transaction...")
+        txid = input("Enter txid: ")
+        while txid != "end":
+            layer, tx = self.find_transaction(txid)
+            print(f"Tx found at layer {layer}: {tx}\n\n")
+            txid = input("Enter txid: ")
+
+    def find_transaction(self, txid):
+        for layer in range(self.nb_layers + 1):
+            for tx in self.transaction_lists[layer]:
+                if tx.txid == txid:
+                    return layer, tx
+        return None, None
+
+    def check_duplicates(self):
+        for layer in range(self.nb_layers + 1):
+            diff_tx = set()
+            diff_tx.update(self.transaction_lists[layer])
+            if len(list(diff_tx)) != len(self.transaction_lists[layer]):
+                print(f"Layer {layer} has duplicated transactions!")
+            else:
+                print(f"Layer {layer} is clean.")
 
 
 def waiting_bar(seconds):
