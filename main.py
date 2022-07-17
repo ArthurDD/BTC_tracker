@@ -1,4 +1,3 @@
-from web_scraper import *
 from chain_parser import *
 from graph_visualisation import *
 
@@ -27,11 +26,13 @@ def try_parser(address):
     # Start the parsing
     chain_parser = ChainParser(address, 4)
     chain_parser.start_analysis()
-    # chain_parser.get_statistics()
+    chain_parser.get_statistics()
 
     # Build the tree
     tree = GraphVisualisation(chain_parser.transaction_lists)
     tree.build_tree()
+
+    chain_parser.find_transactions()
 
 
 if __name__ == "__main__":
