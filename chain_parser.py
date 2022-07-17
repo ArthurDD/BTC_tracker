@@ -333,7 +333,7 @@ class ChainParser:
                             used_indexes.add(input_values.index(add['amount']))
                     if len(used_indexes) == len(observed_addresses):  # If it's the case:
                         selected_inputs = [tx_content['in'][i] for i in used_indexes]
-                        print(f"FACULTY")
+                        print(f"FINALLY")
                         # self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
                     else:
                         selected_inputs = tx_content['in']

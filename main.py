@@ -24,7 +24,7 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    chain_parser = ChainParser(address, 8)
+    chain_parser = ChainParser(address, 4)
     chain_parser.start_analysis()
     chain_parser.get_statistics()
 
