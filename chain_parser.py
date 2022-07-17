@@ -147,6 +147,12 @@ class ChainParser:
             # Initializing values
             self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
             self.rto_threshold = self.root_value * (self.rto_threshold / 100)
+
+            # Need to remove the tx from layer 0 whose RTO is too low
+            for i, tx in reversed(list(enumerate(self.transaction_lists[0]))):
+                if tx.rto < self.rto_threshold:
+                    print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
+                    self.transaction_lists[0].pop(i)
             print(f"Root value: {self.root_value}")
 
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
