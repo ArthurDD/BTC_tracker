@@ -46,7 +46,8 @@ class ChainParser:
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
         self.already_queried_addresses = set()
 
-        self.time_stat_dict = {i: [] for i in range(nb_layers + 1)}
+        self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
+                               ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
 
         print(self.wallet_url)
 
@@ -184,7 +185,7 @@ class ChainParser:
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"],
                                                                                   rto=tx["amount_received"]))
-            self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
+            self.time_stat_dict['request'][self.layer_counter].append(time.time() - t_0)
             return link
 
     def get_addresses_from_txid(self):
@@ -203,7 +204,7 @@ class ChainParser:
 
         self.thread_pool(self._get_input_addresses, tot_url_list, tot_address_list)
 
-        print(f"\n\n Transactions added before: {self.added_before}\n\n")
+        print(f"\n\nTransactions added before: {self.added_before}\n\n")
         # print(f"Tx of layer {self.layer_counter}:")
         # for tx in self.transaction_lists[self.layer_counter][:15]:
         #     print(tx)
@@ -236,6 +237,7 @@ class ChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            t_request = time.time()
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
@@ -250,11 +252,16 @@ class ChainParser:
             else:
                 # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
+                t_input = time.time()
                 selected_inputs = self.select_inputs(tx_content, txid)
 
+                t_adding = time.time()
+                t_tx = []
                 for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
+                        t_0_tx = time.time()
                         pot_layer, i = find_transaction(self.transaction_lists, add["next_tx"])
+                        t_tx.append(time.time() - t_0_tx)
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.layer_counter].append(
                                 Transaction(txid=add['next_tx'], prev_txid=[(txid, self.layer_counter - 1)],
@@ -275,8 +282,12 @@ class ChainParser:
 
                         # We do bitcoinabuse requests:
                         # self.make_ba_request(add['address'])
-
-            self.time_stat_dict[self.layer_counter].append(time.time() - t_0)
+                t_tx_avg = np.mean(t_tx) if t_tx else 0
+                self.time_stat_dict['request'][self.layer_counter].append(t_request - t_0)
+                self.time_stat_dict['select_input'][self.layer_counter].append(t_adding - t_input)
+                self.time_stat_dict['adding_addresses'][self.layer_counter].append(time.time() - t_adding)
+                self.time_stat_dict['find_tx'][self.layer_counter].append(t_tx_avg)
+            self.time_stat_dict['overall'][self.layer_counter].append(time.time() - t_0)
             return link
 
     def select_inputs(self, tx_content, txid):
@@ -392,7 +403,7 @@ class ChainParser:
             self.already_queried_addresses.add(add)
             ba_info = self.web_scraper.bitcoinabuse_search(add)
             if ba_info:
-                self.ba_reports[self.layer_counter].append(ba_info)     # removed - 1 from self.layer_counter
+                self.ba_reports[self.layer_counter].append(ba_info)  # removed - 1 from self.layer_counter
 
     def clean_reports(self):
         """
@@ -484,26 +495,44 @@ class ChainParser:
 
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto)
 
-    def display_time_stats(self, ax=None):
+    def display_time_stats(self, axes=None):
         """
         Displays the average request time per layer
-        :param ax: If set to none, displays the bar chart on its own plot. If not, builds the chart on ax directly
+        :param axes: If set to none, displays the bar chart on its own plot. If not, builds the chart on axes directly
         :return: None
         """
         display = False
-        if not ax:
+        if not axes:
             fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
+            axes = fig.add_subplot(1, 1, 1)
             display = True
 
-        layers = [f"L-{i} ({len(self.time_stat_dict[i])} req.)" for i in range(self.nb_layers + 1)]
+        # Request time
+        ax_request = axes
+        layers = [f"L-{i} ({len(self.time_stat_dict['request'][i])} req.)" for i in range(self.nb_layers + 1)]
         x_pos = np.arange(0, len(layers))
-        avg_time = [np.mean(time_l) for time_l in self.time_stat_dict.values()]
+        request_avg_time = [np.mean(time_l) for time_l in self.time_stat_dict['request'].values()]
+        select_input_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+                                 self.time_stat_dict['select_input'].values()]
+        find_tx_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+                            self.time_stat_dict['find_tx'].values()]
+        adding_addresses_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+                                     self.time_stat_dict['adding_addresses'].values()]
+        overall_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+                            self.time_stat_dict['overall'].values()]
 
-        ax.bar(x_pos, avg_time, align='center', width=0.5)
-        ax.set_xlabel('Layers')
-        ax.set_ylabel('Time (s)')
-        ax.set_title('Average request time per layer')
+        print(f"Request_avg_time: {request_avg_time}")
+        print(f"select_input_avg_time: {select_input_avg_time}")
+        print(f"find_tx_avg_time: {find_tx_avg_time}")
+        print(f"adding_addresses_avg_time: {adding_addresses_avg_time}")
+        print(f"overall_avg_time: {overall_avg_time}")
+
+        ax_request.bar(x_pos, request_avg_time, align='center', width=0.4, label="Avg. Request")
+        ax_request.bar(x_pos, select_input_avg_time, align='center', width=0.4, label="Avg. Input Sel.")
+        ax_request.set_xlabel('Layers')
+        ax_request.set_ylabel('Time (s)')
+        ax_request.set_title('Average function time per layer')
+        ax_request.legend(loc='best')
 
         if display:
             plt.show()
@@ -513,6 +542,7 @@ class ChainParser:
         Displays 2 graphs: one with how many transactions were tagged per layer, and one with rto information
         :return: None
         """
+        plt.style.use('ggplot')
         figure, axis = plt.subplots(2, 2)
 
         tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
@@ -525,11 +555,13 @@ class ChainParser:
         axis[0, 0].set_xlabel("Layers")
         axis[0, 0].set_title("Tagged transactions by layer")
 
+        # print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
         axis[0, 1].bar(layers, tagged_tx_rto.values(), color='orange')
         axis[0, 1].set_ylabel("RTO")
         axis[0, 1].set_xlabel("Layers")
         axis[0, 1].set_title("Sum of tagged tx's RTO by layer")
 
+        # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
         ax_twin = axis[0, 1].twinx()
         ax_twin.plot(layers, sum_rto_by_layer, color='green')
         ax_twin.set_ylabel("Total (BTC)")
