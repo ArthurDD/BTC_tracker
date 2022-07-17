@@ -1,7 +1,5 @@
 import graphviz
 
-from transaction import get_prev_transaction_ids
-
 
 class GraphVisualisation:
     def __init__(self, transaction_lists):
@@ -21,7 +19,7 @@ class GraphVisualisation:
             for tx in self.transaction_lists[layer]:
                 self.dot.node(tx.txid, label='''<<table border="0">
                             <tr>
-                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid + '''</td>                     
+                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td>                     
                             </tr> 
                             <tr> 
                                 <td border="0">''' + str(tx.amount) + ''' BTC</td> 
@@ -60,7 +58,7 @@ class GraphVisualisation:
                 if tx.tag:
                     self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0">
                             <tr>
-                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid + '''</td>                     
+                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td>                     
                             </tr> 
                             <tr> 
                                 <td border="0">''' + str(tx.amount) + ''' BTC</td> 
