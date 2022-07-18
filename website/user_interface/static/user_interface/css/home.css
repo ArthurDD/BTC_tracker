@@ -1,0 +1,33 @@
+/* Set height to 100% for body and html to enable the background image to cover the whole page: */
+body, html {
+  height: 100%;
+}
+
+
+/* Position text in the middle */
+.middle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+
+
+/* Submit Button(s) */
+.btn_submit {
+  background-color: #dea666;
+  color: aliceblue;
+}
+
+/*select {*/
+/*    border:1px solid #ccc;*/
+/*    vertical-align:top;*/
+/*    height:24px;*/
+/*}*/
+/*input, select{*/
+/*  box-sizing: border-box;*/
+/*  -moz-box-sizing: border-box;*/
+/*  -webkit-box-sizing: border-box;*/
+/*}*/

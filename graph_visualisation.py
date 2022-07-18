@@ -5,7 +5,9 @@ class GraphVisualisation:
     def __init__(self, transaction_lists):
         self.transaction_lists = transaction_lists
         self.depth = len(transaction_lists)
+        self.name = f'transaction-graph-{self.depth - 1}'
         self.dot = graphviz.Digraph(f'transaction-graph-{self.depth - 1}', comment='Transaction Graph', format='svg')
+        self.dot.id = "id_test"
         self.dot.graph_attr['rankdir'] = 'LR'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
 
@@ -45,8 +47,10 @@ class GraphVisualisation:
         self.add_labels()
         self.set_low_rto()
         self.make_legend()
-        self.dot.render(directory='doctest-output', view=True)
+        self.dot.render(directory='doctest-output', view=False)
+
         print("Tree done!")
+        return self.name
 
     def add_labels(self):
         """

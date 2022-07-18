@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block main_content %}
+    <div class="row" style="height:100%">
+        <div class='col-6'>
+            <div class="container">
+                <div class="col-9">
+                    <h4> Track an address: </h4>
+                    <form id="starting_form" class="form-group" action="{% url 'start_tracking' %}">
+                        {% csrf_token %}
+                        <div class="form-group mb-2">
+                            <label for="address_input">Input Address:</label><br>
+                            <input type="text" id="address_input" class="form-control" name="address_input"><br>
+                        </div>
+                        <div class="form-group mb-2">
+                            <label for="layer_input">Number of layer(s):</label><br>
+                            <select id="layer_input" class="form-control" name="layer_input">
+                                {% for i in max_layer_number %}
+                                    <option value="{{ i }}">{{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0rem">
+                            Start tracking!
+                        </button>
+                    </form>
+                </div>
+
+                <script>
+                    $(document).ready(function () {
+                        $("#starting_form").submit(function (e) {
+                            e.preventDefault(); // prevent actual form submit
+                            {#console.log("WE HERE")#}
+                            let form = $(this);
+                            let url = form.attr('action');
+                            $.post(url, form.serialize(), function (resp) {
+                                $('#graph').html(resp)
+                                {#console.log("response is: ", resp)#}
+                            }).then(function () {
+                                $('div#graph svg').attr('id', 'svg_graph')
+                                let svg = $('#svg_graph')
+                                svg.width("100%").height("100%")
+
+                                // Expose to window namespase for testing purposes
+                                window.zoomTiger = svgPanZoom('#svg_graph', {
+                                    zoomEnabled: true,
+                                    controlIconsEnabled: true,
+                                    fit: true,
+                                    {#center: true,#}
+                                    // viewportSelector: document.getElementById('demo-tiger').querySelector('#g4') // this option will make library to misbehave. Viewport should have no transform attribute
+                                });
+
+                                document.getElementById('enable').addEventListener('click', function() {
+                                    window.zoomTiger.enableControlIcons();
+                                })
+                                document.getElementById('disable').addEventListener('click', function() {
+                                    window.zoomTiger.disableControlIcons();
+                                })
+                            })
+                            return false
+                        })
+                    })
+                </script>
+
+    {#            </div>#}
+            </div>
+    {#    </div>#}
+        </div>
+        <div class='col-6' style="height: 100%">
+            <div id="graph" class="container" style="width:100%; height:500px; background-color: white">
+
+            </div>
+
+        </div>
+    </div>
+
+
+
+{% endblock main_content %}
