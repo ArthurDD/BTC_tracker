@@ -1,6 +1,9 @@
+import time
+
 from django.http import HttpResponse
 from django.shortcuts import render
-
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 # Create your views here.
 from chain_parser import ChainParser
@@ -28,7 +31,15 @@ def start_tracking(request):
         # tree = GraphVisualisation(chain_parser.transaction_lists)
         # file_name = tree.build_tree()
 
-        # return HttpResponse("Form received!")
         return render(request, 'user_interface/tree.html', {'file_name': "transaction-graph-15.gv.svg"})
     else:
         return HttpResponse("Not what we wanted, sorry")
+
+
+def display_graph(request):
+    if request.method == 'GET':
+        file_name = request.GET.get('file_name')
+        return render(request, 'user_interface/tree.html', {'file_name': file_name})
+    else:
+        return HttpResponse("Not what we wanted, sorry")
+

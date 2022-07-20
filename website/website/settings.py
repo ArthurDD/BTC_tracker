@@ -17,6 +17,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODULE_DIR = BASE_DIR.parent
 sys.path.append(str(MODULE_DIR))
+sys.path.append(str(BASE_DIR))
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,7 +29,7 @@ SECRET_KEY = 'django-insecure-mrm#t#2%!yy6loke!aq(1gx_#x_d)#@6k-9!s0eu!@(3s1dng^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -40,7 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'user_interface'
+    'user_interface',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -74,6 +76,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'website.wsgi.application'
+
+ASGI_APPLICATION = 'website.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 
 # Database

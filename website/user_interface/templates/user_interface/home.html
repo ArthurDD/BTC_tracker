@@ -1,12 +1,14 @@
 {% extends 'base.html' %}
 
 {% block main_content %}
-    <div class="row" style="height:100%">
-        <div class='col-6'>
-            <div class="container">
-                <div class="col-9">
+    {% load static %}
+    <script src="{% static 'user_interface/javascript/user_interface.js' %}"></script>
+    <div class="row" style="height:100%; width: 100%">
+        <div class='col-6' >
+            <div class="container" style="border-right: solid 2px; border-right-color: #fa9d4b; margin-left: 12px">
+                <div class="col-9" style="padding-left: 12px; padding-right: 12px">
                     <h4> Track an address: </h4>
-                    <form id="starting_form" class="form-group" action="{% url 'start_tracking' %}">
+                    <form id="starting_form" class="form-group" action="{% url 'display_graph' %}">
                         {% csrf_token %}
                         <div class="form-group mb-2">
                             <label for="address_input">Input Address:</label><br>
@@ -14,7 +16,7 @@
                         </div>
                         <div class="form-group mb-2">
                             <label for="layer_input">Number of layer(s):</label><br>
-                            <select id="layer_input" class="form-control" name="layer_input">
+                            <select id="layer_input" class="form-select" name="layer_input" style="max-width: 80px">
                                 {% for i in max_layer_number %}
                                     <option value="{{ i }}">{{ i }}</option>
                                 {% endfor %}
@@ -32,42 +34,38 @@
                             e.preventDefault(); // prevent actual form submit
                             {#console.log("WE HERE")#}
                             let form = $(this);
-                            let url = form.attr('action');
-                            $.post(url, form.serialize(), function (resp) {
-                                $('#graph').html(resp)
-                                {#console.log("response is: ", resp)#}
-                            }).then(function () {
-                                $('div#graph svg').attr('id', 'svg_graph')
-                                let svg = $('#svg_graph')
-                                svg.width("100%").height("100%")
 
-                                // Expose to window namespase for testing purposes
-                                window.zoomTiger = svgPanZoom('#svg_graph', {
-                                    zoomEnabled: true,
-                                    controlIconsEnabled: true,
-                                    fit: true,
-                                    {#center: true,#}
-                                    // viewportSelector: document.getElementById('demo-tiger').querySelector('#g4') // this option will make library to misbehave. Viewport should have no transform attribute
-                                });
-
-                                document.getElementById('enable').addEventListener('click', function() {
-                                    window.zoomTiger.enableControlIcons();
-                                })
-                                document.getElementById('disable').addEventListener('click', function() {
-                                    window.zoomTiger.disableControlIcons();
-                                })
-                            })
-                            return false
-                        })
-                    })
+                            // Send the ws to start the parsing
+                            let values = {};
+                            $.each(form.serializeArray(), function(i, field) {
+                                values[field.name] = field.value;
+                            });
+                            $('#terminal_output').val('');
+                            socket.send(JSON.stringify({
+                                'message': 'It should work :(',
+                                'type': 'start_parsing',
+                                'data': values,
+                            }));
+                        });
+                    });
                 </script>
+                <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">
+                    <div class="container">
+{#                        <button id="submit_button" class="btn"> Dummy Button</button>#}
 
-    {#            </div>#}
+                        <label for="terminal_output"> <h4> Output Console:</h4>
+                        </label>
+                        <textarea id="terminal_output" class="container" readonly></textarea>
+                    </div>
+                </div>
             </div>
-    {#    </div>#}
         </div>
         <div class='col-6' style="height: 100%">
-            <div id="graph" class="container" style="width:100%; height:500px; background-color: white">
+            <div id="graph_div" class="container">
+                <h4> Bitcoin Graph: </h4>
+                <div id="graph">
+
+                </div>
 
             </div>
 
