@@ -1,0 +1,42 @@
+/* Set height to 100% for body and html to enable the background image to cover the whole page: */
+body, html {
+  height: 100%;
+}
+
+
+/* Position text in the middle */
+.middle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+
+
+/* Submit Button(s) */
+.btn_submit {
+  background-color: #dea666;
+  color: aliceblue;
+}
+
+
+#terminal_output_div {
+  margin-top: 3rem;
+
+  width: 100%;
+  height: 100%;
+  /*max-width: 400px;*/
+
+}
+
+#terminal_output {
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: monospace;
+  min-height: 145px;
+  max-height: 400px;
+  padding-left: 1rem;
+}
