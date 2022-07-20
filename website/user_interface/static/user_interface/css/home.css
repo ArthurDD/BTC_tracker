@@ -21,13 +21,22 @@ body, html {
   color: aliceblue;
 }
 
-/*select {*/
-/*    border:1px solid #ccc;*/
-/*    vertical-align:top;*/
-/*    height:24px;*/
-/*}*/
-/*input, select{*/
-/*  box-sizing: border-box;*/
-/*  -moz-box-sizing: border-box;*/
-/*  -webkit-box-sizing: border-box;*/
-/*}*/
+
+#terminal_output_div {
+  margin-top: 3rem;
+
+  width: 100%;
+  height: 100%;
+  /*max-width: 400px;*/
+
+}
+
+#terminal_output {
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: monospace;
+  min-height: 145px;
+  max-height: 400px;
+  padding-left: 1rem;
+}

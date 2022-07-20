@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import timedelta
 
@@ -11,6 +12,8 @@ from transformers import BertTokenizer
 
 from bitcoin_abuse.bert_model import BertBA
 from bitcoin_abuse.evaluate import predict_BA
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Scraper:
@@ -31,7 +34,7 @@ class Scraper:
 
         credentials = self.setup()
         self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
-        self.BA_model = BertBA.from_pretrained(f'./bitcoin_abuse/models/ht_bert_finetuned_{0}/')
+        self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
         self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
         self.ba_wait = False
@@ -67,7 +70,7 @@ class Scraper:
         else:  # In case of success
             for pair in req.json():
                 self.bitcoinabuse_ids[pair['id']] = pair['label']
-            with open("credentials.json", "r") as f:
+            with open(f"{FILE_DIR}/credentials.json", "r") as f:
                 dic = json.load(f)
             return dic
 
@@ -149,7 +152,7 @@ class Scraper:
         :return: list of str keywords
         """
         keywords = []
-        with open("keywords.txt", "r") as f:
+        with open(f"{FILE_DIR}/keywords.txt", "r") as f:
             for line in f.readlines():
                 if line:
                     keywords.append(line.strip())

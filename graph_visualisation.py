@@ -1,4 +1,7 @@
+import os
 import graphviz
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
@@ -19,17 +22,7 @@ class GraphVisualisation:
         # First, we add all the nodes to the graph
         for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
-                self.dot.node(tx.txid, label='''<<table border="0">
-                            <tr>
-                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td>                     
-                            </tr> 
-                            <tr> 
-                                <td border="0">''' + str(tx.amount) + ''' BTC</td> 
-                        </tr>
-                        <tr>
-                            <td border="0">''' + str(tx.rto) + ''' RTO</td>
-                        </tr>       
-                        </table>>''')  # label=rf"{tx.txid[:8]}...\n {tx.amount} BTC\n{tx.rto} RTO")
+                self.dot.node(tx.txid, label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + str(tx.rto) + ''' RTO</td></tr></table>>''')
 
         # Add edges between the root node (= input address) and its associated transactions
         self.dot.edges(('root', add.txid) for add in self.transaction_lists[0])
@@ -47,10 +40,10 @@ class GraphVisualisation:
         self.add_labels()
         self.set_low_rto()
         self.make_legend()
-        self.dot.render(directory='doctest-output', view=False)
+        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=False)
 
         print("Tree done!")
-        return self.name
+        return f"{self.name}.gv.svg"
 
     def add_labels(self):
         """
@@ -60,20 +53,7 @@ class GraphVisualisation:
         for layer in range(self.depth):
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
-                    self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0">
-                            <tr>
-                                <td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td>                     
-                            </tr> 
-                            <tr> 
-                                <td border="0">''' + str(tx.amount) + ''' BTC</td> 
-                        </tr>
-                        <tr> 
-                            <td border="0">''' + tx.tag + '''</td> 
-                        </tr>
-                        <tr>
-                            <td border="0">''' + str(tx.rto) + ''' RTO</td>
-                        </tr>       
-                        </table>>''')  # label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
+                    self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0">''' + str(tx.rto) + ''' RTO</td></tr></table>>''')  # label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
 
     def set_special(self):
         """

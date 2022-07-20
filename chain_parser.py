@@ -17,13 +17,15 @@ import matplotlib.pyplot as plt
 from transaction import Transaction, find_transaction
 from web_scraper import Scraper
 
+from asgiref.sync import async_to_sync
+
 
 class ChainParser:
     # TODO: Once all the requests have been made to retrieve input addresses and their respective txid, check if the
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
-    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14):
+    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=None):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers
@@ -48,6 +50,8 @@ class ChainParser:
 
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+
+        self.send_fct = send_fct    # Only takes one arg = message to send to the socket
 
         print(self.wallet_url)
 
@@ -434,7 +438,8 @@ class ChainParser:
 
         while self.layer_counter <= self.nb_layers:
             print(f"Layer counter: {self.layer_counter}")
-            self.get_addresses_from_txid()
+            self.get_addresses_from_txid()  # counter gets increased in that method
+            self.send_fct(f"Layer {self.layer_counter -1} done!")
 
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")
         for i in range(self.nb_layers + 1):
