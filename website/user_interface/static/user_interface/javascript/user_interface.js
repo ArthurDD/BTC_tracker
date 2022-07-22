@@ -1,27 +1,39 @@
-var socket = new WebSocket('ws://' + window.location.host + '/ws/connect/');
+var socket;
 
-socket.onopen = function open() {
-  console.log('WebSockets connection created.');
-};
+function connect() {
+    socket = new WebSocket('ws://' + window.location.host + '/ws/connect/');
+
+    socket.onopen = function open() {
+        display_banner("Connection to the server established!", "alert-success");
+        $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
+
+        console.log('WebSockets connection created.');
+    };
 
 
-socket.onmessage = function(e) {
-    let text_area = $('#terminal_output')
-    const data = JSON.parse(e.data);
-    if (data.type === 'svg_file') {
-        display_graph(data)
-    } else {
-        let val = text_area.val();
-        text_area.val(val + data.message + "\n");
-        // text_area.append('> ' + data.message + '\n');
-        text_area.scrollTop(text_area[0].scrollHeight);
-    }
-};
+    socket.onmessage = function (e) {
+        let text_area = $('#terminal_output');
+        const data = JSON.parse(e.data);
+        if (data.type === 'svg_file') {
+            display_graph(data);
+            $('#submit_starting_btn').prop('disabled', false);
+        } else {
+            let val = text_area.val();
+            text_area.val(val + data.message + "\n");
+            text_area.scrollTop(text_area[0].scrollHeight);
+        }
+    };
 
-socket.onclose = function(e) {
-    console.error('Chat socket closed unexpectedly');
-};
+    socket.onclose = function (e) {
+        display_banner("Connection to the server lost. Retrying in 2 sec...", "alert-warning");
+        setTimeout(function () {
+            connect();
+        }, 2000);
+        console.error('Chat socket closed unexpectedly');
+    };
+}
 
+connect()
 
 function display_graph(data) {
     let url = $('#starting_form').attr('action');
@@ -49,6 +61,23 @@ function display_graph(data) {
         })
 }
 
+
+function display_banner(message, banner_class) {
+    let banner = $('#information_banner');
+    banner.removeClass().addClass('fade show alert ' + banner_class);
+    $('span', banner).removeClass();    // Remove the blink_me class
+
+    $('span', banner).html(message);
+    banner.show();
+
+    if (banner_class === "alert-success") {
+        setTimeout(function() {
+            banner.fadeOut(500);
+        }, 3000);
+    } else {
+        $('span', banner).addClass("blink_me");
+    }
+}
 
 // $.post(url, form.serialize(), function (resp) {
 //     $('#graph').html(resp)

@@ -25,6 +25,8 @@
                         <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0rem">
                             Start tracking!
                         </button>
+                        <br>
+                        <span id="invalid_input" style="color:indianred; visibility: hidden"> Please enter an address!</span>
                     </form>
                 </div>
 
@@ -32,27 +34,35 @@
                     $(document).ready(function () {
                         $("#starting_form").submit(function (e) {
                             e.preventDefault(); // prevent actual form submit
-                            {#console.log("WE HERE")#}
+                            let invalid_input = $('#invalid_input');
+                            invalid_input.css('visibility', 'hidden');
                             let form = $(this);
 
                             // Send the ws to start the parsing
+                            if ($('#address_input').val() === "") {
+                                invalid_input.css('visibility', 'visible')
+                                return false
+                            }
                             let values = {};
                             $.each(form.serializeArray(), function(i, field) {
                                 values[field.name] = field.value;
                             });
                             $('#terminal_output').val('');
+
+                            // Disable the start button until the analysis is finished
+                            $('#submit_starting_btn').prop('disabled', true)
                             socket.send(JSON.stringify({
                                 'message': 'It should work :(',
                                 'type': 'start_parsing',
                                 'data': values,
                             }));
+
+                            return false;
                         });
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">
                     <div class="container">
-{#                        <button id="submit_button" class="btn"> Dummy Button</button>#}
-
                         <label for="terminal_output"> <h4> Output Console:</h4>
                         </label>
                         <textarea id="terminal_output" class="container" readonly></textarea>

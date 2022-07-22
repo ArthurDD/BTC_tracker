@@ -22,12 +22,32 @@ div#graph {
 
 
 /* Nav Bar */
-#nav_bar {
+#navv {
     background-color: rgb(66, 67, 82);
     border-bottom: 2px solid lightgray;
+}
+
+#nav_bar {
     margin-bottom: 1rem;
 }
 
 #nav_bar a {
     color: aliceblue;
+}
+
+#information_banner {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    display: none;
+    text-align: center;
+}
+
+.blink_me {
+  animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
 }
