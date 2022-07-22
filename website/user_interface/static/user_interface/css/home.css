@@ -40,3 +40,30 @@ body, html {
   max-height: 400px;
   padding-left: 1rem;
 }
+
+/*.nav-link {*/
+/*  color: aliceblue;*/
+/*}*/
+
+/*.nav-link .active {*/
+/*  color: rgb(77, 79, 94);*/
+/*}*/
+
+
+
+button.tab_button {
+  border-radius: 0 !important;
+  /*border-top-right-radius: 0 !important;*/
+  color: aliceblue !important;
+}
+
+
+button.tab_button.active {
+  background-color: #dea666 !important;
+  border-bottom: 2px solid #dea666 !important;
+
+}
+
+button.tab_button {
+  border-bottom: 2px solid lightslategray !important;
+}
