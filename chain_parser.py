@@ -25,7 +25,7 @@ class ChainParser:
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
-    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=None):
+    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=print):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers
