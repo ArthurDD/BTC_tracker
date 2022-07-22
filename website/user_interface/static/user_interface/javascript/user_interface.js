@@ -17,6 +17,11 @@ function connect() {
         if (data.type === 'svg_file') {
             display_graph(data);
             $('#submit_starting_btn').prop('disabled', false);
+        } else if (data.type === 'error') {
+            $('#submit_starting_btn').prop('disabled', false);
+            let val = text_area.val();
+            text_area.val(val + data.message + "\n");
+            text_area.scrollTop(text_area[0].scrollHeight);
         } else {
             let val = text_area.val();
             text_area.val(val + data.message + "\n");

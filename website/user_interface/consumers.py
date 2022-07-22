@@ -77,11 +77,11 @@ class UserInterfaceConsumer(WebsocketConsumer):
             file_name = start_search(self.send, data['address_input'], int(data['layer_input']))
 
             print(f"Filename is: {file_name}")
-
-            self.send(text_data=json.dumps({
-                'type': 'svg_file',
-                'svg_file_name': file_name
-            }))
+            if file_name != "":
+                self.send(text_data=json.dumps({
+                    'type': 'svg_file',
+                    'svg_file_name': file_name
+                }))
 
         else:
             print(f"Message received: {message}")
@@ -106,19 +106,22 @@ def display_logs(send_function):
     return "transaction-graph-15.gv.svg"
 
 
-def send_message(send_function, message):
+def send_message(send_function, message, message_type='chat_message'):
     send_function(json.dumps({
-        'type': 'chat_message',
+        'type': message_type,
         'message': message
     }))
 
 
 def start_search(send_function, address, layer_nb):
     send_function_bis = partial(send_message, send_function)
+
     chain_parser = ChainParser(address, layer_nb, send_fct=send_function_bis)
-    chain_parser.start_analysis()
-
-    tree = GraphVisualisation(chain_parser.transaction_lists)
-    file_name = tree.build_tree()
-
-    return file_name
+    res = chain_parser.start_analysis()
+    print(f"Res is: {res}")
+    if res:
+        print(f"Hmm, we should not be here")
+        tree = GraphVisualisation(chain_parser.transaction_lists)
+        file_name = tree.build_tree()
+        return file_name
+    return ""

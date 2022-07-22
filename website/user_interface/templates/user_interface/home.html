@@ -22,7 +22,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0rem">
+                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0rem" disabled>
                             Start tracking!
                         </button>
                         <br>
@@ -34,6 +34,8 @@
                     $(document).ready(function () {
                         $("#starting_form").submit(function (e) {
                             e.preventDefault(); // prevent actual form submit
+                            $('#submit_starting_btn').prop('disabled', true);  // Disables the submit button
+
                             let invalid_input = $('#invalid_input');
                             invalid_input.css('visibility', 'hidden');
                             let form = $(this);
@@ -49,8 +51,6 @@
                             });
                             $('#terminal_output').val('');
 
-                            // Disable the start button until the analysis is finished
-                            $('#submit_starting_btn').prop('disabled', true)
                             socket.send(JSON.stringify({
                                 'message': 'It should work :(',
                                 'type': 'start_parsing',
@@ -58,7 +58,7 @@
                             }));
 
                             return false;
-                        });
+                        })
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">

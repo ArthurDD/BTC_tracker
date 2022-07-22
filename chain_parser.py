@@ -51,7 +51,7 @@ class ChainParser:
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
 
-        self.send_fct = send_fct    # Only takes one arg = message to send to the socket
+        self.send_fct = send_fct    # Takes 2 arg = message to send to the socket and message_type (optional)
 
         print(self.wallet_url)
 
@@ -135,7 +135,15 @@ class ChainParser:
         except Exception as err:
             print(f'get_wallet_transactions - Error occurred: {err}')
         else:
+            content = req.json()
+            if 'txs_count' not in content:
+                self.send_fct("Error, this address doesn't seem to exist.", message_type='error')
+                return False
+
             nb_tx = req.json()["txs_count"]
+            if nb_tx == "0":
+                self.send_fct("Error, this address has not made any transaction yet.", message_type='error')
+                return False
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
                             f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
@@ -162,6 +170,7 @@ class ChainParser:
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
             print()
+            return True
 
     def _retrieve_txids_from_wallet(self, p_bar, req_info):
         """
@@ -434,32 +443,35 @@ class ChainParser:
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
-        self.get_wallet_transactions()
+        result = self.get_wallet_transactions()
 
-        while self.layer_counter <= self.nb_layers:
-            print(f"Layer counter: {self.layer_counter}")
-            self.get_addresses_from_txid()  # counter gets increased in that method
-            self.send_fct(f"Layer {self.layer_counter -1} done!")
+        if result:
+            while self.layer_counter <= self.nb_layers:
+                print(f"Layer counter: {self.layer_counter}")
+                self.get_addresses_from_txid()  # counter gets increased in that method
+                self.send_fct(f"Layer {self.layer_counter -1} done!")
 
-        print(f"\n\n\n--------- FINAL RESULTS ---------\n")
-        for i in range(self.nb_layers + 1):
-            print(f"Layer {i}: {len(self.transaction_lists[i])}")
+            print(f"\n\n\n--------- FINAL RESULTS ---------\n")
+            for i in range(self.nb_layers + 1):
+                print(f"Layer {i}: {len(self.transaction_lists[i])}")
 
-        print("\n\n")
-        # for i in range(self.nb_layers + 1):
-        #     print(f"Tx of layer {i}:")
-        #     for tx in self.transaction_lists[i][:15]:
-        #         print(tx)
-        #     if len(self.transaction_lists[i]) >= 15:
-        #         print("...")
-        #     print("\n")
+            print("\n\n")
+            # for i in range(self.nb_layers + 1):
+            #     print(f"Tx of layer {i}:")
+            #     for tx in self.transaction_lists[i][:15]:
+            #         print(tx)
+            #     if len(self.transaction_lists[i]) >= 15:
+            #         print("...")
+            #     print("\n")
 
-        # print("\n\n")
-        # self.clean_reports()  # Removes empty reports
-        # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
-        # self.check_duplicates()
+            # print("\n\n")
+            # self.clean_reports()  # Removes empty reports
+            # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
+            # self.check_duplicates()
+            print(f"RTO threshold is: {self.rto_threshold}")
 
-        print(f"RTO threshold is: {self.rto_threshold}")
+            return True
+        return False
 
     def check_request_limit(self):
         """
