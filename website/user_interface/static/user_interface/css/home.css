@@ -28,6 +28,22 @@ body, html {
   padding-left: 1rem;
 }
 
+#progress_div {
+  display:None;
+}
+
+#progress_bar_div {
+  width: 100%;
+  background-color: aliceblue;
+  border-radius: 2px;
+}
+
+#progress_bar {
+  width: 1%;
+  height: 30px;
+  background-color: green;
+}
+
 
 button.tab_button {
   border-radius: 0 !important;

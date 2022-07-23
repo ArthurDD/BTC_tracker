@@ -29,7 +29,7 @@ class ChainParser:
     #  addresses have already been clustered. If they have, we stop and "identify" these BTC. If not, we go through
     #  another layer (until we reach our layer limit)
     #  We also need to check whether the coins have been mined or not (if so, identify BTC and stop)
-    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=print):
+    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=None):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers
@@ -67,6 +67,9 @@ class ChainParser:
         :return: None
         """
         print("Starting threads...")
+        if self.send_fct is not None:
+            message = '{' + f'"layer": {self.layer_counter}, "total": "{len(url_list)}"' + '}'
+            self.send_fct(message=message, message_type='progress_bar_start')
         with ThreadPoolExecutor(max_workers=40) as executor, \
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
@@ -141,12 +144,18 @@ class ChainParser:
         else:
             content = req.json()
             if 'txs_count' not in content:
-                self.send_fct("Error, this address doesn't seem to exist.", message_type='error')
+                if self.send_fct is not None:
+                    self.send_fct("Error, this address doesn't seem to exist.", message_type='error')
+                else:
+                    print(f"Error, this address doesn't seem to exist.")
                 return False
 
             nb_tx = req.json()["txs_count"]
             if nb_tx == "0":
-                self.send_fct("Error, this address has not made any transaction yet.", message_type='error')
+                if self.send_fct is not None:
+                    self.send_fct("Error, this address has not made any transaction yet.", message_type='error')
+                else:
+                    print(f"Error, this address doesn't seem to exist.")
                 return False
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
@@ -198,6 +207,8 @@ class ChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            if self.send_fct is not None:
+                self.send_fct(1, message_type="progress_bar_update")
             p_bar.update(1)
             content = req.json()
             for tx in content['txs']:
@@ -261,6 +272,8 @@ class ChainParser:
                 raise Exception(f"Error occurred: {err}")
         else:
             t_request = time.time()
+            if self.send_fct is not None:
+                self.send_fct(1, message_type="progress_bar_update")
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
@@ -453,7 +466,8 @@ class ChainParser:
             while self.layer_counter <= self.nb_layers:
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_addresses_from_txid()  # counter gets increased in that method
-                self.send_fct(f"Layer {self.layer_counter -1} done!")
+                if self.send_fct is not None:
+                    self.send_fct(f"Layer {self.layer_counter -1} done!")
 
             print(f"\n\n\n--------- FINAL RESULTS ---------\n")
             for i in range(self.nb_layers + 1):

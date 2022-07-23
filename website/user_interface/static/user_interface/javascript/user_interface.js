@@ -10,11 +10,15 @@ function connect() {
         console.log('WebSockets connection created.');
     };
 
+    let progress_bar_total = -1;
+    let bar_width = 0;
 
     socket.onmessage = function (e) {
         let text_area = $('#terminal_output');
         const data = JSON.parse(e.data);
+
         if (data.type === 'svg_file') {
+            $('#progress_div').hide()   // Hide the progress bar element
             display_graph(data);
             display_charts();
             $('#submit_starting_btn').prop('disabled', false);
@@ -23,6 +27,21 @@ function connect() {
             let val = text_area.val();
             text_area.val(val + data.message + "\n");
             text_area.scrollTop(text_area[0].scrollHeight);
+        } else if (data.type === 'progress_bar_start') {
+            reset_progress_bar(true)        // Reset the loading bar
+
+            let my_json = JSON.parse(data.message)
+            $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + $('#layer_input').val())
+            progress_bar_total = my_json['total']
+            bar_width = 0
+            // We need to reset progress bar and prepare it for the new layer coming
+
+
+        } else if (data.type === 'progress_bar_update') {
+            bar_width += data.message / progress_bar_total;
+            $('#progress_bar').css('width', Math.ceil(bar_width*100) + '%')
+            $('#p_current_progress').html(Math.ceil(bar_width*100) + '%')
+
         } else {
             let val = text_area.val();
             text_area.val(val + data.message + "\n");
@@ -105,31 +124,20 @@ function set_height () {
 }
 
 
+function reset_progress_bar(display) {
+    $('#progress_bar').css('width', 0 + '%')
+    $('#p_current_progress').html(0 + '%')
+    $('#p_current_layer').html('')
+    if (display) {
+        $('#progress_div').show()   // Display the progress bar element
+    } else {
+        $('#progress_div').hide()   // Hide the progress bar element
+    }
+}
 
-// $.post(url, form.serialize(), function (resp) {
-//     $('#graph').html(resp)
-//     {#console.log("response is: ", resp)#}
-// }).then(function () {
-//     $('div#graph svg').attr('id', 'svg_graph')
-//     let svg = $('#svg_graph')
-//     svg.width("100%").height("100%")
-//
-//     // Expose to window namespase for testing purposes
-//     window.zoomTiger = svgPanZoom('#svg_graph', {
-//         zoomEnabled: true,
-//         controlIconsEnabled: true,
-//         fit: true,
-//         {#center: true,#}
-//         // viewportSelector: document.getElementById('demo-tiger').querySelector('#g4') // this option will make library to misbehave. Viewport should have no transform attribute
-//     });
-//
-//     document.getElementById('enable').addEventListener('click', function() {
-//         window.zoomTiger.enableControlIcons();
-//     })
-//     document.getElementById('disable').addEventListener('click', function() {
-//         window.zoomTiger.disableControlIcons();
-//     })
-// })
-// return false
-// })
-// })
+function dummy_function() {
+    socket.send(JSON.stringify({
+        'message': 'Dummy message',
+        'type': 'json_conversion',
+    }));
+}
