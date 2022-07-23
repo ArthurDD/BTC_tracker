@@ -67,3 +67,24 @@ button.tab_button.active {
 button.tab_button {
   border-bottom: 2px solid lightslategray !important;
 }
+
+
+#tab_content {
+  overflow: auto;
+  box-sizing: border-box;
+  padding-top: 10px;
+}
+
+
+
+.chart {
+  margin-top: 40px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #dea666;
+}
+
+.chart img {
+  width: 80%;
+  height: auto;
+  margin-bottom: 40px;
+}

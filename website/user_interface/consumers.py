@@ -117,10 +117,10 @@ def start_search(send_function, address, layer_nb):
     send_function_bis = partial(send_message, send_function)
 
     chain_parser = ChainParser(address, layer_nb, send_fct=send_function_bis)
-    res = chain_parser.start_analysis()
-    print(f"Res is: {res}")
+    res = chain_parser.start_analysis()  # Res is True if the parsing was successful, False otherwise.
     if res:
-        print(f"Hmm, we should not be here")
+        chain_parser.get_statistics()
+
         tree = GraphVisualisation(chain_parser.transaction_lists)
         file_name = tree.build_tree()
         return file_name

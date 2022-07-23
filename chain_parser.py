@@ -1,5 +1,6 @@
 import concurrent
 import math
+import os
 import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
@@ -12,12 +13,15 @@ import requests_cache
 from request_limit_reached import RequestLimitReached
 from tqdm import tqdm
 import numpy as np
+
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')
 
 from transaction import Transaction, find_transaction
 from web_scraper import Scraper
 
-from asgiref.sync import async_to_sync
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))   # PATH to BTC_tracker
 
 
 class ChainParser:
@@ -482,11 +486,12 @@ class ChainParser:
             waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
 
-    def get_statistics(self):
+    def get_statistics(self, display=False):
         """
         Main function to display stats.
         - Prints the number of pruned tx and identified tx per layer.
         - Calls methods to display other stats/charts
+        :param display: Bool to display or not the plots.
         :return: None
         """
         print(f"\n\n\n--------- STATISTICS ---------\n")
@@ -505,18 +510,18 @@ class ChainParser:
                 if tx.is_pruned:
                     pruned_tx_lists[layer].append(tx)
 
-        print(f"Number of tagged transactions by layer: \n" +
-              "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
-                         for layer in range(self.layer_counter)]) + "\n")
-
-        print(f"Number of pruned transactions by layer: \n" +
-              "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
-                         for layer in range(self.layer_counter)]) + "\n\n\n")
-
-        print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
-              f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
-
-        self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto)
+        # print(f"Number of tagged transactions by layer: \n" +
+        #       "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
+        #                  for layer in range(self.layer_counter)]) + "\n")
+        #
+        # print(f"Number of pruned transactions by layer: \n" +
+        #       "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
+        #                  for layer in range(self.layer_counter)]) + "\n\n\n")
+        #
+        # print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
+        #       f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
+        print(f"Display is: {display}")
+        self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
     def display_time_stats(self, axes=None):
         """
@@ -557,45 +562,57 @@ class ChainParser:
         ax_request.set_title('Average function time per layer')
         ax_request.legend(loc='best')
 
+        plt.savefig(FILE_DIR + '/doctest-output/plots/avg_function_time.png')
         if display:
             plt.show()
 
-    def display_tagged_stats(self, tagged_tx_lists, tagged_tx_rto):
+    def display_tagged_stats(self, tagged_tx_lists, tagged_tx_rto, display=False):
         """
         Displays 2 graphs: one with how many transactions were tagged per layer, and one with rto information
         :return: None
         """
-        plt.style.use('ggplot')
-        figure, axis = plt.subplots(2, 2)
+        plt.style.use('seaborn')
 
         tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
         layers = [i for i in range(len(tagged_by_layer))]
 
         sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
 
-        axis[0, 0].bar(layers, tagged_by_layer, color='blue')
-        axis[0, 0].set_ylabel("Tagged tx")
-        axis[0, 0].set_xlabel("Layers")
-        axis[0, 0].set_title("Tagged transactions by layer")
+        plt.bar(layers, tagged_by_layer, color='blue')
+        plt.ylabel("Tagged tx", fontsize=22)
+        plt.xlabel("Layers", fontsize=22)
+        plt.title("Tagged transactions by layer")
 
-        # print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
-        axis[0, 1].bar(layers, tagged_tx_rto.values(), color='orange')
-        axis[0, 1].set_ylabel("RTO")
-        axis[0, 1].set_xlabel("Layers")
-        axis[0, 1].set_title("Sum of tagged tx's RTO by layer")
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_transactions_by_layer.png')
+
+        if display:
+            plt.show()
+
+        plt.clf()
+        print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
+
+        plt.bar(layers, tagged_tx_rto.values(), color='orange')
+        plt.ylabel("RTO", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
+        plt.title("Sum of tagged tx's RTO by layer")
 
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
-        ax_twin = axis[0, 1].twinx()
+        ax_twin = plt.twinx()
         ax_twin.plot(layers, sum_rto_by_layer, color='green')
-        ax_twin.set_ylabel("Total (BTC)")
+        ax_twin.yaxis.grid(False)   # Remove the horizontal lines for the second y_axis
+        ax_twin.set_ylabel("Total (BTC)", fontsize=18)
 
-        self.display_time_stats(axis[1, 0])
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png')
 
-        # plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        if display:
+            plt.show()
+
+        print(f"Almost at the end")
+        self.display_time_stats()
 
         # plt.show()
-        plt.tight_layout()
-        plt.show()
 
     def find_transactions(self):
         print(f"Finding transaction...")

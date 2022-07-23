@@ -70,8 +70,8 @@
                 </div>
             </div>
         </div>
-        <div class='col-6' style="height: 100%; padding-left: 0; padding-right: 0">
-            <div id="tab_bar" style="padding-top: 0; margin-bottom: 10px">
+        <div id="right_col" class='col-6' style="height: 100%; padding-left: 0; padding-right: 0">
+            <div id="tab_bar" style="padding-top: 0;">
                 <ul class="nav nav-pills nav-fill">
                     <li class="nav-item">
                         <button class="tab_button nav-link active" id="graph_tab" data-bs-toggle="tab" data-bs-target="#graph_tab_content" type="button" role="tab" aria-controls="graph_tab_content" aria-selected="true" style="border-bottom-left-radius: 0;">
@@ -86,17 +86,21 @@
                 </ul>
             </div>
             <div class="tab-content" id="tab_content">
-                <div id="graph_tab_content" class=" container tab-pane fade show active" role="tabpanel" aria-labelledby="graph_tab">
+                <div id="graph_tab_content" class="container tab-pane fade show active" role="tabpanel" aria-labelledby="graph_tab">
                     <div id="graph" style="text-align: center">
                         <p style="margin-top:20px; font-style: italic"> The computed graph will appear here.</p>
                     </div>
                 </div>
                 <div id="chart_tab_content" class="container tab-pane fade" role="tabpanel" aria-labelledby="chart_tab">
-                    <div id="chart" style="text-align: center">
+                    <div id="chart" style="text-align: center;">
                         <p style="margin-top:20px; font-style: italic"> The computed charts and statistics will appear here.</p>
                     </div>
                 </div>
             </div>
+
+        <script>
+            set_height()
+        </script>
 
 
         </div>

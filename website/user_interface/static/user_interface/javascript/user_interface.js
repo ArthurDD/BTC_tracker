@@ -16,6 +16,7 @@ function connect() {
         const data = JSON.parse(e.data);
         if (data.type === 'svg_file') {
             display_graph(data);
+            display_charts();
             $('#submit_starting_btn').prop('disabled', false);
         } else if (data.type === 'error') {
             $('#submit_starting_btn').prop('disabled', false);
@@ -83,6 +84,23 @@ function display_banner(message, banner_class) {
         $('span', banner).addClass("blink_me");
     }
 }
+
+
+function display_charts() {
+    $.get('/user_interface/display_charts/', function (data) {
+        $('#chart_tab_content').html(data)
+    })
+}
+
+function set_height () {
+    let total_height = $('#right_col').outerHeight()
+    let header_height = $('#tab_bar').outerHeight()
+    let height = total_height - header_height + 'px'
+    $('#tab_content').css('height', height)
+    // console.log("Height set to: ", height)
+}
+
+
 
 // $.post(url, form.serialize(), function (resp) {
 //     $('#graph').html(resp)

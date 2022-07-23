@@ -1,0 +1,26 @@
+{% load static %}
+
+<p style="font-style: italic">{{ test_data }}</p>
+
+<div id="tagged_transactions_by_layer" class="chart">
+    <h4> Tagged transactions by layer:</h4>
+    <img src="{% static  'plots/tagged_transactions_by_layer.png'%}" alt="Tagged transactions chart">
+</div>
+
+<div id="tagged_tx_rto" class="chart">
+    <h4> Sum of tagged transactions' RTO by layer:</h4>
+    <img src="{% static  'plots/tagged_tx_rto.png'%}" alt="Transactions' RTO chart">
+</div>
+
+<div id="avg_function_time" class="chart">
+    <h4> Average time taken by each function of the tool:</h4>
+    <img src="{% static  'plots/avg_function_time.png'%}" alt="Average function time">
+</div>
+
+
+<script>
+    $(document).ready(function () {
+        console.log("OK never mind, it is called...")
+        set_height()
+    })
+</script>
