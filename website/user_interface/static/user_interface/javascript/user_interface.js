@@ -93,6 +93,10 @@ function display_charts() {
 }
 
 function set_height () {
+    let main_height = $('body').outerHeight() - $('#nav_bar').outerHeight() + 'px'
+    $('#main_content').css('height', main_height)
+    // console.log('Main_height is: ', main_height)
+
     let total_height = $('#right_col').outerHeight()
     let header_height = $('#tab_bar').outerHeight()
     let height = total_height - header_height + 'px'
