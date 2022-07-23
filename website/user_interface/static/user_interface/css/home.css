@@ -4,17 +4,6 @@ body, html {
 }
 
 
-/* Position text in the middle */
-.middle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-
-
 /* Submit Button(s) */
 .btn_submit {
   background-color: #dea666;
@@ -24,11 +13,9 @@ body, html {
 
 #terminal_output_div {
   margin-top: 3rem;
-
   width: 100%;
   height: 100%;
   /*max-width: 400px;*/
-
 }
 
 #terminal_output {
@@ -40,15 +27,6 @@ body, html {
   max-height: 400px;
   padding-left: 1rem;
 }
-
-/*.nav-link {*/
-/*  color: aliceblue;*/
-/*}*/
-
-/*.nav-link .active {*/
-/*  color: rgb(77, 79, 94);*/
-/*}*/
-
 
 
 button.tab_button {
