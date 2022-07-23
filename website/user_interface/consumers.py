@@ -60,7 +60,7 @@ class UserInterfaceConsumer(WebsocketConsumer):
 
         self.send(text_data=json.dumps({
             'type': 'connection_established',
-            'message': 'Connection established!'
+            'message': '.'
         }))
 
     def receive(self, text_data):

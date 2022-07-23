@@ -17,17 +17,23 @@ function connect() {
         let text_area = $('#terminal_output');
         const data = JSON.parse(e.data);
 
-        if (data.type === 'svg_file') {
+        if (data.type === "connection_established") {
+            if (text_area.val() === "") {
+                text_area.val(data.message + "\n")
+            }
+        } else if (data.type === 'svg_file') {     // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
             $('#progress_div').hide()   // Hide the progress bar element
             display_graph(data);
             display_charts();
             $('#submit_starting_btn').prop('disabled', false);
-        } else if (data.type === 'error') {
+
+        } else if (data.type === 'error') {     // Message sent when address was not found
             $('#submit_starting_btn').prop('disabled', false);
             let val = text_area.val();
             text_area.val(val + data.message + "\n");
             text_area.scrollTop(text_area[0].scrollHeight);
-        } else if (data.type === 'progress_bar_start') {
+
+        } else if (data.type === 'progress_bar_start') {    // Sent at the beginning of each layer before making requests
             reset_progress_bar(true)        // Reset the loading bar
 
             let my_json = JSON.parse(data.message)
@@ -36,11 +42,19 @@ function connect() {
             bar_width = 0
             // We need to reset progress bar and prepare it for the new layer coming
 
-
-        } else if (data.type === 'progress_bar_update') {
+        } else if (data.type === 'progress_bar_update') {   // Sent every time a request is parsed in each layer.
             bar_width += data.message / progress_bar_total;
             $('#progress_bar').css('width', Math.ceil(bar_width*100) + '%')
             $('#p_current_progress').html(Math.ceil(bar_width*100) + '%')
+
+        } else if (data.type === 'final_stats') {   // Sent once the analysis is finished
+            let my_json = JSON.parse(data.message)
+            let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
+                "Total time: " + my_json['total_time'] + "s\nRTO threshold: " +my_json["rto_threshold"] +
+                "\n\nRequests have been cached.\nAll done!"
+            let val = text_area.val();
+            text_area.val(val + lines);
+            text_area.scrollTop(text_area[0].scrollHeight);
 
         } else {
             let val = text_area.val();

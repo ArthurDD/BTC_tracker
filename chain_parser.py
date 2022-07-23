@@ -1,4 +1,5 @@
 import concurrent
+import json
 import math
 import os
 import random
@@ -460,6 +461,7 @@ class ChainParser:
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
+        t_0 = time.time()
         result = self.get_wallet_transactions()
 
         if result:
@@ -470,10 +472,12 @@ class ChainParser:
                     self.send_fct(f"Layer {self.layer_counter -1} done!")
 
             print(f"\n\n\n--------- FINAL RESULTS ---------\n")
+            parsing_information = {"layer_info": {}, "total_txs": 0}
             for i in range(self.nb_layers + 1):
+                parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
+                parsing_information["total_txs"] += len(self.transaction_lists[i])
                 print(f"Layer {i}: {len(self.transaction_lists[i])}")
 
-            print("\n\n")
             # for i in range(self.nb_layers + 1):
             #     print(f"Tx of layer {i}:")
             #     for tx in self.transaction_lists[i][:15]:
@@ -486,7 +490,14 @@ class ChainParser:
             # self.clean_reports()  # Removes empty reports
             # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
             # self.check_duplicates()
+
             print(f"RTO threshold is: {self.rto_threshold}")
+            parsing_information["rto_threshold"] = self.rto_threshold
+            parsing_information["total_time"] = time.time() - t_0
+
+            if self.send_fct is not None:
+                self.send_fct(message=str(json.dumps(parsing_information)), message_type='final_stats')
+            print("\n\n")
 
             return True
         return False
