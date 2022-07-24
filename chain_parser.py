@@ -303,8 +303,7 @@ class ChainParser:
                                 Transaction(txid=add['next_tx'], prev_txid=[(txid, self.layer_counter - 1)],
                                             amount=add['amount'],
                                             rto=add['rto'],
-                                            output_addresses=[add['address']],
-                                            rto_threshold=self.rto_threshold))
+                                            output_addresses=[add['address']]))
 
                         else:
                             self.added_before.append(add['next_tx'])

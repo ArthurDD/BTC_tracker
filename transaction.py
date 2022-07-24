@@ -1,5 +1,5 @@
 class Transaction:
-    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, rto=0, is_pruned=None, rto_threshold=0):
+    def __init__(self, txid, prev_txid=None, output_addresses=None, amount=0, rto=0, is_pruned=None):  # rto_threshold=0
         """
 
         :param txid: Transaction ID of that transaction
@@ -18,7 +18,6 @@ class Transaction:
         self.amount = amount
         self.rto = rto  # Ratio To Original - contains the amount of original btc that the transaction is supposed to
         # represent
-        self.is_below_rto_threshold = False if rto > rto_threshold else True
         self.tag = None
         self.is_pruned = is_pruned     # Used to indicate if we pruned the tree based on that tx
         self.is_manually_deleted = False
