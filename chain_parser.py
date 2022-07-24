@@ -17,7 +17,6 @@ import numpy as np
 
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')
 
 from transaction import Transaction, find_transaction
 from web_scraper import Scraper
@@ -582,8 +581,8 @@ class ChainParser:
 
         ax_request.bar(x_pos, request_avg_time, align='center', width=0.4, label="Avg. Request")
         ax_request.bar(x_pos, select_input_avg_time, align='center', width=0.4, label="Avg. Input Sel.")
-        ax_request.set_xlabel('Layers')
-        ax_request.set_ylabel('Time (s)')
+        ax_request.set_xlabel('Layers', fontsize=18)
+        ax_request.set_ylabel('Time (s)', fontsize=18)
         ax_request.set_title('Average function time per layer')
         ax_request.legend(loc='best')
 
@@ -596,16 +595,38 @@ class ChainParser:
         Displays 2 graphs: one with how many transactions were tagged per layer, and one with rto information
         :return: None
         """
-        plt.style.use('seaborn')
+        if not display:
+            matplotlib.use('Agg')   # Change the library used to compute graphs. Agg works for backend only
 
+        plt.style.use('seaborn')
+        plt.clf()
+
+        transactions_by_layer = [len(transaction_list) for transaction_list in self.transaction_lists.values()]
+        layers = [i for i in range(len(transactions_by_layer))]
+        plt.bar(layers, transactions_by_layer, color='green', width=0.4)
+        for i in range(len(layers)):
+            plt.text(i, transactions_by_layer[i], transactions_by_layer[i], ha='center')
+
+        plt.ylabel("Number of tx", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
+        plt.title("Number of transactions by layer")
+
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/transactions_by_layer.png')
+
+        if display:
+            plt.show()
+
+        plt.clf()
         tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
         layers = [i for i in range(len(tagged_by_layer))]
 
-        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
+        plt.bar(layers, tagged_by_layer, width=0.4)
+        for i in range(len(layers)):
+            plt.text(i, tagged_by_layer[i], tagged_by_layer[i], ha='center')
 
-        plt.bar(layers, tagged_by_layer, color='blue')
-        plt.ylabel("Tagged tx", fontsize=22)
-        plt.xlabel("Layers", fontsize=22)
+        plt.ylabel("Tagged tx", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
         plt.title("Tagged transactions by layer")
 
         plt.tight_layout()
@@ -615,13 +636,15 @@ class ChainParser:
             plt.show()
 
         plt.clf()
+        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
         print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
 
-        plt.bar(layers, tagged_tx_rto.values(), color='orange')
+        plt.bar(layers, tagged_tx_rto.values(), color='orange', width=0.4)
         plt.ylabel("RTO", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
         plt.title("Sum of tagged tx's RTO by layer")
 
+        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
         ax_twin = plt.twinx()
         ax_twin.plot(layers, sum_rto_by_layer, color='green')

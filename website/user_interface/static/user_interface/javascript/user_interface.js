@@ -121,7 +121,7 @@ function display_banner(message, banner_class) {
 
 function display_charts() {
     $.get('/user_interface/display_charts/', function (data) {
-        $('#chart_tab_content').html(data)
+        $('#chart').html(data)
     })
 }
 
