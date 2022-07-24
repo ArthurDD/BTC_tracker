@@ -40,7 +40,7 @@ class GraphVisualisation:
                             self.dot.edge(prev_txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
         self.set_low_rto()
-        self.make_legend()
+        # self.make_legend()
         self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.visualise)
 
         print("Tree done!")
