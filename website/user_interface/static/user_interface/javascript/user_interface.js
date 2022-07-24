@@ -106,6 +106,10 @@ function display_graph(data) {
         })
 }
 
+function reset_graph() {
+    $('#graph').html('<p style="margin-top:20px; font-style: italic"> The computed graph will appear here.</p>').css('background-color', '')
+    svgPanZoom.destroy; // destroy svgPanZoom instance (can't have more than one in a page)
+}
 
 function display_banner(message, banner_class) {
     let banner = $('#information_banner');

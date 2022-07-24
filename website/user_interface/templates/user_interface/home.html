@@ -34,7 +34,6 @@
                     $(document).ready(function () {
                         $("#starting_form").submit(function (e) {
                             e.preventDefault(); // prevent actual form submit
-                            $('#submit_starting_btn').prop('disabled', true);  // Disables the submit button
 
                             let invalid_input = $('#invalid_input');
                             invalid_input.css('visibility', 'hidden');
@@ -45,6 +44,12 @@
                                 invalid_input.css('visibility', 'visible')
                                 return false
                             }
+
+                            $('#submit_starting_btn').prop('disabled', true);  // Disables the submit button
+                            // Reset the tabs
+                            reset_graph()
+                            $('#chart').html('<p style="margin-top:20px; font-style: italic"> The computed charts and statistics will appear here.</p>')
+
                             let values = {};
                             $.each(form.serializeArray(), function(i, field) {
                                 values[field.name] = field.value;
