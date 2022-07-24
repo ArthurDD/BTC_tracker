@@ -5,7 +5,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
-    def __init__(self, transaction_lists, visualise=False):
+    def __init__(self, transaction_lists, display=False):
         self.transaction_lists = transaction_lists
         self.depth = len(transaction_lists)
         self.name = f'transaction-graph-{self.depth - 1}'
@@ -13,7 +13,7 @@ class GraphVisualisation:
         self.dot.id = "id_test"
         self.dot.graph_attr['rankdir'] = 'RL'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
-        self.visualise = visualise      # Indicates whether we want to open the graph at the end of the build.
+        self.display = display      # Indicates whether we want to open the graph at the end of the build.
 
         self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
 

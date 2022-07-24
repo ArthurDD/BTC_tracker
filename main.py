@@ -30,7 +30,7 @@ def try_parser(address):
         chain_parser.get_statistics(display=True)
 
         # Build the tree
-        tree = GraphVisualisation(chain_parser.transaction_lists, visualise=True)
+        tree = GraphVisualisation(chain_parser.transaction_lists, display=True)
         tree.build_tree()
 
         # chain_parser.find_transactions()
