@@ -65,6 +65,7 @@ function connect() {
 
     socket.onclose = function (e) {
         display_banner("Connection to the server lost. Retrying in 2 sec...", "alert-warning");
+        $('#submit_starting_btn').prop('disabled', true);  // Disables the submit button
         setTimeout(function () {
             connect();
         }, 2000);
