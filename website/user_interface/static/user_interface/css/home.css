@@ -82,3 +82,14 @@ button.tab_button {
   height: auto;
   margin-bottom: 40px;
 }
+
+
+/* Graph links */
+svg a text, svg a {
+  fill: blue; /* Even for text, SVG uses fill over color */
+  text-decoration: underline;
+}
+
+svg a:hover, svg a:active {
+  outline: dotted 1px blue;
+}

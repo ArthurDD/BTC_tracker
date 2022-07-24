@@ -80,6 +80,12 @@ function display_graph(data) {
     $.get(url, {'file_name': data['svg_file_name']}, function (resp) {
         $('#graph').html(resp)
     }).then(function () {
+        $('g.node > g > a').each(function () {
+            let anchor_href = $(this).attr("xlink:href")
+            $(this).removeAttr("xlink:href")
+            $(this).removeAttr("xlink:title")
+            $(this).attr('href', anchor_href)
+        })
         $('div#graph').css('background-color', 'white')
         $('div#graph svg').attr('id', 'svg_graph')
         let svg = $('#svg_graph')
