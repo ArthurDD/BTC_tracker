@@ -40,8 +40,9 @@ class GraphVisualisation:
                             self.dot.edge(prev_txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
         self.set_low_rto()
-        # self.make_legend()
-        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.visualise)
+        self.set_removed()
+        self.make_legend()
+        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
 
         print("Tree done!")
         return f"{self.name}.gv.svg"
@@ -56,18 +57,15 @@ class GraphVisualisation:
                 if tx.tag:
                     self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0">''' + str(tx.rto) + ''' RTO</td></tr></table>>''')  # label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
 
-    def set_special(self):
+    def set_removed(self):
         """
-        DEPRECATED
-        Change the border colour for special transactions (see Transaction Class)
+        Change the border colour for deleted transactions (see Transaction Class)
         :return: None
         """
-        for layer in range(1, self.depth):
+        for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
-                for txx in self.transaction_lists[layer - 1]:
-                    if tx.prev_txid == txx.txid and txx.is_pruned:
-                        self.dot.edge(txx.txid, tx.txid, style='dashed, bold', color="azure3")
-                        # self.dot.node(tx.txid, color='green', style='filled', fillcolor='lightblue2')
+                if tx.is_manually_deleted:  # If the user decided not to keep that transaction
+                    self.dot.node(tx.txid, color='gray', style='filled', fillcolor='gray51')
 
     def set_low_rto(self):
         """
@@ -78,7 +76,7 @@ class GraphVisualisation:
         txid_set, prev_txid_set = self.get_all_txids()
         nodes_to_highlight = list(txid_set - prev_txid_set)
         for txid in nodes_to_highlight:
-            self.dot.node(txid, color='blue', style='filled', fillcolor='azure3')
+            self.dot.node(txid, color='blue', style='filled', fillcolor='skyblue3')
 
     def make_legend(self):
         with self.dot.subgraph(name='cluster_legend') as c:
@@ -86,8 +84,9 @@ class GraphVisualisation:
             c.node("pruned_tx", label="", penwidth='0')
             c.node("pruned_tx_end", label="", penwidth='0')
             c.edge("pruned_tx", "pruned_tx_end", label="Pruned Tx", style='dashed, bold', color="azure3")
-            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='azure3')
+            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='burlywood')
             c.node("tagged_tx", label="Tagged TX", color='orange', style='filled', fillcolor='orange')
+            c.node("removed_tx", label="Removed Transactions", color='gray', style='filled', fillcolor='gray51')
             c.node("reported_add", label="Reported Address", color='red', style='bold')
 
     def get_all_txids(self):

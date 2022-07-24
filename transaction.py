@@ -21,6 +21,7 @@ class Transaction:
         self.is_below_rto_threshold = False if rto > rto_threshold else True
         self.tag = None
         self.is_pruned = is_pruned     # Used to indicate if we pruned the tree based on that tx
+        self.is_manually_deleted = False
 
     def __str__(self):
         return str(self.__dict__)

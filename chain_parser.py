@@ -230,7 +230,7 @@ class ChainParser:
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
-                        for tx in self.transaction_lists[self.layer_counter - 1]]
+                        for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_manually_deleted]
         tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]]
 
         print(f"Length of tot_address_list: {len(tot_address_list)}")
@@ -403,6 +403,7 @@ class ChainParser:
             self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
 
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
+        # and remove low ones
 
         return selected_inputs
 
@@ -458,15 +459,22 @@ class ChainParser:
                     add = report['address']
                     # Find all the transactions that have add in output_add and tag them
 
-    def start_analysis(self):
+    def start_analysis(self, manual=False):
         """ Method to start the analysis of the root address. Builds every layer. """
         t_0 = time.time()
-        result = self.get_wallet_transactions()
+        result = self.get_wallet_transactions()  # Counter gets increased in that method
+
+        if manual:
+            self.select_transactions()
 
         if result:
             while self.layer_counter <= self.nb_layers:
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_addresses_from_txid()  # counter gets increased in that method
+
+                if manual:
+                    self.select_transactions()
+
                 if self.send_fct is not None:
                     self.send_fct(f"Layer {self.layer_counter -1} done!")
 
@@ -500,6 +508,26 @@ class ChainParser:
 
             return True
         return False
+
+    def select_transactions(self):
+        """
+        Select transactions to delete (=stop the parsing with) in case manual analysis is made.
+        Sets is_manually_deleted to True if tx is deleted
+        :return: None
+        """
+        layer = self.layer_counter - 1
+        print(f"Transactions found for that layer: ")
+        for i, tx in enumerate(self.transaction_lists[layer]):
+            print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")
+        tx_to_del = input("Please indicate the index of transactions to prune (separated by a comma):\n")
+        if tx_to_del != "":
+            tx_to_del = [int(elt) for elt in tx_to_del.split(',')]
+        else:
+            tx_to_del = []
+
+        print(f"tx_to_del: {tx_to_del}")
+        for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
+            self.transaction_lists[layer][i].is_manually_deleted = True
 
     def check_request_limit(self):
         """
