@@ -5,14 +5,15 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
-    def __init__(self, transaction_lists):
+    def __init__(self, transaction_lists, visualise=False):
         self.transaction_lists = transaction_lists
         self.depth = len(transaction_lists)
         self.name = f'transaction-graph-{self.depth - 1}'
         self.dot = graphviz.Digraph(f'transaction-graph-{self.depth - 1}', comment='Transaction Graph', format='svg')
         self.dot.id = "id_test"
-        self.dot.graph_attr['rankdir'] = 'LR'
+        self.dot.graph_attr['rankdir'] = 'RL'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
+        self.visualise = visualise      # Indicates whether we want to open the graph at the end of the build.
 
         self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
 
@@ -39,8 +40,8 @@ class GraphVisualisation:
                             self.dot.edge(prev_txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
         self.set_low_rto()
-        self.make_legend()
-        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=False)
+        # self.make_legend()
+        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.visualise)
 
         print("Tree done!")
         return f"{self.name}.gv.svg"

@@ -3,10 +3,10 @@
 {% block main_content %}
     {% load static %}
     <script src="{% static 'user_interface/javascript/user_interface.js' %}"></script>
-    <div class="row" style="height:100%; width: 100%">
-        <div class='col-6' >
-            <div class="container" style="border-right: solid 2px; border-right-color: #fa9d4b; margin-left: 12px">
-                <div class="col-9" style="padding-left: 12px; padding-right: 12px">
+    <div class="row" style="height:100%; width: 100%; margin-right:0; margin-left:0">
+        <div class='col-6' style="border-right: solid 2px; border-right-color: #fa9d4b">
+            <div class="container">
+                <div class="col-9" style="padding-left: 12px; padding-right: 12px; padding-top: 1rem;">
                     <h4> Track an address: </h4>
                     <form id="starting_form" class="form-group" action="{% url 'display_graph' %}">
                         {% csrf_token %}
@@ -22,9 +22,11 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0rem">
+                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0" disabled>
                             Start tracking!
                         </button>
+                        <br>
+                        <span id="invalid_input" style="color:indianred; visibility: hidden"> Please enter an address!</span>
                     </form>
                 </div>
 
@@ -32,42 +34,86 @@
                     $(document).ready(function () {
                         $("#starting_form").submit(function (e) {
                             e.preventDefault(); // prevent actual form submit
-                            {#console.log("WE HERE")#}
+
+                            let invalid_input = $('#invalid_input');
+                            invalid_input.css('visibility', 'hidden');
                             let form = $(this);
 
                             // Send the ws to start the parsing
+                            if ($('#address_input').val() === "") {
+                                invalid_input.css('visibility', 'visible')
+                                return false
+                            }
+
+                            $('#submit_starting_btn').prop('disabled', true);  // Disables the submit button
+                            // Reset the tabs
+                            reset_graph()
+                            $('#chart').html('<p style="margin-top:20px; font-style: italic"> The computed charts and statistics will appear here.</p>')
+
                             let values = {};
                             $.each(form.serializeArray(), function(i, field) {
                                 values[field.name] = field.value;
                             });
                             $('#terminal_output').val('');
+
                             socket.send(JSON.stringify({
                                 'message': 'It should work :(',
                                 'type': 'start_parsing',
                                 'data': values,
                             }));
-                        });
+
+                            return false;
+                        })
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">
                     <div class="container">
-{#                        <button id="submit_button" class="btn"> Dummy Button</button>#}
-
                         <label for="terminal_output"> <h4> Output Console:</h4>
                         </label>
                         <textarea id="terminal_output" class="container" readonly></textarea>
                     </div>
                 </div>
+                <div id="progress_div">
+                    <p id="p_current_layer"></p>
+                    <div id="progress_bar_div">
+                        <div id="progress_bar"></div>
+                    </div>
+                    <p id="p_current_progress"></p>
+                </div>
             </div>
         </div>
-        <div class='col-6' style="height: 100%">
-            <div id="graph_div" class="container">
-                <h4> Bitcoin Graph: </h4>
-                <div id="graph">
-
-                </div>
-
+        <div id="right_col" class='col-6' style="height: 100%; padding-left: 0; padding-right: 0">
+            <div id="tab_bar" style="padding-top: 0;">
+                <ul class="nav nav-pills nav-fill">
+                    <li class="nav-item">
+                        <button class="tab_button nav-link active" id="graph_tab" data-bs-toggle="tab" data-bs-target="#graph_tab_content" type="button" role="tab" aria-controls="graph_tab_content" aria-selected="true" style="border-bottom-left-radius: 0;">
+                            Bitcoin Graph
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="tab_button nav-link" id="chart_tab" data-bs-toggle="tab" data-bs-target="#chart_tab_content" type="button" role="tab" aria-controls="chart_tab_content" aria-selected="false" style="border-bottom-right-radius: 0;">
+                            Charts and Statistics
+                        </button>
+                    </li>
+                </ul>
             </div>
+            <div class="tab-content" id="tab_content">
+                <div id="graph_tab_content" class="container tab-pane fade show active" role="tabpanel" aria-labelledby="graph_tab">
+                    <div id="graph" style="text-align: center">
+                        <p style="margin-top:20px; font-style: italic"> The computed graph will appear here.</p>
+                    </div>
+                </div>
+                <div id="chart_tab_content" class="container tab-pane fade" role="tabpanel" aria-labelledby="chart_tab">
+                    <div id="chart" style="text-align: center;">
+                        <p style="margin-top:20px; font-style: italic"> The computed charts and statistics will appear here.</p>
+                    </div>
+                </div>
+            </div>
+
+        <script>
+            set_height()
+        </script>
+
 
         </div>
     </div>

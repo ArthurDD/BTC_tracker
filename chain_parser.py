@@ -1,5 +1,7 @@
 import concurrent
+import json
 import math
+import os
 import random
 from concurrent.futures import ThreadPoolExecutor, wait
 import time
@@ -12,12 +14,14 @@ import requests_cache
 from request_limit_reached import RequestLimitReached
 from tqdm import tqdm
 import numpy as np
+
+import matplotlib
 import matplotlib.pyplot as plt
 
 from transaction import Transaction, find_transaction
 from web_scraper import Scraper
 
-from asgiref.sync import async_to_sync
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))   # PATH to BTC_tracker
 
 
 class ChainParser:
@@ -51,7 +55,7 @@ class ChainParser:
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
 
-        self.send_fct = send_fct    # Only takes one arg = message to send to the socket
+        self.send_fct = send_fct    # Takes 2 arg = message to send to the socket and message_type (optional)
 
         print(self.wallet_url)
 
@@ -63,6 +67,9 @@ class ChainParser:
         :return: None
         """
         print("Starting threads...")
+        if self.send_fct is not None:
+            message = '{' + f'"layer": {self.layer_counter}, "total": "{len(url_list)}"' + '}'
+            self.send_fct(message=message, message_type='progress_bar_start')
         with ThreadPoolExecutor(max_workers=40) as executor, \
                 tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
@@ -135,7 +142,21 @@ class ChainParser:
         except Exception as err:
             print(f'get_wallet_transactions - Error occurred: {err}')
         else:
+            content = req.json()
+            if 'txs_count' not in content:
+                if self.send_fct is not None:
+                    self.send_fct("Error, this address doesn't seem to exist.", message_type='error')
+                else:
+                    print(f"Error, this address doesn't seem to exist.")
+                return False
+
             nb_tx = req.json()["txs_count"]
+            if nb_tx == "0":
+                if self.send_fct is not None:
+                    self.send_fct("Error, this address has not made any transaction yet.", message_type='error')
+                else:
+                    print(f"Error, this address doesn't seem to exist.")
+                return False
             nb_req = nb_tx // 100 if nb_tx % 100 == 0 else nb_tx // 100 + 1
             tot_url_list = [f"https://www.walletexplorer.com/api/1/address?address={self.address}"
                             f"&from={i * 100}&count=100&caller=paulo" for i in range(nb_req)]
@@ -162,6 +183,7 @@ class ChainParser:
             print(f"Length of layer 0: {len(self.transaction_lists[0])}")
             print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
             print()
+            return True
 
     def _retrieve_txids_from_wallet(self, p_bar, req_info):
         """
@@ -185,6 +207,8 @@ class ChainParser:
                 print(f'retrieve_txids_from_wallet - Error occurred: {err}')
                 raise Exception(f"Error occurred: {err}")
         else:
+            if self.send_fct is not None:
+                self.send_fct(1, message_type="progress_bar_update")
             p_bar.update(1)
             content = req.json()
             for tx in content['txs']:
@@ -248,6 +272,8 @@ class ChainParser:
                 raise Exception(f"Error occurred: {err}")
         else:
             t_request = time.time()
+            if self.send_fct is not None:
+                self.send_fct(1, message_type="progress_bar_update")
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
@@ -434,32 +460,46 @@ class ChainParser:
 
     def start_analysis(self):
         """ Method to start the analysis of the root address. Builds every layer. """
-        self.get_wallet_transactions()
+        t_0 = time.time()
+        result = self.get_wallet_transactions()
 
-        while self.layer_counter <= self.nb_layers:
-            print(f"Layer counter: {self.layer_counter}")
-            self.get_addresses_from_txid()  # counter gets increased in that method
-            self.send_fct(f"Layer {self.layer_counter -1} done!")
+        if result:
+            while self.layer_counter <= self.nb_layers:
+                print(f"Layer counter: {self.layer_counter}")
+                self.get_addresses_from_txid()  # counter gets increased in that method
+                if self.send_fct is not None:
+                    self.send_fct(f"Layer {self.layer_counter -1} done!")
 
-        print(f"\n\n\n--------- FINAL RESULTS ---------\n")
-        for i in range(self.nb_layers + 1):
-            print(f"Layer {i}: {len(self.transaction_lists[i])}")
+            print(f"\n\n\n--------- FINAL RESULTS ---------\n")
+            parsing_information = {"layer_info": {}, "total_txs": 0}
+            for i in range(self.nb_layers + 1):
+                parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
+                parsing_information["total_txs"] += len(self.transaction_lists[i])
+                print(f"Layer {i}: {len(self.transaction_lists[i])}")
 
-        print("\n\n")
-        # for i in range(self.nb_layers + 1):
-        #     print(f"Tx of layer {i}:")
-        #     for tx in self.transaction_lists[i][:15]:
-        #         print(tx)
-        #     if len(self.transaction_lists[i]) >= 15:
-        #         print("...")
-        #     print("\n")
+            # for i in range(self.nb_layers + 1):
+            #     print(f"Tx of layer {i}:")
+            #     for tx in self.transaction_lists[i][:15]:
+            #         print(tx)
+            #     if len(self.transaction_lists[i]) >= 15:
+            #         print("...")
+            #     print("\n")
 
-        # print("\n\n")
-        # self.clean_reports()  # Removes empty reports
-        # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
-        # self.check_duplicates()
+            # print("\n\n")
+            # self.clean_reports()  # Removes empty reports
+            # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
+            # self.check_duplicates()
 
-        print(f"RTO threshold is: {self.rto_threshold}")
+            print(f"RTO threshold is: {self.rto_threshold}")
+            parsing_information["rto_threshold"] = self.rto_threshold
+            parsing_information["total_time"] = time.time() - t_0
+
+            if self.send_fct is not None:
+                self.send_fct(message=str(json.dumps(parsing_information)), message_type='final_stats')
+            print("\n\n")
+
+            return True
+        return False
 
     def check_request_limit(self):
         """
@@ -470,11 +510,12 @@ class ChainParser:
             waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
 
-    def get_statistics(self):
+    def get_statistics(self, display=False):
         """
         Main function to display stats.
         - Prints the number of pruned tx and identified tx per layer.
         - Calls methods to display other stats/charts
+        :param display: Bool to display or not the plots.
         :return: None
         """
         print(f"\n\n\n--------- STATISTICS ---------\n")
@@ -493,18 +534,18 @@ class ChainParser:
                 if tx.is_pruned:
                     pruned_tx_lists[layer].append(tx)
 
-        print(f"Number of tagged transactions by layer: \n" +
-              "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
-                         for layer in range(self.layer_counter)]) + "\n")
-
-        print(f"Number of pruned transactions by layer: \n" +
-              "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
-                         for layer in range(self.layer_counter)]) + "\n\n\n")
-
-        print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
-              f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
-
-        self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto)
+        # print(f"Number of tagged transactions by layer: \n" +
+        #       "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
+        #                  for layer in range(self.layer_counter)]) + "\n")
+        #
+        # print(f"Number of pruned transactions by layer: \n" +
+        #       "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
+        #                  for layer in range(self.layer_counter)]) + "\n\n\n")
+        #
+        # print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
+        #       f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
+        print(f"Display is: {display}")
+        self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
     def display_time_stats(self, axes=None):
         """
@@ -540,50 +581,86 @@ class ChainParser:
 
         ax_request.bar(x_pos, request_avg_time, align='center', width=0.4, label="Avg. Request")
         ax_request.bar(x_pos, select_input_avg_time, align='center', width=0.4, label="Avg. Input Sel.")
-        ax_request.set_xlabel('Layers')
-        ax_request.set_ylabel('Time (s)')
+        ax_request.set_xlabel('Layers', fontsize=18)
+        ax_request.set_ylabel('Time (s)', fontsize=18)
         ax_request.set_title('Average function time per layer')
         ax_request.legend(loc='best')
 
+        plt.savefig(FILE_DIR + '/doctest-output/plots/avg_function_time.png')
         if display:
             plt.show()
 
-    def display_tagged_stats(self, tagged_tx_lists, tagged_tx_rto):
+    def display_tagged_stats(self, tagged_tx_lists, tagged_tx_rto, display=False):
         """
         Displays 2 graphs: one with how many transactions were tagged per layer, and one with rto information
         :return: None
         """
-        plt.style.use('ggplot')
-        figure, axis = plt.subplots(2, 2)
+        if not display:
+            matplotlib.use('Agg')   # Change the library used to compute graphs. Agg works for backend only
 
+        plt.style.use('seaborn')
+        plt.clf()
+
+        transactions_by_layer = [len(transaction_list) for transaction_list in self.transaction_lists.values()]
+        layers = [i for i in range(len(transactions_by_layer))]
+        plt.bar(layers, transactions_by_layer, color='green', width=0.4)
+        for i in range(len(layers)):
+            plt.text(i, transactions_by_layer[i], transactions_by_layer[i], ha='center')
+
+        plt.ylabel("Number of tx", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
+        plt.title("Number of transactions by layer")
+
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/transactions_by_layer.png')
+
+        if display:
+            plt.show()
+
+        plt.clf()
         tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
         layers = [i for i in range(len(tagged_by_layer))]
 
+        plt.bar(layers, tagged_by_layer, width=0.4)
+        for i in range(len(layers)):
+            plt.text(i, tagged_by_layer[i], tagged_by_layer[i], ha='center')
+
+        plt.ylabel("Tagged tx", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
+        plt.title("Tagged transactions by layer")
+
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_transactions_by_layer.png')
+
+        if display:
+            plt.show()
+
+        plt.clf()
         sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
+        print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
 
-        axis[0, 0].bar(layers, tagged_by_layer, color='blue')
-        axis[0, 0].set_ylabel("Tagged tx")
-        axis[0, 0].set_xlabel("Layers")
-        axis[0, 0].set_title("Tagged transactions by layer")
+        plt.bar(layers, tagged_tx_rto.values(), color='orange', width=0.4)
+        plt.ylabel("RTO", fontsize=18)
+        plt.xlabel("Layers", fontsize=18)
+        plt.title("Sum of tagged tx's RTO by layer")
 
-        # print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
-        axis[0, 1].bar(layers, tagged_tx_rto.values(), color='orange')
-        axis[0, 1].set_ylabel("RTO")
-        axis[0, 1].set_xlabel("Layers")
-        axis[0, 1].set_title("Sum of tagged tx's RTO by layer")
-
+        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
-        ax_twin = axis[0, 1].twinx()
+        ax_twin = plt.twinx()
         ax_twin.plot(layers, sum_rto_by_layer, color='green')
-        ax_twin.set_ylabel("Total (BTC)")
+        ax_twin.yaxis.grid(False)   # Remove the horizontal lines for the second y_axis
+        ax_twin.set_ylabel("Total (BTC)", fontsize=18)
 
-        self.display_time_stats(axis[1, 0])
+        plt.tight_layout()
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png')
 
-        # plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        if display:
+            plt.show()
+
+        print(f"Almost at the end")
+        self.display_time_stats()
 
         # plt.show()
-        plt.tight_layout()
-        plt.show()
 
     def find_transactions(self):
         print(f"Finding transaction...")
