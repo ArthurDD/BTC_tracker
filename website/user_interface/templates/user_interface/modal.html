@@ -10,16 +10,16 @@
                     <table id="transaction_table" class="table table-light table-bordered">
                         <tr>
                             <th class="checkbox_td">Select/De-select</th>
-                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Transactions</th>
+                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Layer {{ layer }} transactions</th>
                         </tr>
                         {% for transaction in transactions %}
                             <tr>
                                 <td class="checkbox_td">
                                     <label for="{{ transaction.index }}"></label>
-                                    <input id="{{ transaction.index }}" type="checkbox" class="form-checkbox tx_checkbox">
+                                    <input id="{{ transaction.index }}" name="{{ transaction.index }}" type="checkbox" class="form-checkbox tx_checkbox">
                                 </td>
                                 <td class="tx_td">
-                                    <a href="https://www.walletexplorer.com/txid/{{ transaction.txid }}" data-bs-toggle="tooltip" title="Click to see the tx" target="_blank"> {{ transaction.txid|truncatechars:3 }}</a> <br>
+                                    <a href="https://www.walletexplorer.com/txid/{{ transaction.txid }}" data-bs-toggle="tooltip" title="Click to see the tx" target="_blank"> {{ transaction.txid|truncatechars:6 }}</a> <br>
                                     {{ transaction.amount }} BTC <br>
                                     {{ transaction.rto }} RTO
                                 </td>
@@ -30,8 +30,8 @@
             </div>
             <div class="modal-footer">
                 <span style="font-style: italic; font-size:12px">Cancel will keep all transactions</span>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary">Confirm selection</button>
+                <button id="modal_cancel_btn" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button id="modal_confirm_btn" type="button" class="btn btn-primary" data-bs-dismiss="modal">Confirm selection</button>
             </div>
         </div>
     </div>
@@ -43,11 +43,34 @@
 
 <script>
 $(document).ready(function(){
-  $('[data-bs-toggle="tooltip"]').tooltip();
+    $('[data-bs-toggle="tooltip"]').tooltip();
 
-  $('.checkbox_td').click(function () {
-      let checkbox = $('.tx_checkbox')
-      checkbox.prop('checked', !checkbox.prop('checked'))
-  })
+    $('th.checkbox_td').click(function () {
+        let checkbox = $('.tx_checkbox')
+        checkbox.prop('checked', !checkbox.prop('checked'))
+    })
+
+    $('#modal_cancel_btn').click(function () {
+        resume_parsing('{"tx_to_remove": []}')
+    })
+
+    $('#modal_confirm_btn').click(function () {
+        let tx_to_remove = []
+        let values = {}
+        let form = $('#manual_tx_form')
+        console.log("form: ", form)
+        $.each(form.serializeArray(), function(i, field) {
+            values[field.name] = field.value;
+        });
+
+        console.log("Values are: ", values)
+        for (let k in values) {
+            tx_to_remove.push(k)
+        }
+        let message = '{"tx_to_remove": [' + tx_to_remove.toString() + ']}'
+        resume_parsing(message)
+
+    })
+
 });
 </script>

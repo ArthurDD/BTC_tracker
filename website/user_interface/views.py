@@ -1,6 +1,8 @@
+import ast
+
 from django.http import HttpResponse
 from django.shortcuts import render
-
+from django.views.decorators.csrf import csrf_exempt
 from pathlib import Path
 
 
@@ -25,10 +27,19 @@ def display_charts(request):
         return render(request, 'user_interface/charts.html', {'test_data': "We can pass data that way too."})
 
 
+@csrf_exempt
 def display_manual_transactions(request):
-    transactions = [{'index': 1, "txid": 'abcde', 'amount': 14, 'rto': 0.5},
-                    {'index': 2, "txid": 'fghij', 'amount': 4, 'rto': 1.5},
-                    {'index': 3, "txid": 'klmno', 'amount': 1, 'rto': 0.2},
-                    {'index': 4, "txid": 'pqrst', 'amount': 50, 'rto': 0.02},
-                    {'index': 5, "txid": 'uvwxy', 'amount': 66, 'rto': 5}]
-    return render(request, 'user_interface/modal.html', context={'transactions': transactions})
+    if request.method == "GET":
+
+        transactions = [{'index': 1, "txid": 'abcde', 'amount': 14, 'rto': 0.5},
+                        {'index': 2, "txid": 'fghij', 'amount': 4, 'rto': 1.5},
+                        {'index': 3, "txid": 'klmno', 'amount': 1, 'rto': 0.2},
+                        {'index': 4, "txid": 'pqrst', 'amount': 50, 'rto': 0.02},
+                        {'index': 5, "txid": 'uvwxy', 'amount': 66, 'rto': 5}]
+        layer = 2
+        return render(request, 'user_interface/modal.html', context={'transactions': transactions, 'layer': layer})
+    elif request.method == 'POST':
+        data = request.POST['data']
+        data = ast.literal_eval(data)
+        return render(request, 'user_interface/modal.html', context={'transactions': data['transactions'],
+                                                                     'layer': data['layer']})

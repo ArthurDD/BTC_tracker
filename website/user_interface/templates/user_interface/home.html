@@ -25,6 +25,13 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="form-group mb-2">
+                            <label for="manual_input">Manual Mode:  </label>
+                            <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Manually select transactions while parsing each layer" style="margin-left: 10px"></i>
+                            <br>
+
+                            <input type="checkbox" id="manual_input" class="form-checkbox" name="manual_input"><br>
+                        </div>
                         <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0" disabled>
                             Start tracking!
                         </button>
@@ -78,6 +85,8 @@
                                 $('#display_modal').click()
                             });
                         });
+
+                        $('[data-bs-toggle="tooltip"]').tooltip();  // Activate the tooltip windows
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">
@@ -131,7 +140,5 @@
 
         </div>
     </div>
-
-
 
 {% endblock main_content %}
