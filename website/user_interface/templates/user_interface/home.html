@@ -3,6 +3,9 @@
 {% block main_content %}
     {% load static %}
     <script src="{% static 'user_interface/javascript/user_interface.js' %}"></script>
+    <div id="modal_div">
+
+    </div>
     <div class="row" style="height:100%; width: 100%; margin-right:0; margin-left:0">
         <div class='col-6' style="border-right: solid 2px; border-right-color: #fa9d4b">
             <div class="container">
@@ -28,6 +31,10 @@
                         <br>
                         <span id="invalid_input" style="color:indianred; visibility: hidden"> Please enter an address!</span>
                     </form>
+                    <!-- Button trigger modal -->
+                    <button id="launch_modal" type="button" class="btn btn-primary">
+                        Launch static backdrop modal
+                    </button>
                 </div>
 
                 <script>
@@ -64,6 +71,13 @@
 
                             return false;
                         })
+
+                        $('#launch_modal').click(function () {
+                            $.get('{% url "display_manual_transactions" %}', function (resp) {
+                                $('#modal_div').html(resp);
+                                $('#display_modal').click()
+                            });
+                        });
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">

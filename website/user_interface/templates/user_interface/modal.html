@@ -1,0 +1,53 @@
+<div class="modal fade" id="manual_modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="manual_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manual_modal_label">Select Transactions to dispose of:</h5>
+{#                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>#}
+            </div>
+            <div id="modal_body" class="modal-body">
+                <form id="manual_tx_form">
+                    <table id="transaction_table" class="table table-light table-bordered">
+                        <tr>
+                            <th class="checkbox_td">Select/De-select</th>
+                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Transactions</th>
+                        </tr>
+                        {% for transaction in transactions %}
+                            <tr>
+                                <td class="checkbox_td">
+                                    <label for="{{ transaction.index }}"></label>
+                                    <input id="{{ transaction.index }}" type="checkbox" class="form-checkbox tx_checkbox">
+                                </td>
+                                <td class="tx_td">
+                                    <a href="https://www.walletexplorer.com/txid/{{ transaction.txid }}" data-bs-toggle="tooltip" title="Click to see the tx" target="_blank"> {{ transaction.txid|truncatechars:3 }}</a> <br>
+                                    {{ transaction.amount }} BTC <br>
+                                    {{ transaction.rto }} RTO
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <span style="font-style: italic; font-size:12px">Cancel will keep all transactions</span>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Confirm selection</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="button" id="display_modal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#manual_modal" style="display:None">
+    Launch static backdrop modal
+</button>
+
+<script>
+$(document).ready(function(){
+  $('[data-bs-toggle="tooltip"]').tooltip();
+
+  $('.checkbox_td').click(function () {
+      let checkbox = $('.tx_checkbox')
+      checkbox.prop('checked', !checkbox.prop('checked'))
+  })
+});
+</script>

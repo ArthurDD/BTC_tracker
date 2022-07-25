@@ -1,0 +1,33 @@
+#manual_modal {
+    color: #494949;
+}
+
+.checkbox_td {
+    text-align: center;
+    /* center checkbox horizontally */
+    vertical-align: middle;
+}
+
+.tx_td {
+    text-align: center;
+}
+
+.tx_td a {
+    color: #333333;
+    font-weight: bold;
+
+}
+
+.tx_td a:hover {
+    color: #656565;
+    font-weight: bolder;
+}
+
+.checkbox_td {
+    font-weight: bold;
+}
+
+.checkbox_td:hover {
+    color: #656565;
+    cursor: pointer;
+}
