@@ -10,7 +10,7 @@
                     <table id="transaction_table" class="table table-light table-bordered">
                         <tr>
                             <th class="checkbox_td">Select/De-select</th>
-                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Layer {{ layer }} transactions</th>
+                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Layer {{ layer }} transactions ({{ transactions|length }} tx)</th>
                         </tr>
                         {% for transaction in transactions %}
                             <tr>
@@ -21,7 +21,7 @@
                                 <td class="tx_td">
                                     <a href="https://www.walletexplorer.com/txid/{{ transaction.txid }}" data-bs-toggle="tooltip" title="Click to see the tx" target="_blank"> {{ transaction.txid|truncatechars:6 }}</a> <br>
                                     {{ transaction.amount }} BTC <br>
-                                    {{ transaction.rto }} RTO
+                                    {{ transaction.rto }} RTO (<span style="font-style: italic; color: #5b80b2">{{ transaction.rto_pt }}%</span>)
                                 </td>
                             </tr>
                         {% endfor %}

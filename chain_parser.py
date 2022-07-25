@@ -517,7 +517,8 @@ class ChainParser:
         """
         layer = self.layer_counter - 1
         if self.send_fct is not None:   # In case program is running via UI
-            data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount, "rto": tx.rto}
+            data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
+                                         "rto": tx.rto, "rto_pt": np.round(tx.rto/self.root_value*100, 2)}
                                         for i, tx in enumerate(self.transaction_lists[layer])],
                        'layer': layer}
 

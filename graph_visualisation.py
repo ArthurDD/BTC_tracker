@@ -41,7 +41,7 @@ class GraphVisualisation:
         self.add_labels()
         self.set_low_rto()
         self.set_removed()
-        self.make_legend()
+        # self.make_legend()
         self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
 
         print("Tree done!")
@@ -76,7 +76,7 @@ class GraphVisualisation:
         txid_set, prev_txid_set = self.get_all_txids()
         nodes_to_highlight = list(txid_set - prev_txid_set)
         for txid in nodes_to_highlight:
-            self.dot.node(txid, color='blue', style='filled', fillcolor='skyblue3')
+            self.dot.node(txid, color='blue', style='filled', fillcolor='azure3')
 
     def make_legend(self):
         with self.dot.subgraph(name='cluster_legend') as c:
@@ -84,7 +84,7 @@ class GraphVisualisation:
             c.node("pruned_tx", label="", penwidth='0')
             c.node("pruned_tx_end", label="", penwidth='0')
             c.edge("pruned_tx", "pruned_tx_end", label="Pruned Tx", style='dashed, bold', color="azure3")
-            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='burlywood')
+            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='azure3')
             c.node("tagged_tx", label="Tagged TX", color='orange', style='filled', fillcolor='orange')
             c.node("removed_tx", label="Removed Transactions", color='gray', style='filled', fillcolor='gray51')
             c.node("reported_add", label="Reported Address", color='red', style='bold')
