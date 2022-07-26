@@ -693,7 +693,7 @@ class ChainParser:
         print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
 
         plt.bar(layers, tagged_tx_rto.values(), color='orange', width=0.4)
-        plt.ylabel("RTO", fontsize=18)
+        plt.ylabel("RTO tagged by layer", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
         plt.title("Sum of tagged tx's RTO by layer")
 
