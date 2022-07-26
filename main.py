@@ -24,13 +24,13 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    chain_parser = ChainParser(address, 5)
-    res = chain_parser.start_analysis()
+    chain_parser = ChainParser(address, 2)
+    res = chain_parser.start_analysis(manual=False)
     if res:
-        chain_parser.get_statistics()
+        chain_parser.get_statistics(display=True)
 
         # Build the tree
-        tree = GraphVisualisation(chain_parser.transaction_lists, visualise=True)
+        tree = GraphVisualisation(chain_parser.transaction_lists, display=True)
         tree.build_tree()
 
         # chain_parser.find_transactions()

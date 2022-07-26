@@ -5,7 +5,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
-    def __init__(self, transaction_lists, visualise=False):
+    def __init__(self, transaction_lists, display=False):
         self.transaction_lists = transaction_lists
         self.depth = len(transaction_lists)
         self.name = f'transaction-graph-{self.depth - 1}'
@@ -13,7 +13,7 @@ class GraphVisualisation:
         self.dot.id = "id_test"
         self.dot.graph_attr['rankdir'] = 'RL'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
-        self.visualise = visualise      # Indicates whether we want to open the graph at the end of the build.
+        self.display = display      # Indicates whether we want to open the graph at the end of the build.
 
         self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
 
@@ -40,8 +40,9 @@ class GraphVisualisation:
                             self.dot.edge(prev_txid, tx.txid, style='dashed, bold', color="azure3")
         self.add_labels()
         self.set_low_rto()
+        self.set_removed()
         # self.make_legend()
-        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.visualise)
+        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
 
         print("Tree done!")
         return f"{self.name}.gv.svg"
@@ -56,18 +57,15 @@ class GraphVisualisation:
                 if tx.tag:
                     self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0">''' + str(tx.rto) + ''' RTO</td></tr></table>>''')  # label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
 
-    def set_special(self):
+    def set_removed(self):
         """
-        DEPRECATED
-        Change the border colour for special transactions (see Transaction Class)
+        Change the border colour for deleted transactions (see Transaction Class)
         :return: None
         """
-        for layer in range(1, self.depth):
+        for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
-                for txx in self.transaction_lists[layer - 1]:
-                    if tx.prev_txid == txx.txid and txx.is_pruned:
-                        self.dot.edge(txx.txid, tx.txid, style='dashed, bold', color="azure3")
-                        # self.dot.node(tx.txid, color='green', style='filled', fillcolor='lightblue2')
+                if tx.is_manually_deleted:  # If the user decided not to keep that transaction
+                    self.dot.node(tx.txid, color='gray', style='filled', fillcolor='gray51')
 
     def set_low_rto(self):
         """
@@ -88,6 +86,7 @@ class GraphVisualisation:
             c.edge("pruned_tx", "pruned_tx_end", label="Pruned Tx", style='dashed, bold', color="azure3")
             c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='azure3')
             c.node("tagged_tx", label="Tagged TX", color='orange', style='filled', fillcolor='orange')
+            c.node("removed_tx", label="Removed Transactions", color='gray', style='filled', fillcolor='gray51')
             c.node("reported_add", label="Reported Address", color='red', style='bold')
 
     def get_all_txids(self):

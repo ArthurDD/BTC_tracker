@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from transaction import Transaction, find_transaction
 from web_scraper import Scraper
 
-FILE_DIR = os.path.dirname(os.path.abspath(__file__))   # PATH to BTC_tracker
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 
 
 class ChainParser:
@@ -54,8 +54,9 @@ class ChainParser:
 
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+        self.analysis_time = 0
 
-        self.send_fct = send_fct    # Takes 2 arg = message to send to the socket and message_type (optional)
+        self.send_fct = send_fct  # Takes 2 arg = message to send to the socket and message_type (optional)
 
         print(self.wallet_url)
 
@@ -230,7 +231,7 @@ class ChainParser:
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
-                        for tx in self.transaction_lists[self.layer_counter - 1]]
+                        for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_manually_deleted]
         tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]]
 
         print(f"Length of tot_address_list: {len(tot_address_list)}")
@@ -303,8 +304,7 @@ class ChainParser:
                                 Transaction(txid=add['next_tx'], prev_txid=[(txid, self.layer_counter - 1)],
                                             amount=add['amount'],
                                             rto=add['rto'],
-                                            output_addresses=[add['address']],
-                                            rto_threshold=self.rto_threshold))
+                                            output_addresses=[add['address']]))
 
                         else:
                             self.added_before.append(add['next_tx'])
@@ -403,6 +403,7 @@ class ChainParser:
             self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
 
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
+        # and remove low ones
 
         return selected_inputs
 
@@ -458,48 +459,84 @@ class ChainParser:
                     add = report['address']
                     # Find all the transactions that have add in output_add and tag them
 
-    def start_analysis(self):
-        """ Method to start the analysis of the root address. Builds every layer. """
-        t_0 = time.time()
-        result = self.get_wallet_transactions()
+    def start_analysis(self, manual=False, tx_to_remove=None):
+        """ Method to start the analysis of the root address. Builds every layer.
+        If manual is set to True, start_analysis is going to build every layer but one at a time,
+        stopping at every layer. If self.layer_counter > self.nb_layers, display final stats
+        :param tx_to_remove: List of tx indexes to remove in case of a manual parsing
+        :param manual: Enables/Disables manual parsing
+        :return True if layer analysis didn't encounter any error, False otherwise"""
 
-        if result:
-            while self.layer_counter <= self.nb_layers:
+        t_0 = time.time()
+        if tx_to_remove is not None:
+            for i in tx_to_remove:  # Go through all the tx indices to stop the parsing with
+                self.transaction_lists[self.layer_counter - 1][i].is_manually_deleted = True
+
+        if self.layer_counter == 0:
+            result = self.get_wallet_transactions()  # Counter gets increased in that method
+            if manual and result:
+                self.select_transactions()
+                # At that point, layer 0 has been parsed and manually pruned and layer_counter is 1
+                self.analysis_time += time.time() - t_0
+                return result   # Not sure we use this output
+        else:
+            result = True
+
+        if result and not manual:   # Only if layer 0 has been successful and we are not in manual mode
+            while self.layer_counter <= self.nb_layers:  # Go through all the layers
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_addresses_from_txid()  # counter gets increased in that method
+
                 if self.send_fct is not None:
-                    self.send_fct(f"Layer {self.layer_counter -1} done!")
-
-            print(f"\n\n\n--------- FINAL RESULTS ---------\n")
-            parsing_information = {"layer_info": {}, "total_txs": 0}
-            for i in range(self.nb_layers + 1):
-                parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
-                parsing_information["total_txs"] += len(self.transaction_lists[i])
-                print(f"Layer {i}: {len(self.transaction_lists[i])}")
-
-            # for i in range(self.nb_layers + 1):
-            #     print(f"Tx of layer {i}:")
-            #     for tx in self.transaction_lists[i][:15]:
-            #         print(tx)
-            #     if len(self.transaction_lists[i]) >= 15:
-            #         print("...")
-            #     print("\n")
-
-            # print("\n\n")
-            # self.clean_reports()  # Removes empty reports
-            # print(f"Cleaned BA_reports: {self.ba_reports}\n\n")
-            # self.check_duplicates()
-
-            print(f"RTO threshold is: {self.rto_threshold}")
-            parsing_information["rto_threshold"] = self.rto_threshold
-            parsing_information["total_time"] = time.time() - t_0
-
-            if self.send_fct is not None:
-                self.send_fct(message=str(json.dumps(parsing_information)), message_type='final_stats')
-            print("\n\n")
+                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
+            self.analysis_time += time.time() - t_0
+            self.print_final_results()
 
             return True
+
+        elif result and manual:     # If it's not layer 0 and we are in manual mode
+            if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
+                self.get_addresses_from_txid()  # counter gets increased in that method
+
+                if self.send_fct is not None:
+                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
+
+                self.select_transactions()
+            else:   # If everything is parsed, we print final results
+                self.print_final_results()
+            self.analysis_time += time.time() - t_0
+            return True  # Not sure we use this output
+
         return False
+
+    def select_transactions(self):
+        """
+        Select transactions to delete (=stop the parsing with) in case manual analysis is made.
+        Sets is_manually_deleted to True if tx is deleted
+        :return: None
+        """
+        layer = self.layer_counter - 1
+        if self.send_fct is not None:   # In case program is running via UI
+            data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
+                                         "rto": tx.rto, "rto_pt": np.round(tx.rto/self.root_value*100, 2)}
+                                        for i, tx in enumerate(self.transaction_lists[layer])],
+                       'layer': layer}
+
+            self.send_fct(message=str(json.dumps(data_tx)), message_type="manual_tx")
+
+        else:   # In case we are running the program in the terminal
+            print(f"Transactions found for that layer: ")
+            for i, tx in enumerate(self.transaction_lists[layer]):
+                print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")
+            tx_to_del = input("Please indicate the index of transactions to prune (separated by a comma):\n")
+            if tx_to_del != "":
+                tx_to_del = [int(elt) for elt in tx_to_del.split(',')]
+            else:
+                tx_to_del = []
+
+            print(f"tx_to_del: {tx_to_del}")
+            for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
+                self.transaction_lists[layer][i].is_manually_deleted = True
 
     def check_request_limit(self):
         """
@@ -509,6 +546,22 @@ class ChainParser:
         if self.remaining_req == 0:
             waiting_bar(10)  # Sleeps 10 seconds
             self.remaining_req = 45
+
+    def print_final_results(self):
+        print(f"\n\n\n--------- FINAL RESULTS ---------\n")
+        parsing_information = {"layer_info": {}, "total_txs": 0}
+        for i in range(self.nb_layers + 1):
+            parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
+            parsing_information["total_txs"] += len(self.transaction_lists[i])
+            print(f"Layer {i}: {len(self.transaction_lists[i])}")
+
+        print(f"RTO threshold is: {self.rto_threshold}")
+        parsing_information["rto_threshold"] = self.rto_threshold
+        parsing_information["total_time"] = self.analysis_time
+
+        if self.send_fct is not None:
+            self.send_fct(message=str(json.dumps(parsing_information)), message_type='final_stats')
+        print("\n\n")
 
     def get_statistics(self, display=False):
         """
@@ -596,7 +649,7 @@ class ChainParser:
         :return: None
         """
         if not display:
-            matplotlib.use('Agg')   # Change the library used to compute graphs. Agg works for backend only
+            matplotlib.use('Agg')  # Change the library used to compute graphs. Agg works for backend only
 
         plt.style.use('seaborn')
         plt.clf()
@@ -648,7 +701,7 @@ class ChainParser:
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
         ax_twin = plt.twinx()
         ax_twin.plot(layers, sum_rto_by_layer, color='green')
-        ax_twin.yaxis.grid(False)   # Remove the horizontal lines for the second y_axis
+        ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
         ax_twin.set_ylabel("Total (BTC)", fontsize=18)
 
         plt.tight_layout()

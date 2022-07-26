@@ -56,6 +56,14 @@ function connect() {
             text_area.val(val + lines);
             text_area.scrollTop(text_area[0].scrollHeight);
 
+        } else if (data.type === 'manual_tx') {
+            // let my_data = JSON.parse(data.message)
+            let url = 'display_manual_transactions/'
+            $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
+                $('#modal_div').html(resp);  // load modal
+                $('#display_modal').click()  // display modal
+            })
+
         } else {
             let val = text_area.val();
             text_area.val(val + data.message + "\n");
@@ -164,5 +172,13 @@ function dummy_function() {
     socket.send(JSON.stringify({
         'message': 'Dummy message',
         'type': 'json_conversion',
+    }));
+}
+
+function resume_parsing(tx_to_remove) {
+    console.log("tx_to_remove: HERE", tx_to_remove)
+    socket.send(JSON.stringify({
+        'message': tx_to_remove,
+        'type': 'resume_parsing',
     }));
 }

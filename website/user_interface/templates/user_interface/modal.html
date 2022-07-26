@@ -1,0 +1,76 @@
+<div class="modal fade" id="manual_modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="manual_modal_label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manual_modal_label">Select Transactions to dispose of:</h5>
+{#                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>#}
+            </div>
+            <div id="modal_body" class="modal-body">
+                <form id="manual_tx_form">
+                    <table id="transaction_table" class="table table-light table-bordered">
+                        <tr>
+                            <th class="checkbox_td">Select/De-select</th>
+                            <th class="tx_td" style="padding-left: 40px; padding-right: 40px">Layer {{ layer }} transactions ({{ transactions|length }} tx)</th>
+                        </tr>
+                        {% for transaction in transactions %}
+                            <tr>
+                                <td class="checkbox_td">
+                                    <label for="{{ transaction.index }}"></label>
+                                    <input id="{{ transaction.index }}" name="{{ transaction.index }}" type="checkbox" class="form-checkbox tx_checkbox">
+                                </td>
+                                <td class="tx_td">
+                                    <a href="https://www.walletexplorer.com/txid/{{ transaction.txid }}" data-bs-toggle="tooltip" title="Click to see the tx" target="_blank"> {{ transaction.txid|truncatechars:6 }}</a> <br>
+                                    {{ transaction.amount }} BTC <br>
+                                    {{ transaction.rto }} RTO (<span style="font-style: italic; color: #5b80b2">{{ transaction.rto_pt }}%</span>)
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <span style="font-style: italic; font-size:12px">Cancel will keep all transactions</span>
+                <button id="modal_cancel_btn" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button id="modal_confirm_btn" type="button" class="btn btn-primary" data-bs-dismiss="modal">Confirm selection</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="button" id="display_modal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#manual_modal" style="display:None">
+    Launch static backdrop modal
+</button>
+
+<script>
+$(document).ready(function(){
+    $('[data-bs-toggle="tooltip"]').tooltip();
+
+    $('th.checkbox_td').click(function () {
+        let checkbox = $('.tx_checkbox')
+        checkbox.prop('checked', !checkbox.prop('checked'))
+    })
+
+    $('#modal_cancel_btn').click(function () {
+        resume_parsing('{"tx_to_remove": []}')
+    })
+
+    $('#modal_confirm_btn').click(function () {
+        let tx_to_remove = []
+        let values = {}
+        let form = $('#manual_tx_form')
+        console.log("form: ", form)
+        $.each(form.serializeArray(), function(i, field) {
+            values[field.name] = field.value;
+        });
+
+        console.log("Values are: ", values)
+        for (let k in values) {
+            tx_to_remove.push(k)
+        }
+        let message = '{"tx_to_remove": [' + tx_to_remove.toString() + ']}'
+        resume_parsing(message)
+
+    })
+
+});
+</script>

@@ -3,6 +3,9 @@
 {% block main_content %}
     {% load static %}
     <script src="{% static 'user_interface/javascript/user_interface.js' %}"></script>
+    <div id="modal_div">
+
+    </div>
     <div class="row" style="height:100%; width: 100%; margin-right:0; margin-left:0">
         <div class='col-6' style="border-right: solid 2px; border-right-color: #fa9d4b">
             <div class="container">
@@ -22,12 +25,23 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="form-group mb-2">
+                            <label for="manual_input">Manual Mode:  </label>
+                            <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Manually select transactions while parsing each layer" style="margin-left: 10px"></i>
+                            <br>
+
+                            <input type="checkbox" id="manual_input" class="form-checkbox" name="manual_input"><br>
+                        </div>
                         <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0" disabled>
                             Start tracking!
                         </button>
                         <br>
                         <span id="invalid_input" style="color:indianred; visibility: hidden"> Please enter an address!</span>
                     </form>
+{#                    <!-- Button trigger modal -->#}
+{#                    <button id="launch_modal" type="button" class="btn btn-primary">#}
+{#                        Launch static backdrop modal#}
+{#                    </button>#}
                 </div>
 
                 <script>
@@ -64,6 +78,15 @@
 
                             return false;
                         })
+
+                        {#$('#launch_modal').click(function () {#}
+                        {#    $.get('{% url "display_manual_transactions" %}', function (resp) {#}
+                        {#        $('#modal_div').html(resp);#}
+                        {#        $('#display_modal').click()#}
+                        {#    });#}
+                        {# });#}
+
+                        $('[data-bs-toggle="tooltip"]').tooltip();  // Activate the tooltip windows
                     });
                 </script>
                 <div id="terminal_output_div" class="jumbotron .jumbotron-fluid">
@@ -117,7 +140,5 @@
 
         </div>
     </div>
-
-
 
 {% endblock main_content %}
