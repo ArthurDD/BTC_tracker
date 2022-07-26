@@ -38,10 +38,10 @@
                         <br>
                         <span id="invalid_input" style="color:indianred; visibility: hidden"> Please enter an address!</span>
                     </form>
-                    <!-- Button trigger modal -->
-                    <button id="launch_modal" type="button" class="btn btn-primary">
-                        Launch static backdrop modal
-                    </button>
+{#                    <!-- Button trigger modal -->#}
+{#                    <button id="launch_modal" type="button" class="btn btn-primary">#}
+{#                        Launch static backdrop modal#}
+{#                    </button>#}
                 </div>
 
                 <script>
@@ -79,12 +79,12 @@
                             return false;
                         })
 
-                        $('#launch_modal').click(function () {
-                            $.get('{% url "display_manual_transactions" %}', function (resp) {
-                                $('#modal_div').html(resp);
-                                $('#display_modal').click()
-                            });
-                        });
+                        {#$('#launch_modal').click(function () {#}
+                        {#    $.get('{% url "display_manual_transactions" %}', function (resp) {#}
+                        {#        $('#modal_div').html(resp);#}
+                        {#        $('#display_modal').click()#}
+                        {#    });#}
+                        {# });#}
 
                         $('[data-bs-toggle="tooltip"]').tooltip();  // Activate the tooltip windows
                     });
