@@ -7,9 +7,9 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
-    def __init__(self, transaction_lists, display=False):
+    def __init__(self, transaction_lists, display=False, until=None):
         self.transaction_lists = transaction_lists
-        self.depth = len(transaction_lists)
+        self.depth = len(transaction_lists) if until is None else until
         self.name = f'transaction-graph-{self.depth - 1}'
         self.dot = graphviz.Digraph(f'transaction-graph-{self.depth - 1}', comment='Transaction Graph', format='svg')
         self.dot.id = "id_test"
@@ -48,7 +48,7 @@ class GraphVisualisation:
         # self.make_legend()
         self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
 
-        print("Tree done!")
+        print(f"Tree done! ({self.name})")
         return f"{self.name}.gv.svg"
 
     def add_labels(self):

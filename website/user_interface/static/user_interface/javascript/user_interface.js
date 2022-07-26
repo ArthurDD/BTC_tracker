@@ -27,6 +27,9 @@ function connect() {
             display_charts();
             $('#submit_starting_btn').prop('disabled', false);
 
+        } else if (data.type === 'partial_svg_file') {     // Displays the graph every time a layer is done
+            console.log("Data: ", data)
+            display_graph(data);
         } else if (data.type === 'error') {     // Message sent when address was not found
             $('#submit_starting_btn').prop('disabled', false);
             let val = text_area.val();
@@ -65,6 +68,7 @@ function connect() {
             })
 
         } else {
+            console.log("Message: ", data.message)
             let val = text_area.val();
             text_area.val(val + data.message + "\n");
             text_area.scrollTop(text_area[0].scrollHeight);
@@ -86,7 +90,7 @@ connect()
 function display_graph(data) {
     let url = $('#starting_form').attr('action');
 
-    $.get(url, {'file_name': data['svg_file_name']}, function (resp) {
+    $.get(url, {'file_name': data['message']}, function (resp) {
         $('#graph').html(resp)
     }).then(function () {
         $('g.node > g > a').each(function () {

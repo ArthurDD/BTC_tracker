@@ -11,6 +11,8 @@ from functools import partial
 import sys
 # import requests
 import requests_cache
+
+from graph_visualisation import GraphVisualisation
 from request_limit_reached import RequestLimitReached
 from tqdm import tqdm
 import numpy as np
@@ -459,10 +461,11 @@ class ChainParser:
                     add = report['address']
                     # Find all the transactions that have add in output_add and tag them
 
-    def start_analysis(self, manual=False, tx_to_remove=None):
+    def start_analysis(self, manual=False, tx_to_remove=None, display_partial_graph=False):
         """ Method to start the analysis of the root address. Builds every layer.
         If manual is set to True, start_analysis is going to build every layer but one at a time,
         stopping at every layer. If self.layer_counter > self.nb_layers, display final stats
+        :param display_partial_graph: Bool to display or not the graph in between each layer
         :param tx_to_remove: List of tx indexes to remove in case of a manual parsing
         :param manual: Enables/Disables manual parsing
         :return True if layer analysis didn't encounter any error, False otherwise"""
@@ -474,27 +477,37 @@ class ChainParser:
 
         if self.layer_counter == 0:
             result = self.get_wallet_transactions()  # Counter gets increased in that method
-            if manual and result:
-                self.select_transactions()
-                # At that point, layer 0 has been parsed and manually pruned and layer_counter is 1
-                self.analysis_time += time.time() - t_0
-                return result   # Not sure we use this output
+            if result:
+                if manual:
+                    self.select_transactions()
+                    # At that point, layer 0 has been parsed and manually pruned and layer_counter is 1
+                    if display_partial_graph:  # To display the layer 0 graph
+                        self.display_partial_graph()
+                    self.analysis_time += time.time() - t_0
+                    return result  # Not sure we use this output
         else:
             result = True
 
-        if result and not manual:   # Only if layer 0 has been successful and we are not in manual mode
+        if display_partial_graph:  # To display the layer 0 graph
+            self.display_partial_graph()
+
+        if result and not manual:  # Only if layer 0 has been successful and we are not in manual mode
             while self.layer_counter <= self.nb_layers:  # Go through all the layers
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
                     self.send_fct(f"Layer {self.layer_counter - 1} done!")
+
+                if display_partial_graph and self.layer_counter <= self.nb_layers:
+                    # To display the layer self.lay_counter graph only if this is not the last layer
+                    self.display_partial_graph()
             self.analysis_time += time.time() - t_0
             self.print_final_results()
 
             return True
 
-        elif result and manual:     # If it's not layer 0 and we are in manual mode
+        elif result and manual:  # If it's not layer 0 and we are in manual mode
             if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
                 self.get_addresses_from_txid()  # counter gets increased in that method
 
@@ -502,12 +515,29 @@ class ChainParser:
                     self.send_fct(f"Layer {self.layer_counter - 1} done!")
 
                 self.select_transactions()
-            else:   # If everything is parsed, we print final results
+
+                if display_partial_graph and self.layer_counter <= self.nb_layers:
+                    # To display the layer self.lay_counter graph only if this is not the last layer
+                    self.display_partial_graph()
+            else:  # If everything is parsed, we print final results
                 self.print_final_results()
             self.analysis_time += time.time() - t_0
             return True  # Not sure we use this output
 
         return False
+
+    def display_partial_graph(self):
+        """
+        Called by start_analysis method to display partial graph once each layer is done
+        :return:
+        """
+        tree = GraphVisualisation(self.transaction_lists, until=self.layer_counter)
+        file_name = tree.build_tree()
+
+        print(f"File_name is: {file_name}")
+        if file_name != "":
+            self.send_fct(message=file_name, message_type='partial_svg_file')
+        time.sleep(1.5)
 
     def select_transactions(self):
         """
@@ -516,15 +546,15 @@ class ChainParser:
         :return: None
         """
         layer = self.layer_counter - 1
-        if self.send_fct is not None:   # In case program is running via UI
+        if self.send_fct is not None:  # In case program is running via UI
             data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
-                                         "rto": tx.rto, "rto_pt": np.round(tx.rto/self.root_value*100, 2)}
+                                         "rto": tx.rto, "rto_pt": np.round(tx.rto / self.root_value * 100, 2)}
                                         for i, tx in enumerate(self.transaction_lists[layer])],
                        'layer': layer}
 
             self.send_fct(message=str(json.dumps(data_tx)), message_type="manual_tx")
 
-        else:   # In case we are running the program in the terminal
+        else:  # In case we are running the program in the terminal
             print(f"Transactions found for that layer: ")
             for i, tx in enumerate(self.transaction_lists[layer]):
                 print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")

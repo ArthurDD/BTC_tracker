@@ -121,7 +121,8 @@ class UserInterfaceConsumer(WebsocketConsumer):
         self.chain_parser = ChainParser(address, layer_nb, send_fct=send_function_bis)
 
         res = self.chain_parser.start_analysis(
-            manual=self.manual)  # Res is True if the parsing of the wallet was successful, False otherwise.
+            manual=self.manual, display_partial_graph=True)  # Res is True if the parsing of the wallet was
+        # successful, False otherwise.
         # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
 
         return res
@@ -130,7 +131,7 @@ class UserInterfaceConsumer(WebsocketConsumer):
         if self.chain_parser.layer_counter > self.chain_parser.nb_layers:  # If there is no more layer to parse
             self.finished_analysis = True
 
-        self.chain_parser.start_analysis(manual=self.manual, tx_to_remove=tx_to_remove)
+        self.chain_parser.start_analysis(manual=self.manual, tx_to_remove=tx_to_remove,  display_partial_graph=True)
         # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
         # Need to call this function even when self.finished_analysis == True bc we still need to "prune" the last layer
 
@@ -144,7 +145,7 @@ class UserInterfaceConsumer(WebsocketConsumer):
         if file_name != "":
             self.send(text_data=json.dumps({
                 'type': 'svg_file',
-                'svg_file_name': file_name
+                'message': file_name
             }))
 
 
