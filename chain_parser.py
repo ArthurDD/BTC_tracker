@@ -1,14 +1,11 @@
 import json
 import math
 import os
-import random
 from concurrent.futures import ThreadPoolExecutor
 import time
 from datetime import timedelta
 from functools import partial
-# from requests.exceptions import HTTPError
 import sys
-# import requests
 import requests_cache
 
 from graph_visualisation import GraphVisualisation
@@ -204,7 +201,6 @@ class ChainParser:
         """
         t_0 = time.time()
         try:
-            # time.sleep(random.random())
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -264,7 +260,6 @@ class ChainParser:
         t_0 = time.time()
 
         try:
-            # time.sleep(random.random())
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
