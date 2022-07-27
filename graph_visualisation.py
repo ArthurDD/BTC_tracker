@@ -1,8 +1,11 @@
 import os
+import random
+
 import graphviz
 import numpy as np
 
 from transaction import find_transaction
+from pastelor import generate_pastel_colours
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +22,8 @@ class GraphVisualisation:
         self.display = display      # Indicates whether we want to open the graph at the end of the build.
 
         self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+
+        self.pastel_colours = generate_pastel_colours()
 
     def build_tree(self):
         self.dot.node_attr['shape'] = 'record'
@@ -43,6 +48,7 @@ class GraphVisualisation:
                             self.dot.edge(tx.txid, prev_txid)
                         else:
                             self.dot.edge(tx.txid, prev_txid, style='dashed, bold', color="azure3")
+        self.colorize_nodes()
         self.add_labels()
         self.set_low_rto()
         self.set_removed()
@@ -51,6 +57,22 @@ class GraphVisualisation:
 
         print(f"Tree done! ({self.name})")
         return f"{self.name}.gv.svg"
+
+    def colorize_nodes(self):
+        for tx in self.transaction_lists[0]:
+            colour = random.choice(self.pastel_colours)
+            tx.colour = colour
+            self.dot.node(tx.txid, style='filled', fillcolor=tx.colour)
+
+        for layer in range(1, self.depth):
+            for tx in self.transaction_lists[layer]:
+                if len(tx.prev_txid) > 1:
+                    tx.colour = random.choice(self.pastel_colours)
+                else:
+                    index = find_transaction(self.transaction_lists, tx.prev_txid[0][0], tx.prev_txid[0][1])
+                    prev_tx = self.transaction_lists[tx.prev_txid[0][1]][index]
+                    tx.colour = prev_tx.colour
+                self.dot.node(tx.txid, style='filled', fillcolor=tx.colour)
 
     def add_labels(self):
         """
@@ -109,3 +131,11 @@ class GraphVisualisation:
                 if layer != self.depth - 1 and tx.tag is None:
                     txid_set.add(tx.txid)
         return txid_set, prev_txid_set
+
+    def get_colours(self):
+        colours = []
+        with open(FILE_DIR + '/colours.txt', 'r') as f:
+            for line in f.readlines():
+                if line.strip():
+                    colours.append(line.strip())
+        return colours

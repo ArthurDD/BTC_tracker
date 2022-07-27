@@ -21,6 +21,7 @@ class Transaction:
         self.tag = None
         self.is_pruned = is_pruned     # Used to indicate if we pruned the tree based on that tx
         self.is_manually_deleted = False
+        self.colour = None  # Only used to display the graph
 
     def __str__(self):
         return str(self.__dict__)
@@ -43,6 +44,11 @@ def find_transaction(tx_lists, txid, layer=None):
 
 
 def get_prev_transaction_ids(tx_list):
+    """
+    Takes a list of tx as input and returns all of their previous transaction ids
+    :param tx_list: list of transactions
+    :return: List of tx_ids
+    """
     id_list = set()
     for tx in tx_list:
         id_list.update([elt[0] for elt in tx.prev_txid])
