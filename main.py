@@ -8,6 +8,8 @@ def main():
     address = "115ZFznB6rTteLDF18AQTf2SWNBtoywoxb"  # Smaller address
     # address = "1MTKuR4CHJEZ1qSvoHyE8MDrVs4f1HQP5L"
 
+    address = "3JMjHDTJjKPnrvS7DycPAgYcA6HrHRk8UG"  # Scam
+
     # scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
     # try_scraper(scamming_address)
     try_parser(address)
@@ -27,7 +29,7 @@ def try_parser(address):
     chain_parser = ChainParser(address, 2)
     res = chain_parser.start_analysis(manual=False)
     if res:
-        chain_parser.get_statistics(display=True)
+        # chain_parser.get_statistics(display=True)
 
         # Build the tree
         tree = GraphVisualisation(chain_parser.transaction_lists, display=True)
