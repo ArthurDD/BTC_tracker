@@ -47,8 +47,9 @@ function connect() {
 
         } else if (data.type === 'progress_bar_update') {   // Sent every time a request is parsed in each layer.
             bar_width += data.message / progress_bar_total;
-            $('#progress_bar').css('width', Math.ceil(bar_width*100) + '%')
-            $('#p_current_progress').html(Math.ceil(bar_width*100) + '%')
+            let percentage = Math.max(Math.ceil(bar_width*100), 100)
+            $('#progress_bar').css('width', percentage + '%')
+            $('#p_current_progress').html(percentage + '%')
 
         } else if (data.type === 'final_stats') {   // Sent once the analysis is finished
             let my_json = JSON.parse(data.message)
