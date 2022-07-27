@@ -6,8 +6,8 @@
     <div id="modal_div">
 
     </div>
-    <div class="row" style="height:100%; width: 100%; margin-right:0; margin-left:0">
-        <div class='col-6' style="border-right: solid 2px; border-right-color: #fa9d4b">
+    <div id="main_row" class="row">
+        <div id="left_col" class='col-6'>
             <div class="container">
                 <div class="col-9" style="padding-left: 12px; padding-right: 12px; padding-top: 1rem;">
                     <h4> Track an address: </h4>
@@ -86,14 +86,23 @@
                     </div>
                 </div>
                 <div id="progress_div">
-                    <p id="p_current_layer"></p>
+                    <p id="p_current_layer" class="blink_me"></p>
                     <div id="progress_bar_div">
                         <div id="progress_bar"></div>
                     </div>
                     <p id="p_current_progress"></p>
                 </div>
+                <div id="waiting_div">
+                    <p id="p_waiting_message" class="blink_me"></p>
+                    <div id="waiting_bar_div">
+                        <div id="waiting_bar"></div>
+                    </div>
+                    <p id="p_wait_current_progress"></p>
+                </div>
             </div>
         </div>
+
+
         <div id="right_col" class='col-6' style="height: 100%; padding-left: 0; padding-right: 0">
             <div id="tab_bar" style="padding-top: 0;">
                 <ul class="nav nav-pills nav-fill">

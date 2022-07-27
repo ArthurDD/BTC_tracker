@@ -3,6 +3,24 @@ body, html {
   height: 100%;
 }
 
+/* Main row */
+#main_row {
+  height:100%;
+  width: 100%;
+  margin-right:0;
+  margin-left:0;
+
+}
+
+
+/* Left column */
+#left_col {
+  overflow: auto;
+  box-sizing: border-box;
+  height: 100%;
+  border-right: solid 2px #fa9d4b;
+}
+
 
 /* Submit Button(s) */
 .btn_submit {
@@ -11,6 +29,7 @@ body, html {
 }
 
 
+/* OUTPUT TERMINAL */
 #terminal_output_div {
   margin-top: 3rem;
   width: 100%;
@@ -28,14 +47,29 @@ body, html {
   padding-left: 1rem;
 }
 
-#progress_div {
+
+/* LOADING/WAITING BARS */
+#progress_div, #waiting_div {
   display:None;
 }
 
-#progress_bar_div {
+#waiting_div {
+  margin-top: 16px;
+}
+
+#progress_bar_div, #waiting_bar_div {
   width: 100%;
   background-color: aliceblue;
+
   border-radius: 2px;
+}
+
+#progress_bar_div {
+  border: 1px solid green;
+}
+
+#waiting_bar_div {
+  border: 1px solid #dea666;
 }
 
 #progress_bar {
@@ -44,7 +78,22 @@ body, html {
   background-color: green;
 }
 
+#waiting_bar {
+  width: 1%;
+  height: 30px;
+  background-color: #dea666;
+}
 
+#p_waiting_message {
+  font-style: italic;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+
+
+/* TABS */
 button.tab_button {
   border-radius: 0 !important;
   /*border-top-right-radius: 0 !important;*/

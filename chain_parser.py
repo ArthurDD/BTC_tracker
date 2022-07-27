@@ -65,6 +65,7 @@ class ChainParser:
         :param url_list: List of URLs to parse
         :return: None
         """
+        sec_to_wait = 25
         print("Starting threads...")
         if self.send_fct is not None:
             message = '{' + f'"layer": {self.layer_counter}, "total": "{len(url_list)}"' + '}'
@@ -124,13 +125,17 @@ class ChainParser:
                     if pause_required:  # If the request did not go through, we pause
                         p_bar.write(f"Error while making requests ({reason}). Retrying in 25s... "
                                     f"({nb_tries} attempts left)")
+                        if self.send_fct is not None:
+                            self.send_fct(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
+                                          f"({nb_tries} attempt(s) left)")
+                            self.send_fct(sec_to_wait, message_type='waiting_bar')
 
                         self.session.close()
-                        waiting_bar(25)  # Waiting for the limit to fade
+                        waiting_bar(sec_to_wait)  # Waiting for the limit to fade
                         self.session = requests_cache.CachedSession('parser_cache')
-                    else:   # Otherwise, if it did go through, it means we can go to the next request
+                    else:  # Otherwise, if it did go through, it means we can go to the next request
                         req_counter += 1
-                        if req_counter == len(url_list):    # End condition
+                        if req_counter == len(url_list):  # End condition
                             finished = True
                         else:
                             time.sleep(0.6)  # Limited by the API to 2 req/sec

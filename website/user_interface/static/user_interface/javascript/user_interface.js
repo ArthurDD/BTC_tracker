@@ -47,10 +47,12 @@ function connect() {
 
         } else if (data.type === 'progress_bar_update') {   // Sent every time a request is parsed in each layer.
             bar_width += data.message / progress_bar_total;
-            let percentage = Math.max(Math.ceil(bar_width*100), 100)
+            let percentage = Math.min(Math.ceil(bar_width*100), 100)
             $('#progress_bar').css('width', percentage + '%')
             $('#p_current_progress').html(percentage + '%')
 
+        } else if (data.type === 'waiting_bar') {   // Display the waiting bar when requests failed and we need to wait
+            display_waiting_bar(data.message);
         } else if (data.type === 'final_stats') {   // Sent once the analysis is finished
             let my_json = JSON.parse(data.message)
             let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
@@ -173,6 +175,28 @@ function reset_progress_bar(display) {
     }
 }
 
+function display_waiting_bar(secs_to_wait) {
+    $('#waiting_bar').css('width', 0 + '%')
+    $('#p_waiting_message').html('Waiting for ' + secs_to_wait + ' seconds to reset the request limit...')
+    $('#p_wait_current_progress').html(0 + '%')
+    let waiting_div = $('#waiting_div')
+    waiting_div.show()   // Display the progress bar element
+    let counter = 0;
+    let bar_width = 0
+    let waiting_interval = setInterval(function () {
+        counter += 1
+        bar_width = counter / secs_to_wait;
+        let percentage = Math.min(Math.ceil(bar_width*100), 100)
+        $('#waiting_bar').css('width', percentage + '%')
+        $('#p_wait_current_progress').html(percentage + '%')
+    }, 1000);
+    setTimeout(function () {
+        clearInterval(waiting_interval)
+        waiting_div.hide();
+
+    }, secs_to_wait*1000)
+
+}
 function dummy_function() {
     socket.send(JSON.stringify({
         'message': 'Dummy message',
