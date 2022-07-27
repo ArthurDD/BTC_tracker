@@ -1,15 +1,11 @@
-import concurrent
 import json
 import math
 import os
-import random
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 import time
 from datetime import timedelta
 from functools import partial
-# from requests.exceptions import HTTPError
 import sys
-# import requests
 import requests_cache
 
 from graph_visualisation import GraphVisualisation
@@ -38,13 +34,14 @@ class ChainParser:
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
         self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
-        self.session = requests_cache.CachedSession('parser_cache_test',
-                                                    use_cache_dir=True,  # Save files in the default user cache dir
+        self.session = requests_cache.CachedSession('parser_cache',
+                                                    # use_cache_dir=True,  # Save files in the default user cache dir
                                                     cache_control=True,
                                                     # Use Cache-Control headers for expiration, if available
                                                     expire_after=timedelta(days=cache_expire),
                                                     # Otherwise expire responses after 14 days)
                                                     )
+        print("PAAAAAAATTTTHHHHH: ", self.session.cache.db_path)
         self.layer_counter = 0
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
@@ -62,9 +59,8 @@ class ChainParser:
 
         print(self.wallet_url)
 
-    def thread_pool(self, function, url_list, address_list=None):
+    def thread_pool(self, function, url_list):
         """
-        :param address_list: List of list of output addresses that we need to request reports for from bitcoinabuse.com.
         :param function: Either self._get_input_addresses or self._retrieve_txids_from_wallet
         :param url_list: List of URLs to parse
         :return: None
@@ -73,64 +69,71 @@ class ChainParser:
         if self.send_fct is not None:
             message = '{' + f'"layer": {self.layer_counter}, "total": "{len(url_list)}"' + '}'
             self.send_fct(message=message, message_type='progress_bar_start')
-        with ThreadPoolExecutor(max_workers=40) as executor, \
-                tqdm(total=len(url_list), desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
+
+        cached_urls = []
+        for i in range(len(url_list) - 1, -1, -1):
+            url = url_list[i]
+            if url in self.session.cache.urls:
+                cached_urls.append(url)
+                url_list.pop(i)
+        print(f"Length of cached urls: {len(cached_urls)}")
+        print(f"Length of not-cached urls: {len(url_list)}")
+        with tqdm(total=len(url_list) + len(cached_urls),
+                  desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
+
+            if cached_urls:
+                with ThreadPoolExecutor(max_workers=40) as executor:
+                    # Makes requests if they are already cached (bc we don't have any rate limit)
+                    executor.map(fn, cached_urls)
+                    # Wait for the futures to be finished
+
+            # Requests that have not been cached
             finished = False
             nb_tries = 5
-            while not finished:
-                finished = True  # Set it to True by default
-                futures = []
-                for i in range(len(url_list)):
-                    url = url_list[i]
-                    if address_list:
-                        output_addresses = address_list[i]
-                    else:
-                        output_addresses = []
-
-                    futures.append(executor.submit(fn, (url, output_addresses)))
-                    if url not in self.session.cache.urls:  # If the URL has not been cached before
-                        # We will have to respect the request limit of 2req/sec
-                        time.sleep(0.5)
-
-                # Wait for the first exception to occur
-                # p_bar.write(f"Allocating the tasks...")
-                done, not_done = wait(futures, return_when=concurrent.futures.FIRST_EXCEPTION)
-
-                p_bar.write(f"Length of Done: {len(done)}")
-                p_bar.write(f"not_done: {len(not_done)}")
-                successful_urls = []
-                reason = ""
-                for future in done:  # The failed future has still finished, so we need to catch the exc. raised
+            req_counter = 0
+            pause_required = False
+            if url_list:
+                while not finished:
                     try:
-                        successful_urls.append(future.result())
+                        url = url_list[req_counter]
+                        fn(url)
                     except RequestLimitReached:
-                        finished = False
-                        nb_tries -= 1
-                        reason = "Request Limit reached"
+                        if nb_tries == 0:
+                            if self.send_fct is not None:
+                                self.send_fct(message="Error while making requests. Number of tries exceeded."
+                                                      " Please start the parsing again.")
+                            raise err
+                        else:
+                            nb_tries -= 1
+                            reason = "Request Limit reached"
+                            pause_required = True
                         pass
                     except Exception as err:
                         if nb_tries == 0:
+                            if self.send_fct is not None:
+                                self.send_fct(message="Error while making requests. Number of tries exceeded."
+                                                      " Please start the parsing again.")
                             raise err
                         else:
-                            finished = False
                             nb_tries -= 1
-                            p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            # p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
                             reason = str(err)
-                            pass
+                            pause_required = True
 
-                p_bar.write(f"Length of successful URLs: {len(successful_urls)}")
-                # If all the requests were successful, we get out of the loop.
-                # If we got RequestLimitError or another error, we wait for 30s and we try again if nb_tries > 0
-                if not finished:
-                    p_bar.write(f"Error while making requests ({reason}). Retrying in 30s...")
-                    # Remove all the successful requests
-                    url_list = [url for url in url_list if url not in successful_urls]
-                    p_bar.write(f"{len(url_list)} requests are yet to be made.")
+                    if pause_required:  # If the request did not go through, we pause
+                        p_bar.write(f"Error while making requests ({reason}). Retrying in 25s... "
+                                    f"({nb_tries} attempts left)")
 
-                    self.session.close()
-                    waiting_bar(30)  # Waiting for the limit to fade
-                    self.session = requests_cache.CachedSession('parser_cache')
+                        self.session.close()
+                        waiting_bar(25)  # Waiting for the limit to fade
+                        self.session = requests_cache.CachedSession('parser_cache')
+                    else:   # Otherwise, if it did go through, it means we can go to the next request
+                        req_counter += 1
+                        if req_counter == len(url_list):    # End condition
+                            finished = True
+                        else:
+                            time.sleep(0.6)  # Limited by the API to 2 req/sec
 
     def get_wallet_transactions(self):
         """
@@ -179,7 +182,7 @@ class ChainParser:
             # Need to remove the tx from layer 0 whose RTO is too low
             for i, tx in reversed(list(enumerate(self.transaction_lists[0]))):
                 if tx.rto < self.rto_threshold:
-                    print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
+                    # print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
                     self.transaction_lists[0].pop(i)
             print(f"Root value: {self.root_value}")
 
@@ -188,18 +191,16 @@ class ChainParser:
             print()
             return True
 
-    def _retrieve_txids_from_wallet(self, p_bar, req_info):
+    def _retrieve_txids_from_wallet(self, p_bar, link):
         """
         Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
         Stores everything in self.transaction_lists[0].
         :param p_bar: tqdm progress bar, to print without messing the bar display
-        :param req_info: Tuple of url to make the request to, and the addresses to query from BA. (url, [ad1, ad2..])
+        :param link: url to make the request to
         :return: None
         """
         t_0 = time.time()
         try:
-            time.sleep(random.random())
-            link = req_info[0]  # Don't need to request BA in this function as the only add is the root address
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -237,9 +238,8 @@ class ChainParser:
         tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]]
 
         print(f"Length of tot_address_list: {len(tot_address_list)}")
-        print(f"Number of requests to make: {len(tot_url_list)}")
 
-        self.thread_pool(self._get_input_addresses, tot_url_list, tot_address_list)
+        self.thread_pool(self._get_input_addresses, tot_url_list)
 
         print(f"\n\nTransactions added before: {self.added_before}\n\n")
         # print(f"Tx of layer {self.layer_counter}:")
@@ -248,22 +248,18 @@ class ChainParser:
         # print("...")
         self.layer_counter += 1
 
-    def _get_input_addresses(self, p_bar, req_info):
+    def _get_input_addresses(self, p_bar, link):
         """
         Called by get_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
         associated txid.
         :param p_bar: tqdm progress bar, to print without messing the bar display
-        :param req_info: Tuple of url to make the request to, and the addresses to query from BA. (url, [ad1, ad2..])
+        :param link: Url to make the request to
         :return:
         """
         t_0 = time.time()
-        link = req_info[0]
 
-        # output_addresses = req_info[1]
-        # print(f"Output_addresses: {output_addresses}\n\n")
         try:
-            time.sleep(random.random())
             req = self.session.get(link)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -318,8 +314,6 @@ class ChainParser:
                                 self.transaction_lists[pot_layer][i].output_addresses.append(add['address'])
                                 self.transaction_lists[pot_layer][i].rto += add['rto']
 
-                        # We do bitcoinabuse requests:
-                        # self.make_ba_request(add['address'])
                 t_tx_avg = np.mean(t_tx) if t_tx else 0
                 self.time_stat_dict['request'][self.layer_counter].append(t_request - t_0)
                 self.time_stat_dict['select_input'][self.layer_counter].append(t_adding - t_input)
