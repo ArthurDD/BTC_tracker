@@ -46,6 +46,7 @@ class ChainParser:
         self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
         self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
+        self.input_addresses = dict()
 
         self.web_scraper = Scraper(self.address, self.session)
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}

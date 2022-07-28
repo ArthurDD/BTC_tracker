@@ -28,7 +28,6 @@ function connect() {
             $('#submit_starting_btn').prop('disabled', false);
 
         } else if (data.type === 'partial_svg_file') {     // Displays the graph every time a layer is done
-            console.log("Data: ", data)
             display_graph(data);
         } else if (data.type === 'error') {     // Message sent when address was not found
             $('#submit_starting_btn').prop('disabled', false);
@@ -63,12 +62,15 @@ function connect() {
             text_area.scrollTop(text_area[0].scrollHeight);
 
         } else if (data.type === 'manual_tx') {
-            // let my_data = JSON.parse(data.message)
             let url = 'display_manual_transactions/'
             $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
                 $('#modal_div').html(resp);  // load modal
                 $('#display_modal').click()  // display modal
             })
+
+        } else if (data.type === "ba_report") {
+            let report = JSON.parse(data.message);
+            display_ba_report(report)
 
         } else {
             console.log("Message: ", data.message)
@@ -96,12 +98,41 @@ function display_graph(data) {
     $.get(url, {'file_name': data['message']}, function (resp) {
         $('#graph').html(resp)
     }).then(function () {
-        $('g.node > g > a').each(function () {
-            let anchor_href = $(this).attr("xlink:href")
-            $(this).removeAttr("xlink:href")
-            $(this).removeAttr("xlink:title")
-            $(this).attr('href', anchor_href)
+        let counter = 0
+        $('g.graph > g.node').each(function () {  // Cleaning the nodes and setting up the link to the anchor
+            counter += 1
+            let anchor = $(this).find('> g > a')
+            if (anchor.length === 2) {
+                let anchor_we = anchor.eq(0)    // First node <a> with the xlink corresponding to WE link
+                let anchor_ba = anchor.eq(1)    // Second node <a> with the xlink corresponding to input_address for BA
+
+                let anchor_we_href = anchor_we.attr("xlink:href")   // Get link
+                let input_address = anchor_ba.attr("xlink:href")    // Get input_address
+
+                anchor.removeAttr("xlink:href")     // Clean code
+                anchor.removeAttr("xlink:title")    // Clean code
+                anchor_we.attr('href', anchor_we_href)  // Set it up correctly
+
+                let rto_elt = anchor_ba.find('text')
+                let node_to_del = anchor_ba.parent()
+                anchor_ba.parent().parent().append(rto_elt)
+                node_to_del.remove()
+                if (input_address !== "None") {
+                    rto_elt.attr('class', 'BA_search')
+                    rto_elt.attr('href', input_address)
+                }
+            }
         })
+
+        $('.BA_search').click(function () {
+            let input_address = $(this).attr('href')
+            socket.send(JSON.stringify({
+                'message': input_address,
+                'type': 'ba_report',
+            }));
+
+        })
+
         $('div#graph').css('background-color', 'white')
         $('div#graph svg').attr('id', 'svg_graph')
         let svg = $('#svg_graph')
@@ -113,13 +144,14 @@ function display_graph(data) {
             fit: true,
         });
 
-        document.getElementById('enable').addEventListener('click', function() {
-            window.zoomTiger.enableControlIcons();
-        })
-        document.getElementById('disable').addEventListener('click', function() {
-            window.zoomTiger.disableControlIcons();
-        })
-        })
+        // document.getElementById('enable').addEventListener('click', function() {
+        //     window.zoomTiger.enableControlIcons();
+        // })
+        // document.getElementById('disable').addEventListener('click', function() {
+        //     window.zoomTiger.disableControlIcons();
+        // })
+    })
+
 }
 
 function reset_graph() {
@@ -210,4 +242,34 @@ function resume_parsing(tx_to_remove) {
         'message': tx_to_remove,
         'type': 'resume_parsing',
     }));
+}
+
+function display_ba_report(report) {
+    let new_report;
+    if (report['found'] === false) {
+         new_report = '<div class="report_div">' + '<div id="report_title" style="width: 100%; text-align: center; margin-bottom: 10px">Reports for <span class="report_colour">' + report["address"] + '</span></div>No report found.</div>'
+
+    } else {
+        new_report = "<div class=\"report_div\">" +
+            "            <div id=\"report_title\" style=\"width: 100%; text-align: center; margin-bottom: 10px\">Reports for <span class=\"report_colour\">" + report['address'] + "</span></div>" +
+            "            Total reports: <span class=\"report_colour\">" + report['total_report_count'] + "</span><br>" +
+            "            Genuine recent reports: <span class=\"report_colour\">" + report['genuine_recent_count'] + "</span><br>" +
+            "            Last reported: <span class=\"report_colour\">" + report['last_reported'] + "</span><br>"
+        if (report['genuine_recent_count'] > 0) {
+            new_report += "Categories of genuine recent reports: <span class=\"report_colour\">" + JSON.stringify(report['report_types']) + "</span> <br>" +
+                "            <div class=\"genuine_recent_reports\" style=\"width: 100%\">\n" +
+            "                <i><u>Genuine recent reports:</u></i><br>\n"
+
+            for (let i=0; i < report['genuine_report'].length; i++) {
+                let gen_report = report['genuine_report'][i]
+                new_report += "                <span class=\"report_span\">" + i + "- " + gen_report + "</span><br>"
+
+            }
+        }
+
+        new_report += "</div></div>"
+    }
+    new_report = $(new_report)
+    new_report.insertAfter($('#reported_address_info'))
+
 }

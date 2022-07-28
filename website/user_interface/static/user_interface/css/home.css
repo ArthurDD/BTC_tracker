@@ -142,3 +142,45 @@ svg a text, svg a {
 svg a:hover, svg a:active {
   outline: dotted 1px blue;
 }
+
+svg text.BA_search {
+  font-style: italic;
+  fill: #264b5d;
+}
+
+svg text.BA_search:hover, svg text.BA_search:active{
+  cursor: pointer;
+  font-style: italic;
+  fill: #52859d;
+  outline: dotted 1px blue;
+}
+
+
+
+/* Reported addresses div in tree.html*/
+#reported_addresses {
+  width: 100%;
+  padding-bottom: 40px;
+  margin-top: 40px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-top: 2px solid #dea666;
+}
+
+.report_div {
+  width: 100%;
+  text-align: left;
+  border-top: 1px solid #DCDCDC;
+  margin-bottom: 20px;
+  padding-top: 10px;
+
+}
+
+.report_span {
+  color: #c4dce8;
+}
+
+
+.report_colour {
+  color: #79b7d3;
+}

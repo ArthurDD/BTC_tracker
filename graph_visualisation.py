@@ -25,13 +25,17 @@ class GraphVisualisation:
 
         self.pastel_colours = generate_pastel_colours()
 
+        self.input_addresses = dict()
+
     def build_tree(self):
+        self.get_input_addresses()
         self.dot.node_attr['shape'] = 'record'
         self.dot.node('root', rf"{self.root_address}\nReceived: {self.root_value} BTC")
+
         # First, we add all the nodes to the graph
         for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
-                self.dot.node(tx.txid, label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.root_value*100, 2)) + '''%)</td></tr></table>>''')
+                self.dot.node(tx.txid, label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0" href="''' + str(self.input_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.root_value*100, 2)) + '''%)</td></tr></table>>''')
 
         # Add edges between the root node (= input address) and its associated transactions
         self.dot.edges((add.txid, 'root') for add in self.transaction_lists[0])
@@ -82,7 +86,7 @@ class GraphVisualisation:
         for layer in range(self.depth):
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
-                    self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.root_value*100, 2)) + '''%)</td></tr></table>>''')  # label=rf"{tx.txid[:8]}...\n{tx.amount} BTC \n{tx.tag}\n{tx.rto} RTO")
+                    self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(self.input_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.root_value*100, 2)) + '''%)</td></tr></table>>''')
 
     def set_removed(self):
         """
@@ -132,6 +136,7 @@ class GraphVisualisation:
                     txid_set.add(tx.txid)
         return txid_set, prev_txid_set
 
+    @staticmethod
     def get_colours(self):
         colours = []
         with open(FILE_DIR + '/colours.txt', 'r') as f:
@@ -139,3 +144,11 @@ class GraphVisualisation:
                 if line.strip():
                     colours.append(line.strip())
         return colours
+
+    def get_input_addresses(self):
+        for layer in range(0, self.depth):
+            for tx in self.transaction_lists[layer]:
+                if tx.txid not in self.input_addresses:
+                    self.input_addresses[tx.txid] = None
+                for txid, prev_layer in tx.prev_txid:
+                    self.input_addresses[txid] = tx.output_addresses[0]

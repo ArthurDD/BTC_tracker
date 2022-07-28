@@ -96,6 +96,9 @@ class UserInterfaceConsumer(WebsocketConsumer):
             if self.finished_analysis:
                 self.build_graph()  # Done
 
+        elif tag == "ba_report":
+            self.get_ba_report(message)
+
         else:
             print(f"Message received: {message}")
             print(f"Tag of that message: {tag}")
@@ -136,6 +139,10 @@ class UserInterfaceConsumer(WebsocketConsumer):
         # Need to call this function even when self.finished_analysis == True bc we still need to "prune" the last layer
 
     def build_graph(self):
+        """
+        Builds the final graph
+        :return: None
+        """
         self.chain_parser.get_statistics()  # Calculates the stats that will be later displayed when front end
         # receives a message whose message_type == svg_file
 
@@ -147,6 +154,14 @@ class UserInterfaceConsumer(WebsocketConsumer):
                 'type': 'svg_file',
                 'message': file_name
             }))
+
+    def get_ba_report(self, address):
+        report = self.chain_parser.web_scraper.bitcoinabuse_search(address)
+
+        self.send(text_data=json.dumps({
+            'type': 'ba_report',
+            'message': str(json.dumps(report))
+        }))
 
 
 def send_message(send_function, message, message_type='chat_message'):
