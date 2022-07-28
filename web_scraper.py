@@ -19,8 +19,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 class Scraper:
     def __init__(self, address="", session=None):
         if session is None:
-            self.session = requests_cache.CachedSession('parser_cache_test',
-                                                        use_cache_dir=True,  # Save files in the default user cache dir
+            self.session = requests_cache.CachedSession('parser_cache',
                                                         cache_control=True,
                                                         # Use Cache-Control headers for expiration, if available
                                                         expire_after=timedelta(days=14),
