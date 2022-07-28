@@ -1,14 +1,9 @@
 import ast
 import json
-# import pprint
-# import string
-# import random
 import time
 from functools import partial
 
 from channels.generic.websocket import WebsocketConsumer
-# from channels.generic.websocket import AsyncJsonWebsocketConsumer
-# from asgiref.sync import async_to_sync
 
 from chain_parser import ChainParser
 from graph_visualisation import GraphVisualisation
@@ -83,7 +78,8 @@ class UserInterfaceConsumer(WebsocketConsumer):
             send_message(self.send, 'Process started...')
             manual_mode = 'manual_input' in data
 
-            success = self.start_search(self.send, data['address_input'], int(data['layer_input']), manual_mode)
+            success = self.start_search(self.send, data['address_input'], int(data['layer_input']),
+                                        float(data['rto_input']), manual_mode)
 
             if success and not manual_mode:  # If the parsing was successful and we're not in manual mode (i.e all done)
                 self.build_graph()
@@ -108,10 +104,11 @@ class UserInterfaceConsumer(WebsocketConsumer):
                 'message': 'I received your message, dummy!'
             }))
 
-    def start_search(self, send_function, address, layer_nb, manual_mode):
+    def start_search(self, send_function, address, layer_nb, rto_threshold, manual_mode):
         """
         Method only called once to start the parsing. If it returns false, error encountered so we need to start
         the parsing again.
+        :param rto_threshold:
         :param send_function:
         :param address:
         :param layer_nb:
@@ -121,7 +118,7 @@ class UserInterfaceConsumer(WebsocketConsumer):
         send_function_bis = partial(send_message, send_function)
 
         self.manual = manual_mode
-        self.chain_parser = ChainParser(address, layer_nb, send_fct=send_function_bis)
+        self.chain_parser = ChainParser(address, layer_nb, rto_threshold=rto_threshold, send_fct=send_function_bis)
 
         res = self.chain_parser.start_analysis(
             manual=self.manual, display_partial_graph=True)  # Res is True if the parsing of the wallet was

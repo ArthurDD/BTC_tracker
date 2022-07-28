@@ -18,12 +18,20 @@
                             <input type="text" id="address_input" class="form-control" name="address_input"><br>
                         </div>
                         <div class="form-group mb-2">
-                            <label for="layer_input">Number of layer(s):</label><br>
-                            <select id="layer_input" class="form-select" name="layer_input" style="max-width: 80px">
-                                {% for i in max_layer_number %}
-                                    <option value="{{ i }}">{{ i }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label for="layer_input">Number of layer(s):</label><br>
+                                    <select id="layer_input" class="form-select" name="layer_input" style="max-width: 80px">
+                                        {% for i in max_layer_number %}
+                                            <option value="{{ i }}">{{ i }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label for="rto_input">RTO threshold (in %): </label><br>
+                                    <input type="text" id="rto_input" class="form-control" name="rto_input" value="0.1" style="max-width: 80px"><br>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group mb-2">
                             <label for="manual_input">Manual Mode:  </label>
