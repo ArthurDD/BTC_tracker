@@ -25,6 +25,7 @@ function connect() {
             $('#progress_div').hide()   // Hide the progress bar element
             display_graph(data);
             display_charts();
+            get_stats();    // Requests the tagged bitcoin stats.
             $('#submit_starting_btn').prop('disabled', false);
 
         } else if (data.type === 'partial_svg_file') {     // Displays the graph every time a layer is done
@@ -52,6 +53,7 @@ function connect() {
 
         } else if (data.type === 'waiting_bar') {   // Display the waiting bar when requests failed and we need to wait
             display_waiting_bar(data.message);
+
         } else if (data.type === 'final_stats') {   // Sent once the analysis is finished
             let my_json = JSON.parse(data.message)
             let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
@@ -71,6 +73,9 @@ function connect() {
         } else if (data.type === "ba_report") {
             let report = JSON.parse(data.message);
             display_ba_report(report)
+
+        } else if (data.type === "display_stats") {
+            display_stats(data.message)
 
         } else {
             console.log("Message: ", data.message)
@@ -155,6 +160,8 @@ function display_graph(data) {
 }
 
 function reset_graph() {
+    $('#stats').html('').hide();
+
     $('#graph').html('<p style="margin-top:20px; font-style: italic"> The computed graph will appear here.</p>').css('background-color', '')
     svgPanZoom.destroy; // destroy svgPanZoom instance (can't have more than one in a page)
 }
@@ -237,7 +244,6 @@ function dummy_function() {
 }
 
 function resume_parsing(tx_to_remove) {
-    console.log("tx_to_remove: HERE", tx_to_remove)
     socket.send(JSON.stringify({
         'message': tx_to_remove,
         'type': 'resume_parsing',
@@ -272,4 +278,30 @@ function display_ba_report(report) {
     new_report = $(new_report)
     new_report.insertAfter($('#reported_address_info'))
 
+}
+
+
+function get_stats() {
+    socket.send(JSON.stringify({
+        'message': "not_used",
+        'type': 'get_stats',
+    }));
+}
+
+
+function display_stats (data) {
+    data = JSON.parse(data)
+    let stats_div = $('#stats')
+    let stats_table = $('<table id="stats_table" class="table"> <tr> <th>Tag</th> <th>BTC from the root add. </th> <th> Closeness to these tags</th> </tr>')
+    stats_div.append($('<h5 style="margin-bottom: 40px; margin-top: 10px; width: 100%; text-align: center">\n' +
+        '        Tagged Addresses according to  <a href="https://walletexplorer.com" style="color: #c4dce8">WalletExplorer.com</a>\n' +
+        '    </h5>'))
+    for (let k in data) {
+        let tagged_div_row = $('<tr class="stat_tagged" style="width: 100% ; margin-bottom: 10px; color: aliceblue">' +
+            '<td><a target="_blank" style="color: #79b7d3" href="https://www.walletexplorer.com/wallet/' + k + '">' + k + ':</a></td>' +
+            '<td>' + data[k]["rto"] + ' BTC (<i>' + data[k]["percentage"] + '%</i>)</td> <td>' + data[k]["closeness"] + '</td></tr>')
+        stats_table.append(tagged_div_row)
+    }
+    stats_div.append(stats_table)
+    stats_div.show()
 }

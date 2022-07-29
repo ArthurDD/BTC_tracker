@@ -43,6 +43,7 @@ class ChainParser:
         self.added_before = []
         self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
         self.input_addresses = dict()
+        self.transaction_tags = {}  # Dict where keys are tags and values are RTO
 
         self.web_scraper = Scraper(self.address, self.session)
         self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
@@ -608,13 +609,30 @@ class ChainParser:
             tagged_tx_rto[layer] = 0
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
+                    percentage = np.round(tx.rto / self.root_value * 100, 2)
+                    if tx.tag in self.transaction_tags:
+                        self.transaction_tags[tx.tag]['rto'] += np.round(tx.rto, 2)
+                        self.transaction_tags[tx.tag]['percentage'] += percentage
+                        if layer in self.transaction_tags[tx.tag]['closeness']:
+                            self.transaction_tags[tx.tag]['closeness'][layer] += percentage
+                        else:
+                            self.transaction_tags[tx.tag]['closeness'][layer] = percentage
+                    else:
+                        self.transaction_tags[tx.tag] = {'rto': np.round(tx.rto, 2),
+                                                         'percentage': percentage,
+                                                         'closeness': {layer: percentage}}
+
                     tagged_tx_lists[layer].append(tx)
                     tagged_tx_rto[layer] += tx.rto
                 if tx.is_pruned:
                     pruned_tx_lists[layer].append(tx)
 
+        for tag in self.transaction_tags:
+            closeness = "  |  ".join([f"<span style='color:#79b7d3'>{layer}</span> - {percentage}%"
+                                      for layer, percentage in self.transaction_tags[tag]['closeness'].items()])
+            self.transaction_tags[tag]['closeness'] = closeness
         # print(f"Number of tagged transactions by layer: \n" +
-        #       "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
+        #      "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
         #                  for layer in range(self.layer_counter)]) + "\n")
         #
         # print(f"Number of pruned transactions by layer: \n" +

@@ -184,3 +184,13 @@ svg text.BA_search:hover, svg text.BA_search:active{
 .report_colour {
   color: #79b7d3;
 }
+
+
+
+#stats {
+  padding-bottom: 50px;
+  width: 100%;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-bottom: 2px solid #dea666;
+}

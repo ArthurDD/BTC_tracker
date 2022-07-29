@@ -95,6 +95,9 @@ class UserInterfaceConsumer(WebsocketConsumer):
         elif tag == "ba_report":
             self.get_ba_report(message)
 
+        elif tag == "get_stats":
+            send_message(self.send, message=json.dumps(self.chain_parser.transaction_tags),
+                         message_type="display_stats")
         else:
             print(f"Message received: {message}")
             print(f"Tag of that message: {tag}")
