@@ -46,8 +46,6 @@ class ChainParser:
         self.transaction_tags = {}  # Dict where keys are tags and values are RTO
 
         self.web_scraper = Scraper(self.address, self.session)
-        self.ba_reports = {i: [] for i in range(self.nb_layers + 1)}
-        self.already_queried_addresses = set()
 
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
@@ -421,42 +419,6 @@ class ChainParser:
             # We only keep transactions with RTOs > threshold
             if input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
-
-    def already_queried(self, address):
-        """
-        Returns whether the address has already been queried on BitcoinAbuse or not.
-        :param address: address to look
-        :return: Bool -> False if not queried yet, True if already in the report list.
-        """
-        for elt in self.ba_reports[self.layer_counter]:  # - 1]:
-            if elt['address'] == address:
-                return True
-        return False
-
-    def make_ba_request(self, add):
-        # We first check that the address is not already in ba_reports
-        if add not in self.already_queried_addresses:
-            self.already_queried_addresses.add(add)
-            ba_info = self.web_scraper.bitcoinabuse_search(add)
-            if ba_info:
-                self.ba_reports[self.layer_counter].append(ba_info)  # removed - 1 from self.layer_counter
-
-    def clean_reports(self):
-        """
-        Removes reports that are in the same layer more than once (happens because the requests are made too fast
-        for the function to not make the request if the address is already in the list)
-        Also removes empty reports (i.e. found = False)
-        :return: None
-        """
-        for i in range(self.nb_layers + 1):
-            self.ba_reports[i] = list(filter(lambda elt: elt['found'] is True, self.ba_reports[i]))
-
-    def set_reported_addresses(self):
-        for layer in range(self.nb_layers + 1):
-            for report in self.ba_reports[layer]:
-                if report['genuine_recent_count'] > 0:
-                    add = report['address']
-                    # Find all the transactions that have add in output_add and tag them
 
     def start_analysis(self, manual=False, tx_to_remove=None, display_partial_graph=False):
         """ Method to start the analysis of the root address. Builds every layer.
