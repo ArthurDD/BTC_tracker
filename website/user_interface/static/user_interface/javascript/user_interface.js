@@ -16,72 +16,87 @@ function connect() {
     socket.onmessage = function (e) {
         let text_area = $('#terminal_output');
         const data = JSON.parse(e.data);
+        let my_json;    // Will contain the json format of data.message if we expect a json format.
+        let submit_btn = $('#submit_starting_btn')
+        let text_area_val = text_area.val()
 
-        if (data.type === "connection_established") {
-            if (text_area.val() === "") {
-                text_area.val(data.message + "\n")
-            }
-        } else if (data.type === 'svg_file') {     // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
-            $('#progress_div').hide()   // Hide the progress bar element
-            display_graph(data);
-            display_charts();
-            get_stats();    // Requests the tagged bitcoin stats.
-            $('#submit_starting_btn').prop('disabled', false);
+        switch (data.type) {
+            case "connection_established":
+                if (text_area.val() === "") {
+                    text_area.val(data.message + "\n")  // We only write in the text_area when it's empty (i.e. when page is reloaded)
+                }
+                break;
+            case "svg_file":    // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
+                $('#progress_div').hide()   // Hide the progress bar element
+                display_graph(data);
+                display_charts();
+                get_stats();    // Requests the tagged bitcoin stats.
+                submit_btn.prop('disabled', false);
+                break;
 
-        } else if (data.type === 'partial_svg_file') {     // Displays the graph every time a layer is done
-            display_graph(data);
-        } else if (data.type === 'error') {     // Message sent when address was not found
-            $('#submit_starting_btn').prop('disabled', false);
-            let val = text_area.val();
-            text_area.val(val + data.message + "\n");
-            text_area.scrollTop(text_area[0].scrollHeight);
+            case 'partial_svg_file':  // Displays the graph every time a layer is done
+                display_graph(data);
+                break;
 
-        } else if (data.type === 'progress_bar_start') {    // Sent at the beginning of each layer before making requests
-            reset_progress_bar(true)        // Reset the loading bar
+            case 'error': // Message sent when address was not found
+                submit_btn.prop('disabled', false);
+                text_area_val = text_area.val();
+                text_area.val(text_area_val + data.message + "\n");
+                text_area.scrollTop(text_area[0].scrollHeight);
+                break;
 
-            let my_json = JSON.parse(data.message)
-            $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + $('#layer_input').val())
-            progress_bar_total = my_json['total']
-            bar_width = 0
-            // We need to reset progress bar and prepare it for the new layer coming
+            case "progress_bar_start":      // Called at the beginning of each layer being parsed
+                reset_progress_bar(true)        // Reset the loading bar
+                my_json = JSON.parse(data.message)
+                $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + $('#layer_input').val())
+                progress_bar_total = my_json['total']
+                bar_width = 0  // We need to reset progress bar and prepare it for the new layer coming
+                break;
 
-        } else if (data.type === 'progress_bar_update') {   // Sent every time a request is parsed in each layer.
-            bar_width += data.message / progress_bar_total;
-            let percentage = Math.min(Math.ceil(bar_width*100), 100)
-            $('#progress_bar').css('width', percentage + '%')
-            $('#p_current_progress').html(percentage + '%')
+            case "progress_bar_update": // Sent every time a request is parsed in each layer.
+                bar_width += data.message / progress_bar_total;
+                let percentage = Math.min(Math.ceil(bar_width*100), 100)
+                $('#progress_bar').css('width', percentage + '%')
+                $('#p_current_progress').html(percentage + '%')
+                break;
 
-        } else if (data.type === 'waiting_bar') {   // Display the waiting bar when requests failed and we need to wait
-            display_waiting_bar(data.message);
+            case "waiting_bar":  // Display the waiting bar when requests failed and we need to wait
+                display_waiting_bar(data.message);
+                break;
 
-        } else if (data.type === 'final_stats') {   // Sent once the analysis is finished
-            let my_json = JSON.parse(data.message)
-            let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
-                "Total time: " + my_json['total_time'] + "s\nRTO threshold: " +my_json["rto_threshold"] +
-                "\n\nRequests have been cached.\nAll done!"
-            let val = text_area.val();
-            text_area.val(val + lines);
-            text_area.scrollTop(text_area[0].scrollHeight);
+            case "final_stats":  // Displays final stats when the parsing is done
+                my_json = JSON.parse(data.message)
+                let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
+                    "Total time: " + my_json['total_time'] + "s\nRTO threshold: " +my_json["rto_threshold"] +
+                    "\n\nRequests have been cached.\nAll done!"
+                text_area_val = text_area.val();
+                text_area.val(text_area_val + lines);
+                text_area.scrollTop(text_area[0].scrollHeight);
+                break;
 
-        } else if (data.type === 'manual_tx') {
-            let url = 'display_manual_transactions/'
-            $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
-                $('#modal_div').html(resp);  // load modal
-                $('#display_modal').click()  // display modal
-            })
+            case "manual_tx":
+                let url = 'display_manual_transactions/'
+                $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
+                    $('#modal_div').html(resp);  // load modal
+                    $('#display_modal').click()  // display modal
+                })
+                break;
 
-        } else if (data.type === "ba_report") {
-            let report = JSON.parse(data.message);
-            display_ba_report(report)
+            case "ba_report":   // Message received when user wanted to display a ba report for an address and we get the answer from the backend
+                let report = JSON.parse(data.message);
+                display_ba_report(report);
+                break;
 
-        } else if (data.type === "display_stats") {
-            display_stats(data.message)
+            case "display_stats":
+                my_json = JSON.parse(data.message)
+                display_stats(my_json);
+                break;
 
-        } else {
-            console.log("Message: ", data.message)
-            let val = text_area.val();
-            text_area.val(val + data.message + "\n");
-            text_area.scrollTop(text_area[0].scrollHeight);
+            default:
+                console.log("Message: ", data.message)
+                text_area_val = text_area.val();
+                text_area.val(text_area_val + data.message + "\n");
+                text_area.scrollTop(text_area[0].scrollHeight);
         }
     };
 
@@ -129,7 +144,7 @@ function display_graph(data) {
             }
         })
 
-        $('.BA_search').click(function () {
+        $('.BA_search').click(function () {     // Set up the BA search when user clicks on a RTO line
             let input_address = $(this).attr('href')
             socket.send(JSON.stringify({
                 'message': input_address,
@@ -149,24 +164,25 @@ function display_graph(data) {
             fit: true,
         });
 
-        // document.getElementById('enable').addEventListener('click', function() {
-        //     window.zoomTiger.enableControlIcons();
-        // })
-        // document.getElementById('disable').addEventListener('click', function() {
-        //     window.zoomTiger.disableControlIcons();
-        // })
+        document.getElementById('enable').addEventListener('click', function() {
+            window.zoomTiger.enableControlIcons();
+        })
+        document.getElementById('disable').addEventListener('click', function() {
+            window.zoomTiger.disableControlIcons();
+        })
     })
 
 }
 
-function reset_graph() {
-    $('#stats').html('').hide();
+function reset_graph() {    // Called when a new parsing is started.
+    $('#stats').html('').hide();    // Hide the stats div
 
+    // Sets back the default message
     $('#graph').html('<p style="margin-top:20px; font-style: italic"> The computed graph will appear here.</p>').css('background-color', '')
     svgPanZoom.destroy; // destroy svgPanZoom instance (can't have more than one in a page)
 }
 
-function display_banner(message, banner_class) {
+function display_banner(message, banner_class) {    // Manages all the different banners (about successful and lost connections)
     let banner = $('#information_banner');
     banner.removeClass().addClass('fade show alert ' + banner_class);
     $('span', banner).removeClass();    // Remove the blink_me class
@@ -189,6 +205,7 @@ function display_charts() {
         $('#chart').html(data)
     })
 }
+
 
 function set_height () {
     let main_height = $('body').outerHeight() - $('#nav_bar').outerHeight() + 'px'
@@ -214,6 +231,7 @@ function reset_progress_bar(display) {
     }
 }
 
+
 function display_waiting_bar(secs_to_wait) {
     $('#waiting_bar').css('width', 0 + '%')
     $('#p_waiting_message').html('Waiting for ' + secs_to_wait + ' seconds to reset the request limit...')
@@ -234,8 +252,9 @@ function display_waiting_bar(secs_to_wait) {
         waiting_div.hide();
 
     }, secs_to_wait*1000)
-
 }
+
+
 function dummy_function() {
     socket.send(JSON.stringify({
         'message': 'Dummy message',
@@ -243,14 +262,17 @@ function dummy_function() {
     }));
 }
 
+
 function resume_parsing(tx_to_remove) {
+    // Called when the users finished selecting the transactions he wanna continue with in the parsing (manual mode)
     socket.send(JSON.stringify({
         'message': tx_to_remove,
         'type': 'resume_parsing',
     }));
 }
 
-function display_ba_report(report) {
+
+function display_ba_report(report) {    // Called
     let new_report;
     if (report['found'] === false) {
          new_report = '<div class="report_div">' + '<div id="report_title" style="width: 100%; text-align: center; margin-bottom: 10px">Reports for <span class="report_colour">' + report["address"] + '</span></div>No report found.</div>'
@@ -289,8 +311,7 @@ function get_stats() {
 }
 
 
-function display_stats (data) {
-    data = JSON.parse(data)
+function display_stats (data) { // Displays stats received once "get_stats" message has been sent.
     let stats_div = $('#stats')
     let stats_table = $('<table id="stats_table" class="table"> <tr> <th>Tag</th> <th>BTC from the root add. </th> <th> Closeness<span style="color:red">*</span> to these tags</th> </tr>')
     stats_div.append($('<h5 style="margin-bottom: 40px; margin-top: 10px; width: 100%; text-align: center">\n' +
