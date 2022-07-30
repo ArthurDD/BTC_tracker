@@ -163,13 +163,6 @@ function display_graph(data) {
             controlIconsEnabled: true,
             fit: true,
         });
-
-        document.getElementById('enable').addEventListener('click', function() {
-            window.zoomTiger.enableControlIcons();
-        })
-        document.getElementById('disable').addEventListener('click', function() {
-            window.zoomTiger.disableControlIcons();
-        })
     })
 
 }
@@ -323,10 +316,10 @@ function display_stats (data) { // Displays stats received once "get_stats" mess
             '<td>' + data[k]["rto"] + ' BTC (<i>' + data[k]["percentage"] + '%</i>)</td> <td>' + data[k]["closeness"] + '</td></tr>')
         stats_table.append(tagged_div_row)
     }
-    stats_div.append(stats_table)
-
     let information_div = $('<div class="info_note"><span style="color:red">*</span>Closeness of <span style=\'color:#79b7d3\'>0</span> means that this address has received a direct transaction from that service. <br>' +
         'Closeness of <span style=\'color:#79b7d3\'>1</span> means there has been one transaction in between, and so on.</div>')
+
+    stats_div.append(stats_table)
     stats_div.append(information_div)
     stats_div.show()
 }
