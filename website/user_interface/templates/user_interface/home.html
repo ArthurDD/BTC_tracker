@@ -67,6 +67,8 @@
                             // Reset the tabs
                             reset_graph()
                             $('#chart').html('<p style="margin-top:20px; font-style: italic"> The computed charts and statistics will appear here.</p>')
+                            $('#web_scraping').html('<p style="text-align: center;margin-top:20px; font-style: italic"> Web scraped results will appear here.</p>')
+
 
                             let values = {};
                             $.each(form.serializeArray(), function(i, field) {
@@ -127,7 +129,7 @@
                     </li>
                     <li class="nav-item">
                         <button class="tab_button nav-link" id="web_scraping_tab" data-bs-toggle="tab" data-bs-target="#web_scraping_tab_content" type="button" role="tab" aria-controls="web_scraping_tab_content" aria-selected="false" style="border-bottom-right-radius: 0;">
-                            Web Scraping Results
+                            Web Scraped Results
                         </button>
                     </li>
                 </ul>
@@ -146,7 +148,7 @@
                 </div>
                 <div id="web_scraping_tab_content" class="container tab-pane fade" role="tabpanel" aria-labelledby="web_scraping_tab">
                     <div id="web_scraping">
-
+                        <p style="text-align: center;margin-top:20px; font-style: italic"> Web scraped results will appear here.</p>
                     </div>
                 </div>
             </div>

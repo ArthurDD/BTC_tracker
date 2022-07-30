@@ -5,24 +5,40 @@
     <div style="margin-bottom: 10px; width: 100%; text-align: center;">
         <span class="address_colour" style="font-style: italic">{{ address }}</span>
     </div>
-    <hr style="width:70%; color: #dea666; margin: auto auto 40px;">
+{#    <hr style="width:70%; color: #dea666; margin: auto auto 20px;">#}
+    <div class="div_hr"></div>
+
 
     {% if bitcoin_abuse.found %}
         <div id="scraped_info_ba">
+            <h5 class="scraping_title">BitcoinAbuse</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">Report(s) found on BitcoinAbuse:</span> <br>
                 Total reports: <span class="report_colour">{{ bitcoin_abuse.total_report_count }}</span><br>
                 Genuine recent reports: <span class="report_colour">{{ bitcoin_abuse.genuine_recent_count }}</span><br>
                 Last reported: <span class="report_colour">{{ bitcoin_abuse.last_reported }}</span><br>
                 {% if bitcoin_abuse.genuine_recent_count > 0 %}
-                    Categories of genuine recent reports: <span class="report_colour">{{ bitcoin_abuse.report_types }}</span>
+                    Categories of genuine recent reports:
+                        <table id="ba_report_table" class="table" style="width:auto; margin: auto">
+                            <tr>
+                                <th> Report type</th>
+                                <th> Count </th>
+                            </tr>
+                            {% for key, value in bitcoin_abuse.report_types.items %}
+                                {% if value > 0 %}
+                                    <tr style="width: 100%; color: aliceblue">
+                                        <td>{{ key }}</td>
+                                        <td style="text-align: center"> {{ value }}</td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </table>
                     <br>
                     <div class="genuine_recent_reports" style="width: 100%">
                         <i><u>Genuine recent reports:</u></i>
                         <br>
                         {% for report in bitcoin_abuse.genuine_report %}
-                            let gen_report = report['genuine_report'][i]
-                            <span class="report_span">  {{ forloop.counter }}  -  {{ report }}</span><br>
+                            <span class="report_span">  {{ forloop.counter }}  -  {{ report.description }}</span><br>
                         {% endfor %}
                 {% endif %}
                     </div>
@@ -33,6 +49,7 @@
 
     {% if twitter.found %}
         <div id="scraped_info_twitter" class="scrape_category">
+            <h5 class="scraping_title">Twitter</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ twitter.nb_results }} Tweet(s) found: </span> <br>
                 {% for elt in twitter.results %}
@@ -47,13 +64,18 @@
 
     {% if google.found %}
         <div id="scraped_info_twitter" class="scrape_category">
+            <h5 class="scraping_title">Google</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ google.nb_results }} Result(s) found on Google: </span> <br>
-                {% for elt in google.relevant_results %}
-                    <a href="{{ elt.link }}" target="_blank" class="address_colour">Result #{{ forloop.counter }} - {{ elt.displayLink }}:</a>
-                    {{ elt.title }} <br>
-                    <br>
-                {% endfor %}
+                <table class="table">
+                    {% for elt in google.relevant_results %}
+                        <tr style="color: aliceblue; text-align: justify;">
+{#                            <td style="border:0">  </td>#}
+                            <td style="border:0"> <a href="{{ elt.link }}" target="_blank" class="address_colour">{{ elt.displayLink }}</a></td>
+                            <td style="border:0; text-overflow: ellipsis; overflow: hidden;"> {{ elt.title }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
             </div>
         </div>
         <div class="div_hr"></div>
@@ -61,13 +83,17 @@
 
     {% if reddit.found %}
         <div id="scraped_info_twitter" class="scrape_category">
+            <h5 class="scraping_title">Reddit</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ reddit.nb_results }} Result(s) found on Reddit: </span> <br>
-                {% for elt in reddit.results %}
-                    <a href="{{ elt.0 }}" target="_blank" class="address_colour">Result #{{ forloop.counter }}:</a>
-                    {{ elt.1 }} <br>
-                    <br>
-                {% endfor %}
+                <table class="table">
+                    {% for elt in reddit.results %}
+                        <tr style="color: aliceblue; text-align: justify;">
+                            <td style="border: 0"><a href="{{ elt.0 }}" target="_blank" class="address_colour">{{ forloop.counter }}.</a></td>
+                            <td style="border: 0"> {{ elt.1 }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
             </div>
         </div>
         <div class="div_hr"></div>

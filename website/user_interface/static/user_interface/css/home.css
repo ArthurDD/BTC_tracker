@@ -211,12 +211,18 @@ svg text.BA_search:hover, svg text.BA_search:active{
 
 .div_hr {
   width: 80%;
-  margin: auto auto 40px;
-  border-bottom: 2px solid aliceblue;
+  margin: 20px auto 10px;
+  border-bottom: 2px solid #dea666;
 }
 
 .web_scraping_title_span {
   text-decoration: underline;
   font-weight: bold;
   margin-bottom: 8px;
+}
+
+.scraping_title {
+  color: #e35353;
+  margin-bottom: 20px;
+  text-align: center;
 }
