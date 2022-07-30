@@ -18,7 +18,7 @@ body, html {
   overflow: auto;
   box-sizing: border-box;
   height: 100%;
-  border-right: solid 2px #fa9d4b;
+  border-right: solid 2px #dea666;
 }
 
 
@@ -34,7 +34,6 @@ body, html {
   margin-top: 3rem;
   width: 100%;
   height: 100%;
-  /*max-width: 400px;*/
 }
 
 #terminal_output {
@@ -59,7 +58,7 @@ body, html {
 
 #progress_bar_div, #waiting_bar_div {
   width: 100%;
-  background-color: aliceblue;
+  background-color: #ffffff;
 
   border-radius: 2px;
 }
@@ -100,25 +99,20 @@ button.tab_button {
   color: aliceblue !important;
 }
 
-
 button.tab_button.active {
   background-color: #dea666 !important;
   border-bottom: 2px solid #dea666 !important;
-
 }
 
 button.tab_button {
   border-bottom: 2px solid lightslategray !important;
 }
 
-
 #tab_content {
   overflow: auto;
   box-sizing: border-box;
   padding-top: 10px;
 }
-
-
 
 .chart {
   margin-top: 40px;
@@ -185,6 +179,9 @@ svg text.BA_search:hover, svg text.BA_search:active{
   color: #79b7d3;
 }
 
+a.address_colour:hover {
+  color: #c4dce8;
+}
 
 
 #stats {
@@ -227,6 +224,15 @@ svg text.BA_search:hover, svg text.BA_search:active{
   text-align: center;
 }
 
+.hidden_link_bold {
+  color: aliceblue;
+  text-decoration: none;
+}
+
+.hidden_link_bold:hover {
+  color: #52859d;
+}
+
 
 /* Scroll-up button */
 #scroll_up_btn {
@@ -246,4 +252,13 @@ svg text.BA_search:hover, svg text.BA_search:active{
 
 #scroll_up_btn:hover {
   background-color: #f6c291;
+}
+
+table.scraper_table {
+  margin-top: 20px
+}
+
+table.scraper_table td {
+  padding-top: 0;
+  padding-bottom: 8px;
 }

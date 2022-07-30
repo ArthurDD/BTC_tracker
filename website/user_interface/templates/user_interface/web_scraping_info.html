@@ -11,8 +11,11 @@
         <div id="scraped_info_ba">
             <h5 class="scraping_title">BitcoinAbuse</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
-                <span class="web_scraping_title_span">Report(s) found on BitcoinAbuse:</span> <br>
-                Total reports: <span class="report_colour">{{ bitcoin_abuse.total_report_count }}</span><br>
+                Total reports: <span class="report_colour">{{ bitcoin_abuse.total_report_count }}</span>
+                <a href="https://www.bitcoinabuse.com/reports/{{ address }}" target="_blank" class="hidden_link_bold">
+                    <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click here to see results on BitcoinAbuse.com" style="margin-left: 10px;"></i>
+                </a>
+                <br>
                 Genuine recent reports: <span class="report_colour">{{ bitcoin_abuse.genuine_recent_count }}</span><br>
                 Last reported: <span class="report_colour">{{ bitcoin_abuse.last_reported }}</span><br>
                 {% if bitcoin_abuse.genuine_recent_count > 0 %}
@@ -49,7 +52,9 @@
         <div id="scraped_info_twitter" class="scrape_category">
             <h5 class="scraping_title">Twitter</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
-                <span class="web_scraping_title_span">{{ twitter.nb_results }} Tweet(s) found: </span> <br>
+                <i><u>Tweet{% if twitter.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ twitter.nb_results }}</span>
+                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the first column to see the tweet in Twitter" style="margin-left: 10px;"></i>
+
                 {% for elt in twitter.results %}
                     <a href="{{ elt.0 }}" target="_blank" class="address_colour">Tweet #{{ forloop.counter }}:</a>
                     {{ elt.1 }} <br>
@@ -61,14 +66,14 @@
     {% endif %}
 
     {% if google.found %}
-        <div id="scraped_info_twitter" class="scrape_category">
+        <div id="scraped_info_google" class="scrape_category">
             <h5 class="scraping_title">Google</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
-                <span class="web_scraping_title_span">{{ google.nb_results }} Result(s) found on Google: </span> <br>
-                <table class="table">
+                <i><u>Result{% if google.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ google.nb_results }}</span>
+                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the first column to go to the search result" style="margin-left: 10px;"></i>
+                <table class="table scraper_table">
                     {% for elt in google.relevant_results %}
                         <tr style="color: aliceblue; text-align: justify;">
-{#                            <td style="border:0">  </td>#}
                             <td style="border:0"> <a href="{{ elt.link }}" target="_blank" class="address_colour">{{ elt.displayLink }}</a></td>
                             <td style="border:0; text-overflow: ellipsis; overflow: hidden;"> {{ elt.title }}</td>
                         </tr>
@@ -80,14 +85,16 @@
     {% endif %}
 
     {% if reddit.found %}
-        <div id="scraped_info_twitter" class="scrape_category">
+        <div id="scraped_info_reddit" class="scrape_category">
             <h5 class="scraping_title">Reddit</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
-                <span class="web_scraping_title_span">{{ reddit.nb_results }} Result(s) found on Reddit: </span> <br>
-                <table class="table">
+                <i><u>Result{% if reddit.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ reddit.nb_results }}</span>
+                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the first column to go to see the post on Reddit" style="margin-left: 10px;"></i>
+
+                <table class="table scraper_table">
                     {% for elt in reddit.results %}
                         <tr style="color: aliceblue; text-align: justify;">
-                            <td style="border: 0"><a href="{{ elt.0 }}" target="_blank" class="address_colour">{{ forloop.counter }}.</a></td>
+                            <td style="border: 0"><a href="{{ elt.0 }}" target="_blank" class="address_colour" style="text-decoration:None">{{ forloop.counter }}.</a></td>
                             <td style="border: 0"> {{ elt.1 }}</td>
                         </tr>
                     {% endfor %}
@@ -103,3 +110,8 @@
         </div>
     {% endif %}
 </div>
+<script>
+$(document).ready(function() {
+    $('[data-bs-toggle="tooltip"]').tooltip();
+})
+</script>
