@@ -334,7 +334,8 @@ function display_scraping_results(data) {
     $('#web_scraping').html(data)
     let tab_content = $('#tab_content')
     tab_content.scroll(function() {
-        if ($('#web_scraping_div').css('display') !== 'none') {     // Only activate this feature on the web_scraping tab
+        if ($('#web_scraping_div').css('display') !== 'none' ||
+            $('#chart_tab_content').css('display') !== 'none') {     // Only activate this feature on the web_scraping tab and chart_tab
             scrollFunction();
         }
     })
