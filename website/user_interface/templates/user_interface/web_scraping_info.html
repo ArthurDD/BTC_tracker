@@ -36,7 +36,7 @@
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ twitter.nb_results }} Tweet(s) found: </span> <br>
                 {% for elt in twitter.results %}
-                    <a href="{{ elt.0 }}" class="address_colour">Tweet #{{ forloop.counter }}:</a>
+                    <a href="{{ elt.0 }}" target="_blank" class="address_colour">Tweet #{{ forloop.counter }}:</a>
                     {{ elt.1 }} <br>
                     <br>
                 {% endfor %}
@@ -50,7 +50,7 @@
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ google.nb_results }} Result(s) found on Google: </span> <br>
                 {% for elt in google.relevant_results %}
-                    <a href="{{ elt.link }}" class="address_colour">Result #{{ forloop.counter }} - {{ elt.displayLink }}:</a>
+                    <a href="{{ elt.link }}" target="_blank" class="address_colour">Result #{{ forloop.counter }} - {{ elt.displayLink }}:</a>
                     {{ elt.title }} <br>
                     <br>
                 {% endfor %}
@@ -64,7 +64,7 @@
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <span class="web_scraping_title_span">{{ reddit.nb_results }} Result(s) found on Reddit: </span> <br>
                 {% for elt in reddit.results %}
-                    <a href="{{ elt.0 }}" class="address_colour">Result #{{ forloop.counter }}:</a>
+                    <a href="{{ elt.0 }}" target="_blank" class="address_colour">Result #{{ forloop.counter }}:</a>
                     {{ elt.1 }} <br>
                     <br>
                 {% endfor %}
