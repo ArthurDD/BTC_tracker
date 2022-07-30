@@ -192,5 +192,14 @@ svg text.BA_search:hover, svg text.BA_search:active{
   width: 100%;
   padding-left: 10px;
   padding-right: 10px;
+  margin-bottom: 20px;
   border-bottom: 2px solid #dea666;
+}
+
+
+
+.info_note {
+  font-style: italic;
+  font-size: 14px;
+  text-align: center;
 }

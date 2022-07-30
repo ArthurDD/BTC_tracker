@@ -1,7 +1,5 @@
 {% load static %}
 
-<p style="font-style: italic">{{ test_data }}</p>
-
 <div id="transactions_by_layer" class="chart">
     <h4> Total transactions by layer:</h4>
     <img src="{% static  'plots/transactions_by_layer.png'%}" alt="Total transactions chart">
@@ -25,7 +23,6 @@
 
 <script>
     $(document).ready(function () {
-        console.log("OK never mind, it is called...")
         set_height()
     })
 </script>

@@ -292,7 +292,7 @@ function get_stats() {
 function display_stats (data) {
     data = JSON.parse(data)
     let stats_div = $('#stats')
-    let stats_table = $('<table id="stats_table" class="table"> <tr> <th>Tag</th> <th>BTC from the root add. </th> <th> Closeness to these tags</th> </tr>')
+    let stats_table = $('<table id="stats_table" class="table"> <tr> <th>Tag</th> <th>BTC from the root add. </th> <th> Closeness<span style="color:red">*</span> to these tags</th> </tr>')
     stats_div.append($('<h5 style="margin-bottom: 40px; margin-top: 10px; width: 100%; text-align: center">\n' +
         '        Tagged Addresses according to  <a href="https://walletexplorer.com" style="color: #c4dce8">WalletExplorer.com</a>\n' +
         '    </h5>'))
@@ -303,5 +303,9 @@ function display_stats (data) {
         stats_table.append(tagged_div_row)
     }
     stats_div.append(stats_table)
+
+    let information_div = $('<div class="info_note"><span style="color:red">*</span>Closeness of <span style=\'color:#79b7d3\'>0</span> means that this address has received a direct transaction from that service. <br>' +
+        'Closeness of <span style=\'color:#79b7d3\'>1</span> means there has been one transaction in between, and so on.</div>')
+    stats_div.append(information_div)
     stats_div.show()
 }
