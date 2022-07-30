@@ -181,7 +181,7 @@ svg text.BA_search:hover, svg text.BA_search:active{
 }
 
 
-.report_colour {
+.report_colour, .address_colour {
   color: #79b7d3;
 }
 
@@ -202,4 +202,21 @@ svg text.BA_search:hover, svg text.BA_search:active{
   font-style: italic;
   font-size: 14px;
   text-align: center;
+}
+
+
+.scrape_category {
+  width: 100%;
+}
+
+.div_hr {
+  width: 80%;
+  margin: auto auto 40px;
+  border-bottom: 2px solid aliceblue;
+}
+
+.web_scraping_title_span {
+  text-decoration: underline;
+  font-weight: bold;
+  margin-bottom: 8px;
 }

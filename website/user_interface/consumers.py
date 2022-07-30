@@ -2,6 +2,7 @@ import ast
 import json
 import time
 from functools import partial
+from django.template.loader import render_to_string
 
 from channels.generic.websocket import WebsocketConsumer
 
@@ -74,7 +75,6 @@ class UserInterfaceConsumer(WebsocketConsumer):
         if tag == "start_parsing":
             self.finished_analysis = False
             data = text_data_json['data']
-            print(f"Data received: {data}")
             send_message(self.send, 'Process started...')
             manual_mode = 'manual_input' in data
 
@@ -122,6 +122,10 @@ class UserInterfaceConsumer(WebsocketConsumer):
 
         self.manual = manual_mode
         self.chain_parser = ChainParser(address, layer_nb, rto_threshold=rto_threshold, send_fct=send_function_bis)
+
+        scraping_results = self.chain_parser.web_scraper.start_scraping()
+        html = render_to_string('user_interface/web_scraping_info.html', scraping_results)
+        send_message(self.send, html, message_type='scraping_results')
 
         res = self.chain_parser.start_analysis(
             manual=self.manual, display_partial_graph=True)  # Res is True if the parsing of the wallet was

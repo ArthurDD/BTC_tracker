@@ -1,0 +1,81 @@
+<div id="web_scraping_div">
+    <h5 style="margin-bottom: 10px; margin-top: 10px; text-align: center">
+        Information queried on Twitter, Reddit, BitcoinAbuse and Google
+    </h5>
+    <div style="margin-bottom: 10px; width: 100%; text-align: center;">
+        <span class="address_colour" style="font-style: italic">{{ address }}</span>
+    </div>
+    <hr style="width:70%; color: #dea666; margin: auto auto 40px;">
+
+    {% if bitcoin_abuse.found %}
+        <div id="scraped_info_ba">
+            <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
+                <span class="web_scraping_title_span">Report(s) found on BitcoinAbuse:</span> <br>
+                Total reports: <span class="report_colour">{{ bitcoin_abuse.total_report_count }}</span><br>
+                Genuine recent reports: <span class="report_colour">{{ bitcoin_abuse.genuine_recent_count }}</span><br>
+                Last reported: <span class="report_colour">{{ bitcoin_abuse.last_reported }}</span><br>
+                {% if bitcoin_abuse.genuine_recent_count > 0 %}
+                    Categories of genuine recent reports: <span class="report_colour">{{ bitcoin_abuse.report_types }}</span>
+                    <br>
+                    <div class="genuine_recent_reports" style="width: 100%">
+                        <i><u>Genuine recent reports:</u></i>
+                        <br>
+                        {% for report in bitcoin_abuse.genuine_report %}
+                            let gen_report = report['genuine_report'][i]
+                            <span class="report_span">  {{ forloop.counter }}  -  {{ report }}</span><br>
+                        {% endfor %}
+                {% endif %}
+                    </div>
+            </div>
+        </div>
+        <div class="div_hr"></div>
+    {% endif %}
+
+    {% if twitter.found %}
+        <div id="scraped_info_twitter" class="scrape_category">
+            <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
+                <span class="web_scraping_title_span">{{ twitter.nb_results }} Tweet(s) found: </span> <br>
+                {% for elt in twitter.results %}
+                    <a href="{{ elt.0 }}" class="address_colour">Tweet #{{ forloop.counter }}:</a>
+                    {{ elt.1 }} <br>
+                    <br>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="div_hr"></div>
+    {% endif %}
+
+    {% if google.found %}
+        <div id="scraped_info_twitter" class="scrape_category">
+            <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
+                <span class="web_scraping_title_span">{{ google.nb_results }} Result(s) found on Google: </span> <br>
+                {% for elt in google.relevant_results %}
+                    <a href="{{ elt.link }}" class="address_colour">Result #{{ forloop.counter }} - {{ elt.displayLink }}:</a>
+                    {{ elt.title }} <br>
+                    <br>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="div_hr"></div>
+    {% endif %}
+
+    {% if reddit.found %}
+        <div id="scraped_info_twitter" class="scrape_category">
+            <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
+                <span class="web_scraping_title_span">{{ reddit.nb_results }} Result(s) found on Reddit: </span> <br>
+                {% for elt in reddit.results %}
+                    <a href="{{ elt.0 }}" class="address_colour">Result #{{ forloop.counter }}:</a>
+                    {{ elt.1 }} <br>
+                    <br>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="div_hr"></div>
+    {% endif %}
+
+    {% if not reddit.found and not google.found and not twitter.found and not bitcoin_abuse.found %}
+        <div id="reported_address_info" class="info_note" style="margin-bottom: 30px">
+                No information found for this address on the websites stated above.
+        </div>
+    {% endif %}
+</div>

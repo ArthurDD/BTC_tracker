@@ -26,6 +26,7 @@ function connect() {
                     text_area.val(data.message + "\n")  // We only write in the text_area when it's empty (i.e. when page is reloaded)
                 }
                 break;
+
             case "svg_file":    // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
                 $('#progress_div').hide()   // Hide the progress bar element
                 display_graph(data);
@@ -92,6 +93,9 @@ function connect() {
                 display_stats(my_json);
                 break;
 
+            case "scraping_results":
+                display_scraping_results(data.message)
+                break;
             default:
                 console.log("Message: ", data.message)
                 text_area_val = text_area.val();
@@ -116,6 +120,7 @@ function display_graph(data) {
     let url = $('#starting_form').attr('action');
 
     $.get(url, {'file_name': data['message']}, function (resp) {
+        $('#tab_bar li:first-child button').tab('show') // Select first tab
         $('#graph').html(resp)
     }).then(function () {
         let counter = 0
@@ -322,4 +327,9 @@ function display_stats (data) { // Displays stats received once "get_stats" mess
     stats_div.append(stats_table)
     stats_div.append(information_div)
     stats_div.show()
+}
+
+
+function display_scraping_results(data) {
+    $('#web_scraping').html(data)
 }
