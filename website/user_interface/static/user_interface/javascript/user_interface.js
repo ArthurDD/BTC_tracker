@@ -332,4 +332,24 @@ function display_stats (data) { // Displays stats received once "get_stats" mess
 
 function display_scraping_results(data) {
     $('#web_scraping').html(data)
+    let tab_content = $('#tab_content')
+    tab_content.scroll(function() {
+        if ($('#web_scraping_div').css('display') !== 'none') {     // Only activate this feature on the web_scraping tab
+            scrollFunction();
+        }
+    })
+
+    function scrollFunction() {
+        let scroll_up_btn = $('#scroll_up_btn')
+        if (tab_content.scrollTop() > 60) {  // || document.documentElement.scrollTop > 20) {
+            scroll_up_btn.css('display', "block");
+        } else {
+            scroll_up_btn.css('display', "none");
+        }
+    }
+}
+
+// When the user clicks on the button, scroll to the top of the document
+function go_top() {
+  $('#tab_content').animate({ scrollTop: 0 }, 500);
 }

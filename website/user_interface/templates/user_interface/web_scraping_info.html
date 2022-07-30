@@ -5,9 +5,7 @@
     <div style="margin-bottom: 10px; width: 100%; text-align: center;">
         <span class="address_colour" style="font-style: italic">{{ address }}</span>
     </div>
-{#    <hr style="width:70%; color: #dea666; margin: auto auto 20px;">#}
     <div class="div_hr"></div>
-
 
     {% if bitcoin_abuse.found %}
         <div id="scraped_info_ba">
@@ -104,4 +102,6 @@
                 No information found for this address on the websites stated above.
         </div>
     {% endif %}
+
+    <button id="scroll_up_btn" onclick="go_top()"><i class="bi bi-arrow-up-circle-fill"></i></button>
 </div>
