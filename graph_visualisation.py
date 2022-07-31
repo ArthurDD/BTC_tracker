@@ -64,8 +64,9 @@ class GraphVisualisation:
 
     def colorize_nodes(self):
         for tx in self.transaction_lists[0]:
-            colour = random.choice(self.pastel_colours)
-            tx.colour = colour
+            if not tx.colour:
+                colour = random.choice(self.pastel_colours)
+                tx.colour = colour
             self.dot.node(tx.txid, style='filled', fillcolor=tx.colour)
 
         for layer in range(1, self.depth):
