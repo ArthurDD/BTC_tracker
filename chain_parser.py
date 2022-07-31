@@ -589,10 +589,6 @@ class ChainParser:
                 if tx.is_pruned:
                     pruned_tx_lists[layer].append(tx)
 
-        for tag in self.transaction_tags:
-            closeness = "  |  ".join([f"<span style='color:#79b7d3'>{layer}</span> - {percentage}%"
-                                      for layer, percentage in self.transaction_tags[tag]['closeness'].items()])
-            self.transaction_tags[tag]['closeness'] = closeness
         # print(f"Number of tagged transactions by layer: \n" +
         #      "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
         #                  for layer in range(self.layer_counter)]) + "\n")

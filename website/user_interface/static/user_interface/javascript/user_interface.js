@@ -88,16 +88,15 @@ function connect() {
                 display_ba_report(report);
                 break;
 
-            case "display_stats":
-                my_json = JSON.parse(data.message)
-                display_stats(my_json);
+            case "display_stats":       // Receive a html file, so we just need to display it
+                display_stats(data.message);
                 break;
 
-            case "scraping_results":
+            case "scraping_results":    // Receive a html file, so we just need to display it
                 display_scraping_results(data.message)
                 break;
             default:
-                console.log("Message: ", data.message)
+                // console.log("Message: ", data.message)
                 text_area_val = text_area.val();
                 text_area.val(text_area_val + data.message + "\n");
                 text_area.scrollTop(text_area[0].scrollHeight);
@@ -301,7 +300,7 @@ function display_ba_report(report) {    // Called
 }
 
 
-function get_stats() {
+function get_stats() {  // Sends a message to query the html page of the stats.
     socket.send(JSON.stringify({
         'message': "not_used",
         'type': 'get_stats',
@@ -309,23 +308,9 @@ function get_stats() {
 }
 
 
-function display_stats (data) { // Displays stats received once "get_stats" message has been sent.
+function display_stats (data) {  // Displays stats received once "get_stats" message has been sent.
     let stats_div = $('#stats')
-    let stats_table = $('<table id="stats_table" class="table"> <tr> <th>Tag</th> <th>BTC from the root add. </th> <th> Closeness<span style="color:red">*</span> to these tags</th> </tr>')
-    stats_div.append($('<h5 style="margin-bottom: 40px; margin-top: 10px; width: 100%; text-align: center">\n' +
-        '        Tagged Addresses according to  <a href="https://walletexplorer.com" style="color: #c4dce8">WalletExplorer.com</a>\n' +
-        '    </h5>'))
-    for (let k in data) {
-        let tagged_div_row = $('<tr class="stat_tagged" style="width: 100% ; margin-bottom: 10px; color: aliceblue">' +
-            '<td><a target="_blank" style="color: #79b7d3" href="https://www.walletexplorer.com/wallet/' + k + '">' + k + ':</a></td>' +
-            '<td>' + data[k]["rto"] + ' BTC (<i>' + data[k]["percentage"] + '%</i>)</td> <td>' + data[k]["closeness"] + '</td></tr>')
-        stats_table.append(tagged_div_row)
-    }
-    let information_div = $('<div class="info_note"><span style="color:red">*</span>Closeness of <span style=\'color:#79b7d3\'>0</span> means that this address has received a direct transaction from that service. <br>' +
-        'Closeness of <span style=\'color:#79b7d3\'>1</span> means there has been one transaction in between, and so on.</div>')
-
-    stats_div.append(stats_table)
-    stats_div.append(information_div)
+    stats_div.html(data)
     stats_div.show()
 }
 
