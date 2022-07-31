@@ -156,10 +156,14 @@ class UserInterfaceConsumer(WebsocketConsumer):
         tree = GraphVisualisation(self.chain_parser.transaction_lists)
         file_name = tree.build_tree()
 
+        html_graph = render_to_string('user_interface/tree.html', {'file_name': file_name})
+        html_charts = render_to_string('user_interface/charts.html')
+        html_stats = render_to_string('user_interface/stats.html', {'data': self.chain_parser.transaction_tags})
+
         if file_name != "":
             self.send(text_data=json.dumps({
                 'type': 'svg_file',
-                'message': file_name
+                'message': {'html_graph': html_graph, 'html_charts': html_charts, 'html_stats': html_stats}
             }))
 
     def get_ba_report(self, address):

@@ -29,14 +29,14 @@ function connect() {
 
             case "svg_file":    // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
                 $('#progress_div').hide()   // Hide the progress bar element
-                display_graph(data);
-                display_charts();
-                get_stats();    // Requests the tagged bitcoin stats.
+                display_graph(data.message['html_graph']);
+                display_charts(data.message['html_charts']);
+                display_stats(data.message['html_stats']);
                 submit_btn.prop('disabled', false);
                 break;
 
             case 'partial_svg_file':  // Displays the graph every time a layer is done
-                display_graph(data);
+                display_graph(data.message);
                 break;
 
             case 'error': // Message sent when address was not found
@@ -88,10 +88,6 @@ function connect() {
                 display_ba_report(report);
                 break;
 
-            case "display_stats":       // Receive a html file, so we just need to display it
-                display_stats(data.message);
-                break;
-
             case "scraping_results":    // Receive a html file, so we just need to display it
                 display_scraping_results(data.message)
                 break;
@@ -116,58 +112,56 @@ function connect() {
 connect()
 
 function display_graph(data) {
-    let url = $('#starting_form').attr('action');
+    $('#tab_bar li:first-child button').tab('show') // Select first tab
+    $('#graph').html(data)
 
-    $.get(url, {'file_name': data['message']}, function (resp) {
-        $('#tab_bar li:first-child button').tab('show') // Select first tab
-        $('#graph').html(resp)
-    }).then(function () {
-        let counter = 0
-        $('g.graph > g.node').each(function () {  // Cleaning the nodes and setting up the link to the anchor
-            counter += 1
-            let anchor = $(this).find('> g > a')
-            if (anchor.length === 2) {
-                let anchor_we = anchor.eq(0)    // First node <a> with the xlink corresponding to WE link
-                let anchor_ba = anchor.eq(1)    // Second node <a> with the xlink corresponding to input_address for BA
+    let counter = 0
+    $('g.graph > g.node').each(function () {  // Cleaning the nodes and setting up the link to the anchor
+        counter += 1
+        let anchor = $(this).find('> g > a')
+        if (anchor.length === 2) {
+            let anchor_we = anchor.eq(0)    // First node <a> with the xlink corresponding to WE link
+            let anchor_ba = anchor.eq(1)    // Second node <a> with the xlink corresponding to input_address for BA
 
-                let anchor_we_href = anchor_we.attr("xlink:href")   // Get link
-                let input_address = anchor_ba.attr("xlink:href")    // Get input_address
+            let anchor_we_href = anchor_we.attr("xlink:href")   // Get link
+            let input_address = anchor_ba.attr("xlink:href")    // Get input_address
 
-                anchor.removeAttr("xlink:href")     // Clean code
-                anchor.removeAttr("xlink:title")    // Clean code
-                anchor_we.attr('href', anchor_we_href)  // Set it up correctly
+            anchor.removeAttr("xlink:href")     // Clean code
+            anchor.removeAttr("xlink:title")    // Clean code
+            anchor_we.attr('href', anchor_we_href)  // Set it up correctly
 
-                let rto_elt = anchor_ba.find('text')
-                let node_to_del = anchor_ba.parent()
-                anchor_ba.parent().parent().append(rto_elt)
-                node_to_del.remove()
-                if (input_address !== "None") {
-                    rto_elt.attr('class', 'BA_search')
-                    rto_elt.attr('href', input_address)
-                }
+            let rto_elt = anchor_ba.find('text')
+            let node_to_del = anchor_ba.parent()
+            anchor_ba.parent().parent().append(rto_elt)
+            node_to_del.remove()
+
+            if (input_address !== "None") {
+                rto_elt.attr('class', 'BA_search')
+                rto_elt.attr('href', input_address)
             }
-        })
-
-        $('.BA_search').click(function () {     // Set up the BA search when user clicks on a RTO line
-            let input_address = $(this).attr('href')
-            socket.send(JSON.stringify({
-                'message': input_address,
-                'type': 'ba_report',
-            }));
-
-        })
-
-        $('div#graph').css('background-color', 'white')
-        $('div#graph svg').attr('id', 'svg_graph')
-        let svg = $('#svg_graph')
-        svg.width("100%").height("100%")
-
-        window.zoomTiger = svgPanZoom('#svg_graph', {
-            zoomEnabled: true,
-            controlIconsEnabled: true,
-            fit: true,
-        });
+        }
     })
+
+    $('.BA_search').click(function () {     // Set up the BA search when user clicks on a RTO line
+        let input_address = $(this).attr('href')
+        socket.send(JSON.stringify({
+            'message': input_address,
+            'type': 'ba_report',
+        }));
+
+    })
+
+    $('div#graph').css('background-color', 'white')
+    $('div#graph svg').attr('id', 'svg_graph')
+    let svg = $('#svg_graph')
+    svg.width("100%").height("100%")
+
+    window.zoomTiger = svgPanZoom('#svg_graph', {
+        zoomEnabled: true,
+        controlIconsEnabled: true,
+        fit: true,
+    });
+    // })
 
 }
 
@@ -197,10 +191,8 @@ function display_banner(message, banner_class) {    // Manages all the different
 }
 
 
-function display_charts() {
-    $.get('/user_interface/display_charts/', function (data) {
-        $('#chart').html(data)
-    })
+function display_charts(data) {
+    $('#chart').html(data)
 }
 
 
@@ -297,14 +289,6 @@ function display_ba_report(report) {    // Called
     new_report = $(new_report)
     new_report.insertAfter($('#reported_address_info'))
 
-}
-
-
-function get_stats() {  // Sends a message to query the html page of the stats.
-    socket.send(JSON.stringify({
-        'message': "not_used",
-        'type': 'get_stats',
-    }));
 }
 
 

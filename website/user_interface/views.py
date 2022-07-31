@@ -14,19 +14,6 @@ def index(request):
         return HttpResponse("Not OK")
 
 
-def display_graph(request):
-    if request.method == 'GET':
-        file_name = request.GET.get('file_name')
-        return render(request, 'user_interface/tree.html', {'file_name': file_name})
-    else:
-        return HttpResponse("Not what we wanted, sorry")
-
-
-def display_charts(request):
-    if request.method == "GET":
-        return render(request, 'user_interface/charts.html', {'test_data': "We can pass data that way too."})
-
-
 @csrf_exempt
 def display_manual_transactions(request):
     if request.method == "GET":

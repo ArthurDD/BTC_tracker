@@ -8,6 +8,8 @@ from functools import partial
 import sys
 import requests_cache
 
+from django.template.loader import render_to_string
+
 from graph_visualisation import GraphVisualisation
 from request_limit_reached import RequestLimitReached
 from tqdm import tqdm
@@ -495,7 +497,8 @@ class ChainParser:
 
         print(f"File_name is: {file_name}")
         if file_name != "":
-            self.send_fct(message=file_name, message_type='partial_svg_file')
+            self.send_fct(message=render_to_string('user_interface/tree.html', {'file_name': file_name}),
+                          message_type='partial_svg_file')
         time.sleep(1.5)
 
     def select_transactions(self):
