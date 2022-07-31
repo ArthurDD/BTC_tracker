@@ -11,7 +11,7 @@
             <div class="container">
                 <div class="col-9" style="padding-left: 12px; padding-right: 12px; padding-top: 1rem;">
                     <h4> Track an address: </h4>
-                    <form id="starting_form" class="form-group" action="{% url 'display_graph' %}">
+                    <form id="starting_form" class="form-group">
                         {% csrf_token %}
                         <div class="form-group mb-2">
                             <label for="address_input">Input Address:</label><br>

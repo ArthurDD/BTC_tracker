@@ -112,7 +112,6 @@ function connect() {
 connect()
 
 function display_graph(data) {
-    $('#tab_bar li:first-child button').tab('show') // Select first tab
     $('#graph').html(data)
 
     let counter = 0
@@ -156,13 +155,23 @@ function display_graph(data) {
     let svg = $('#svg_graph')
     svg.width("100%").height("100%")
 
-    window.zoomTiger = svgPanZoom('#svg_graph', {
+    if ($('#graph_tab_content').hasClass('show')) {
+        initialise_svg_pan_zoom()
+    } else {
+        $('#tab_bar li:first-child button').click(function () {
+            if ($('#svg-pan-zoom-controls').length === 0) {   // Only initialise the svgPanZoom if it has not been before.
+                initialise_svg_pan_zoom()
+            }
+        })
+    }
+}
+
+function initialise_svg_pan_zoom () {
+    const graph_zoom = svgPanZoom('#svg_graph', {
         zoomEnabled: true,
         controlIconsEnabled: true,
         fit: true,
     });
-    // })
-
 }
 
 function reset_graph() {    // Called when a new parsing is started.
