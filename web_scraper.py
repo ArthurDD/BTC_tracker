@@ -28,7 +28,6 @@ class Scraper:
         else:
             self.session = session
 
-        self.address: str = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  # address
         self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
 
         credentials = self.setup()
@@ -187,8 +186,6 @@ class Scraper:
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:
-            # print('Success!')
-
             content = req.json()
             search_info = content['searchInformation']
             if int(search_info['totalResults']) > 0:
