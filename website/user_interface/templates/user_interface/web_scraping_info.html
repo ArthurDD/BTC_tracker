@@ -54,11 +54,14 @@
                 <i><u>Tweet{% if twitter.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ twitter.nb_results }}</span>
                 <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the indexes to see the tweet in Twitter" style="margin-left: 10px;"></i>
 
-                {% for elt in twitter.results %}
-                    <a href="{{ elt.0 }}" target="_blank" class="address_colour">Tweet #{{ forloop.counter }}:</a>
-                    {{ elt.1 }} <br>
-                    <br>
-                {% endfor %}
+                <table class="table scraper_table">
+                    {% for elt in twitter.results %}
+                        <tr style="color: aliceblue; text-align: justify;">
+                            <td style="border: 0"><a href="{{ elt.0 }}" target="_blank" class="address_colour">{{ forloop.counter }}. </a></td>
+                            <td style="border: 0"> {{ elt.1 }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
             </div>
         </div>
         <div class="div_hr"></div>
