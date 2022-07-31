@@ -42,7 +42,6 @@
                             <span class="report_span">  {{ forloop.counter }}  -  {{ report.description }}</span><br>
                         {% endfor %}
                 {% endif %}
-                    </div>
             </div>
         </div>
         <div class="div_hr"></div>
@@ -53,7 +52,7 @@
             <h5 class="scraping_title">Twitter</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <i><u>Tweet{% if twitter.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ twitter.nb_results }}</span>
-                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the first column to see the tweet in Twitter" style="margin-left: 10px;"></i>
+                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the indexes to see the tweet in Twitter" style="margin-left: 10px;"></i>
 
                 {% for elt in twitter.results %}
                     <a href="{{ elt.0 }}" target="_blank" class="address_colour">Tweet #{{ forloop.counter }}:</a>
@@ -89,7 +88,7 @@
             <h5 class="scraping_title">Reddit</h5>
             <div class="scraped_report_div" style="width: 100%; margin-bottom: 10px">
                 <i><u>Result{% if reddit.nb_results > 1 %}s{% endif %} found:</u></i> <span class="report_colour">{{ reddit.nb_results }}</span>
-                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the first column to go to see the post on Reddit" style="margin-left: 10px;"></i>
+                <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Click on the indexes to go to see the post on Reddit" style="margin-left: 10px;"></i>
 
                 <table class="table scraper_table">
                     {% for elt in reddit.results %}

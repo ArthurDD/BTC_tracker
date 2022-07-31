@@ -171,7 +171,8 @@ svg text.BA_search:hover, svg text.BA_search:active{
 }
 
 .report_span {
-  color: #c4dce8;
+  /*color: #c4dce8;*/
+  color: #79b7d3;
 }
 
 
