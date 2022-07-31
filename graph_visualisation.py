@@ -70,7 +70,7 @@ class GraphVisualisation:
 
         for layer in range(1, self.depth):
             for tx in self.transaction_lists[layer]:
-                if len(tx.prev_txid) > 1:
+                if len(set(tx.prev_txid)) > 1:
                     tx.colour = random.choice(self.pastel_colours)
                 else:
                     index = find_transaction(self.transaction_lists, tx.prev_txid[0][0], tx.prev_txid[0][1])
