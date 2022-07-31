@@ -18,7 +18,7 @@ body, html {
   overflow: auto;
   box-sizing: border-box;
   height: 100%;
-  border-right: solid 2px #fa9d4b;
+  border-right: solid 2px #dea666;
 }
 
 
@@ -34,7 +34,6 @@ body, html {
   margin-top: 3rem;
   width: 100%;
   height: 100%;
-  /*max-width: 400px;*/
 }
 
 #terminal_output {
@@ -59,7 +58,7 @@ body, html {
 
 #progress_bar_div, #waiting_bar_div {
   width: 100%;
-  background-color: aliceblue;
+  background-color: #ffffff;
 
   border-radius: 2px;
 }
@@ -100,25 +99,20 @@ button.tab_button {
   color: aliceblue !important;
 }
 
-
 button.tab_button.active {
   background-color: #dea666 !important;
   border-bottom: 2px solid #dea666 !important;
-
 }
 
 button.tab_button {
   border-bottom: 2px solid lightslategray !important;
 }
 
-
 #tab_content {
   overflow: auto;
   box-sizing: border-box;
   padding-top: 10px;
 }
-
-
 
 .chart {
   margin-top: 40px;
@@ -177,14 +171,18 @@ svg text.BA_search:hover, svg text.BA_search:active{
 }
 
 .report_span {
-  color: #c4dce8;
-}
-
-
-.report_colour {
+  /*color: #c4dce8;*/
   color: #79b7d3;
 }
 
+
+.report_colour, .address_colour {
+  color: #79b7d3;
+}
+
+a.address_colour:hover {
+  color: #c4dce8;
+}
 
 
 #stats {
@@ -202,4 +200,66 @@ svg text.BA_search:hover, svg text.BA_search:active{
   font-style: italic;
   font-size: 14px;
   text-align: center;
+}
+
+
+.scrape_category {
+  width: 100%;
+}
+
+.div_hr {
+  width: 80%;
+  margin: 20px auto 10px;
+  border-bottom: 2px solid #dea666;
+}
+
+.web_scraping_title_span {
+  text-decoration: underline;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.scraping_title {
+  color: #e35353;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.hidden_link_bold {
+  color: aliceblue;
+  text-decoration: none;
+}
+
+.hidden_link_bold:hover {
+  color: #52859d;
+}
+
+
+/* Scroll-up button */
+#scroll_up_btn {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 30px;
+  z-index: 99;
+  font-size: 18px;
+  border: none;
+  outline: none;
+  background-color: #fa9d4b;
+  color: white;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+#scroll_up_btn:hover {
+  background-color: #f6c291;
+}
+
+table.scraper_table {
+  margin-top: 20px
+}
+
+table.scraper_table td {
+  padding-top: 0;
+  padding-bottom: 8px;
 }

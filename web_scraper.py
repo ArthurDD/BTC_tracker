@@ -28,7 +28,6 @@ class Scraper:
         else:
             self.session = session
 
-        self.address: str = address
         self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
 
         credentials = self.setup()
@@ -52,6 +51,8 @@ class Scraper:
 
         self.reddit_access_token = self.get_reddit_token()
 
+        self.result_dict = dict()  # Dict where all information is gathered
+
     def setup(self) -> dict:
         """
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
@@ -72,6 +73,18 @@ class Scraper:
             with open(f"{FILE_DIR}/credentials.json", "r") as f:
                 dic = json.load(f)
             return dic
+
+    def start_scraping(self):
+        """
+        Builds self.result_dict by querying every API configured.
+        :return: dict self.result_dict
+        """
+        self.result_dict['bitcoin_abuse'] = self.bitcoinabuse_search()
+        self.result_dict['twitter'] = self.twitter_search()
+        self.result_dict['google'] = self.google_search()
+        self.result_dict['reddit'] = self.reddit_search()
+        self.result_dict['address'] = self.address
+        return self.result_dict
 
     def bitcoinabuse_search(self, address="", display=False) -> dict:
         """
@@ -106,7 +119,7 @@ class Scraper:
                                   f"Can't retrieve information for address {address}\n")
                         else:
                             print(f'bitcoinabuse_search - Error occurred: {err} \nRetrying in 3s...')
-                            time.sleep(3)   # Sleep for 3 seconds to make the request again
+                            time.sleep(3)  # Sleep for 3 seconds to make the request again
                 else:
                     content = req.json()
                     if content['count'] > 0:
@@ -157,7 +170,7 @@ class Scraper:
                     keywords.append(line.strip())
         return keywords
 
-    def google_search(self, address="") -> None:
+    def google_search(self, address="", display=False) -> dict:
         """
         Gets potentially useful information from Google.
         """
@@ -173,11 +186,8 @@ class Scraper:
         except Exception as err:
             print(f'Other error occurred: {err}')
         else:
-            # print('Success!')
-
             content = req.json()
             search_info = content['searchInformation']
-            print(f"Total results: {search_info['totalResults']}")
             if int(search_info['totalResults']) > 0:
                 relevant_results = []
                 for elt in content['items']:
@@ -185,12 +195,18 @@ class Scraper:
                         if keyword in elt['title'] or keyword in elt['link']:
                             relevant_results.append(elt)
                             break
-
-                print(f"Relevant results:\n" + '\n'.join(f"{elt['title'], elt['link']}" for elt in relevant_results))
+                if display:
+                    print(f"Total results: {search_info['totalResults']}")
+                    print(
+                        f"Relevant results:\n" + '\n'.join(f"{elt['title'], elt['link']}" for elt in relevant_results))
+                return {'found': True, 'relevant_results': relevant_results,
+                        'nb_results': len(relevant_results)}
             else:
-                print("No results found.")
+                if display:
+                    print("No results found.")
+                return {'found': False}
 
-    def twitter_search(self, address="") -> None:
+    def twitter_search(self, address="", display=False) -> dict:
         """
         Gets potentially useful information from Twitter
         :return: None
@@ -211,13 +227,28 @@ class Scraper:
             # response2 = self.session.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
 
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            if display:
+                print(f'HTTP error occurred: {http_err}')
+            return {'found': False, 'reason': 'HTTP error'}
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            if display:
+                print(f'Other error occurred: {err}')
+            return {'found': False, 'reason': 'Request error'}
 
         else:
-            print("Success!")
-            print(json.dumps(response.json(), indent=4, sort_keys=True))
+            content = response.json()
+            if display:
+                print(json.dumps(response.json(), indent=4, sort_keys=True))
+
+            if content['meta']['result_count'] > 0:  # https://twitter.com/{user_id or username}/status/{tweet_id}
+                response_dict = {'found': True, 'nb_results': content['meta']['result_count'], 'results': []}
+                for elt in content['data']:
+                    link = f"https://twitter.com/{elt['author_id']}/status/{elt['id']}"
+                    response_dict['results'].append((link, elt['text']))
+                return response_dict
+
+            else:
+                return {'found': False}
 
     def get_reddit_token(self) -> str:
         data = {'grant_type': 'password',
@@ -245,7 +276,7 @@ class Scraper:
             raise "Error while requesting reddit access token."
         return access_token
 
-    def reddit_search(self, address="") -> None:
+    def reddit_search(self, address="", display=False) -> dict:
         """
         Gets potentially useful information from Reddit
         :return: None
@@ -254,9 +285,10 @@ class Scraper:
             address = self.address
 
         if not self.reddit_access_token:
-            print(
-                f"Could not retrieve any information from Reddit, invalid access token! (={self.reddit_access_token})")
-            return
+            if display:
+                print(f"Could not retrieve any information from Reddit, "
+                      f"invalid access token! (={self.reddit_access_token})")
+            return {'found': False, 'reason': "Invalid Token"}
 
         # add authorization to our headers dictionary
         headers = {'User-Agent': 'BTC_Tracker/0.0.1', 'Authorization': f"bearer {self.reddit_access_token}"}
@@ -265,16 +297,32 @@ class Scraper:
         try:
             req = self.session.get(f"https://oauth.reddit.com/search?q={address}",
                                    headers=headers)
-
             req.raise_for_status()
         except HTTPError as http_err:
             if req.status_code == 401:  # If the token is not valid anymore, we request a new one
                 self.reddit_access_token = self.get_reddit_token()
                 self.reddit_search(address)  # And we start the search again
             else:
-                print(f'HTTP error occurred: {http_err}')
+                if display:
+                    print(f'HTTP error occurred: {http_err}')
+                return {'found': False, 'reason': "HTTP error"}
         except Exception as err:
-            print(f'Other error occurred: {err}')
+            if display:
+                print(f'Other error occurred: {err}')
+            return {'found': False, 'reason': "HTTP error"}
+
         else:  # In case of success
-            print("Success!")
-            print(json.dumps(req.json(), indent=4, sort_keys=True))
+            content = req.json()
+            if len(content['data']['children']) > 0:
+                response_dict = {'found': True, 'nb_results': len(content['data']['children']), 'results': []}
+                data = content['data']['children']
+                for elt in data:
+                    response_dict['results'].append((elt['data']['url'], elt['data']['title']))
+            else:
+                response_dict = {'found': False}
+
+            if display:
+                print(response_dict)
+            return response_dict
+
+
