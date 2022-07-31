@@ -28,6 +28,7 @@ class Scraper:
         else:
             self.session = session
 
+        self.address = address
         self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
 
         credentials = self.setup()
