@@ -20,27 +20,33 @@
                 Last reported: <span class="report_colour">{{ bitcoin_abuse.last_reported }}</span><br>
                 {% if bitcoin_abuse.genuine_recent_count > 0 %}
                     Categories of genuine recent reports:
-                        <table id="ba_report_table" class="table" style="width:auto; margin: auto">
-                            <tr>
-                                <th> Report type</th>
-                                <th> Count </th>
-                            </tr>
-                            {% for key, value in bitcoin_abuse.report_types.items %}
-                                {% if value > 0 %}
-                                    <tr style="width: 100%; color: aliceblue">
-                                        <td>{{ key }}</td>
-                                        <td style="text-align: center"> {{ value }}</td>
-                                    </tr>
-                                {% endif %}
-                            {% endfor %}
-                        </table>
+                    <table id="ba_report_table" class="table" style="width:auto; margin: auto">
+                        <tr>
+                            <th> Report type</th>
+                            <th> Count </th>
+                        </tr>
+                        {% for key, value in bitcoin_abuse.report_types.items %}
+                            {% if value > 0 %}
+                                <tr style="width: 100%; color: aliceblue">
+                                    <td>{{ key }}</td>
+                                    <td style="text-align: center"> {{ value }}</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </table>
                     <br>
                     <div class="genuine_recent_reports" style="width: 100%">
                         <i><u>Genuine recent reports:</u></i>
                         <br>
-                        {% for report in bitcoin_abuse.genuine_report %}
-                            <span class="report_span">  {{ forloop.counter }}  -  {{ report.description }}</span><br>
-                        {% endfor %}
+                        <table class="table scraper_table">
+                            {% for elt in bitcoin_abuse.genuine_report %}
+                                <tr style="color: aliceblue; text-align: justify;">
+                                    <td style="border: 0"><span class="report_span">  {{ forloop.counter }}. </span></td>
+                                    <td style="border: 0"> {{ elt.description }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
                 {% endif %}
             </div>
         </div>
