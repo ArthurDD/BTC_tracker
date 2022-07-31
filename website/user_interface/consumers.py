@@ -124,9 +124,11 @@ class UserInterfaceConsumer(WebsocketConsumer):
         self.chain_parser = ChainParser(address, layer_nb, rto_threshold=rto_threshold, send_fct=send_function_bis)
 
         scraping_results = self.chain_parser.web_scraper.start_scraping()
+        send_message(self.send, message="Scraping done!")
         html = render_to_string('user_interface/web_scraping_info.html', scraping_results)
         send_message(self.send, html, message_type='scraping_results')
 
+        send_message(self.send, message="Starting parsing...")
         res = self.chain_parser.start_analysis(
             manual=self.manual, display_partial_graph=True)  # Res is True if the parsing of the wallet was
         # successful, False otherwise.

@@ -17,7 +17,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Scraper:
-    def __init__(self, address="", session=None):
+    def __init__(self, address="", session=None, send_fct=None):
         if session is None:
             self.session = requests_cache.CachedSession('parser_cache',
                                                         cache_control=True,
@@ -30,6 +30,7 @@ class Scraper:
 
         self.address = address
         self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
+        self.send_fct = send_fct
 
         credentials = self.setup()
         self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
@@ -59,6 +60,8 @@ class Scraper:
         Get the abuse types from bitcoinabuse.com and retrieves the bitcoinabuse API token from credentials.json
         :return: bitcoinabuse API token
         """
+        if self.send_fct is not None:
+            self.send_fct(message="Setting up the web scraper...")
         try:
             req = self.session.get(f"https://www.bitcoinabuse.com/api/abuse-types")
 
@@ -80,6 +83,8 @@ class Scraper:
         Builds self.result_dict by querying every API configured.
         :return: dict self.result_dict
         """
+        if self.send_fct is not None:
+            self.send_fct(message="Set up done! Starting scraping websites...")
         self.result_dict['bitcoin_abuse'] = self.bitcoinabuse_search()
         self.result_dict['twitter'] = self.twitter_search()
         self.result_dict['google'] = self.google_search()

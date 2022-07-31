@@ -45,13 +45,13 @@ class ChainParser:
         self.input_addresses = dict()
         self.transaction_tags = {}  # Dict where keys are tags and values are RTO
 
-        self.web_scraper = Scraper(self.address, self.session)
+        self.send_fct = send_fct  # Takes 2 arg = message to send to the socket and message_type (optional)
+
+        self.web_scraper = Scraper(self.address, self.session, self.send_fct)
 
         self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
         self.analysis_time = 0
-
-        self.send_fct = send_fct  # Takes 2 arg = message to send to the socket and message_type (optional)
 
         print(self.wallet_url)
 
