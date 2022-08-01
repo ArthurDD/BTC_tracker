@@ -25,13 +25,24 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 
 
 class ChainParser:
-    def __init__(self, address, nb_layers, rto_threshold=0.1, cache_expire=14, send_fct=None):
+    def __init__(self, address, nb_layers_back, rto_threshold=0.1, cache_expire=14,
+                 forward_nb_layers=None, send_fct=None):
         self.address = address
         self.root_value = 0
-        self.nb_layers = nb_layers
+        self.nb_layers = nb_layers_back
+        self.transaction_lists = {i: [] for i in range(nb_layers_back + 1)}
+
+        self.forward_parsing = forward_nb_layers is not None  # True if we want to parse forward, False otherwise
+        if self.forward_parsing:
+            self.forward_nb_layers = forward_nb_layers
+            self.forward_layer_counter = 0
+            self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers + 1)}
+            self.forward_root_value = 0
+            self.forward_rto_threshold = rto_threshold
+
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
-        self.transaction_lists = {i: [] for i in range(nb_layers + 1)}
+
         self.session = requests_cache.CachedSession('parser_cache',
                                                     # use_cache_dir=True,  # Save files in the default user cache dir
                                                     cache_control=True,
@@ -39,9 +50,9 @@ class ChainParser:
                                                     expire_after=timedelta(days=cache_expire),
                                                     # Otherwise expire responses after 14 days)
                                                     )
+
         print("PAAAAAAATTTTHHHHH: ", self.session.cache.db_path)
         self.layer_counter = 0
-        self.remaining_req = 45  # Number of requests that we are allowed to make simultaneously
         self.added_before = []
         self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
         self.input_addresses = dict()
@@ -51,7 +62,7 @@ class ChainParser:
 
         self.web_scraper = Scraper(self.address, self.session, self.send_fct)
 
-        self.time_stat_dict = {key: {j: [] for j in range(nb_layers + 1)} for key in
+        self.time_stat_dict = {key: {j: [] for j in range(-self.forward_nb_layers, nb_layers_back + 1)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
         self.analysis_time = 0
 
@@ -120,23 +131,23 @@ class ChainParser:
                             reason = str(err)
                             pause_required = True
 
-                    if pause_required:  # If the request did not go through, we pause
-                        p_bar.write(f"Error while making requests ({reason}). Retrying in 25s... "
-                                    f"({nb_tries} attempts left)")
-                        if self.send_fct is not None:
-                            self.send_fct(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
-                                          f"({nb_tries} attempt(s) left)")
-                            self.send_fct(sec_to_wait, message_type='waiting_bar')
-
-                        self.session.close()
-                        waiting_bar(sec_to_wait)  # Waiting for the limit to fade
-                        self.session = requests_cache.CachedSession('parser_cache')
-                    else:  # Otherwise, if it did go through, it means we can go to the next request
-                        req_counter += 1
-                        if req_counter == len(url_list):  # End condition
-                            finished = True
-                        else:
-                            time.sleep(0.6)  # Limited by the API to 2 req/sec
+                    # if pause_required:  # If the request did not go through, we pause
+                    #     p_bar.write(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
+                    #                 f"({nb_tries} attempts left)")
+                    #     if self.send_fct is not None:
+                    #         self.send_fct(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
+                    #                       f"({nb_tries} attempt(s) left)")
+                    #         self.send_fct(sec_to_wait, message_type='waiting_bar')
+                    #
+                    #     self.session.close()
+                    #     waiting_bar(sec_to_wait)  # Waiting for the limit to fade
+                    #     self.session = requests_cache.CachedSession('parser_cache')
+                        # else:  # Otherwise, if it did go through, it means we can go to the next request
+                    req_counter += 1
+                    if req_counter == len(url_list):  # End condition
+                        finished = True
+                    else:
+                        time.sleep(0.6)  # Limited by the API to 2 req/sec
 
     def get_wallet_transactions(self):
         """
@@ -175,8 +186,10 @@ class ChainParser:
 
             # Once everything is done, increase layer counter
             self.layer_counter += 1
+            self.forward_layer_counter += 1
 
             self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)  # Ordering tx acc. to their amount
+            self.forward_transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
 
             # Initializing values
             self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
@@ -189,8 +202,18 @@ class ChainParser:
                     self.transaction_lists[0].pop(i)
             print(f"Root value: {self.root_value}")
 
-            print(f"Length of layer 0: {len(self.transaction_lists[0])}")
-            print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[0])}")
+            # We do the same thing for the forward layers if there are any
+            if self.forward_parsing:
+                self.forward_root_value = sum([tx.amount for tx in self.forward_transaction_lists[0]])
+                self.forward_rto_threshold = self.forward_root_value * (self.forward_rto_threshold / 100)
+
+                # Need to remove the tx from layer 0 whose RTO is too low
+                for i, tx in reversed(list(enumerate(self.forward_transaction_lists[0]))):
+                    if tx.rto < self.forward_rto_threshold:
+                        self.forward_transaction_lists[0].pop(i)
+
+            print(f"Length of layer 0: {len(self.forward_transaction_lists[0])}")
+            print(f"Size of layer 0: {sys.getsizeof(self.forward_transaction_lists[0])}")
             print()
             return True
 
@@ -226,10 +249,18 @@ class ChainParser:
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"],
                                                                                   rto=tx["amount_received"]))
+                elif self.forward_parsing and tx["amount_received"] == 0 and tx["amount_sent"] > 0:
+                    # If it is a sent transaction and not a received one, and if it's not a payment that he did
+                    # re-using his address (change-address = input address)
+                    self.forward_transaction_lists[self.forward_layer_counter] \
+                        .append(Transaction(tx['txid'],
+                                            output_addresses=[self.address],
+                                            amount=tx["amount_sent"],
+                                            rto=tx["amount_sent"]))
             self.time_stat_dict['request'][self.layer_counter].append(time.time() - t_0)
             return link
 
-    def get_addresses_from_txid(self):
+    def get_input_addresses_from_txid(self):
         """
         Requests every tx page of the current layer (from txids stored in transaction_lists[i]) to get input addresses
         of that tx and their respective txid
@@ -238,9 +269,6 @@ class ChainParser:
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID LAYER {self.layer_counter}---------\n")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
                         for tx in self.transaction_lists[self.layer_counter - 1] if not tx.is_manually_deleted]
-        tot_address_list = [tx.output_addresses for tx in self.transaction_lists[self.layer_counter - 1]]
-
-        print(f"Length of tot_address_list: {len(tot_address_list)}")
 
         self.thread_pool(self._get_input_addresses, tot_url_list)
 
@@ -253,7 +281,7 @@ class ChainParser:
 
     def _get_input_addresses(self, p_bar, link):
         """
-        Called by get_addresses_from_txid.
+        Called by get_input_addresses_from_txid.
         Only used to parse the page at the indicated link. Retrieves BTC input address of a transaction as well as its
         associated txid.
         :param p_bar: tqdm progress bar, to print without messing the bar display
@@ -359,6 +387,7 @@ class ChainParser:
             # Then, 1st check: input_values match with output_values AND that we have the same number of input/outputs
             for i in range(len(output_values)):
                 output_values[i] += tx_fee
+                output_values.sort()    # Need to sort output values or we may change the order by adding the tx_fee
                 if input_values == output_values:
                     # Only ONE input value matches our output value(s) (two by two)
                     # - there can be multiple output addresses to look at
@@ -406,9 +435,10 @@ class ChainParser:
 
         return selected_inputs
 
-    def set_rto(self, input_list, rto):
+    def set_rto(self, input_list, rto, forward=False):
         """
         Set rto to each of the tx that are in input_list according to their value
+        :param forward: Bool to specify whether we are using the normal or forward_rto_threshold
         :param input_list: Dict of the inputs of a transaction (i.e. future transactions in the next layer)
         :param rto: rto of the current transaction to share between the next transactions
         :return: None
@@ -419,7 +449,9 @@ class ChainParser:
             input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
 
             # We only keep transactions with RTOs > threshold
-            if input_list[i]['rto'] < self.rto_threshold:
+            if forward and input_list[i]['rto'] < self.forward_rto_threshold:
+                input_list.pop(i)
+            elif input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
 
     def start_analysis(self, manual=False, tx_to_remove=None, display_partial_graph=False):
@@ -455,7 +487,7 @@ class ChainParser:
         if result and not manual:  # Only if layer 0 has been successful and we are not in manual mode
             while self.layer_counter <= self.nb_layers:  # Go through all the layers
                 print(f"Layer counter: {self.layer_counter}")
-                self.get_addresses_from_txid()  # counter gets increased in that method
+                self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
                     self.send_fct(f"Layer {self.layer_counter - 1} done!")
@@ -463,6 +495,20 @@ class ChainParser:
                 if display_partial_graph and self.layer_counter <= self.nb_layers:
                     # To display the layer self.lay_counter graph only if this is not the last layer
                     self.display_partial_graph()
+
+            if self.forward_parsing:
+                print(f"forward_layer_counter: {self.forward_layer_counter} / {self.forward_nb_layers}")
+                while self.forward_layer_counter <= self.forward_nb_layers:
+                    print(f"Layer counter: {self.forward_layer_counter}")
+                    self.get_output_addresses_from_txid()  # counter gets increased in that method
+
+                    if self.send_fct is not None:
+                        self.send_fct(f"Forward layer {self.forward_layer_counter - 1} done!")
+
+                    if display_partial_graph and self.forward_layer_counter <= self.forward_nb_layers:
+                        # To display the layer self.lay_counter graph only if this is not the last layer
+                        self.display_partial_graph()
+
             self.analysis_time += time.time() - t_0
             self.print_final_results()
 
@@ -470,7 +516,7 @@ class ChainParser:
 
         elif result and manual:  # If it's not layer 0 and we are in manual mode
             if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
-                self.get_addresses_from_txid()  # counter gets increased in that method
+                self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
                     self.send_fct(f"Layer {self.layer_counter - 1} done!")
@@ -529,15 +575,6 @@ class ChainParser:
             print(f"tx_to_del: {tx_to_del}")
             for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
                 self.transaction_lists[layer][i].is_manually_deleted = True
-
-    def check_request_limit(self):
-        """
-        Checks if we can still make requests. If we can't, we wait until we can.
-        :return:
-        """
-        if self.remaining_req == 0:
-            waiting_bar(10)  # Sleeps 10 seconds
-            self.remaining_req = 45
 
     def print_final_results(self):
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")
@@ -743,6 +780,189 @@ class ChainParser:
                 print(f"Layer {layer} has duplicated transactions!")
             else:
                 print(f"Layer {layer} is clean.")
+
+    def get_output_addresses_from_txid(self):
+        """
+        Requests every tx page of the current layer (from txids stored in transaction_lists[i]) to get output addresses
+        of that tx and their respective txid
+        :return: None
+        """
+        print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID FORWARD LAYER {self.forward_layer_counter}---------\n")
+        tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
+                        for tx in self.forward_transaction_lists[self.forward_layer_counter - 1]
+                        if not tx.is_manually_deleted and tx.tag is None]
+
+        self.thread_pool(self._get_output_addresses, tot_url_list)
+
+        print(f"\n\nTransactions added before: {self.added_before}\n\n")
+        # print(f"Tx of layer {self.layer_counter}:")
+        # for tx in self.transaction_lists[self.layer_counter][:15]:
+        #     print(tx)
+        # print("...")
+        self.forward_layer_counter += 1
+
+    def _get_output_addresses(self, p_bar, link):
+        """
+        Called by get_output_addresses_from_txid.
+        Only used to parse the page at the indicated link. Retrieves BTC output address of a transaction as well as its
+        associated txid.
+        :param p_bar: tqdm progress bar, to print without messing the bar display
+        :param link: Url to make the request to
+        :return: link in input (used for self.threadpool)
+        """
+        t_0 = time.time()
+        try:
+            req = self.session.get(link)
+            # If the response was successful, no Exception will be raised
+            req.raise_for_status()
+        except Exception as err:
+            if "429 Client Error" in str(err):
+                raise RequestLimitReached(f"Request limit reached. ({err})")
+            else:
+                print(f'retrieve_txids_from_wallet - Error occurred: {err}')
+                raise Exception(f"Error occurred: {err}")
+        else:
+            t_request = time.time()
+            if self.send_fct is not None:
+                self.send_fct(1, message_type="progress_bar_update")
+            p_bar.update(1)
+            tx_content = req.json()
+            txid = link[link.find("txid="):].split("&")[0][5:]
+            if "label" in tx_content:  # If the transaction address has been identified, we add the tag
+                # to the tx it comes from --> Can only happen in layer 0, since tags are displayed in the tx output info
+                i = find_transaction(self.forward_transaction_lists, txid, layer=self.forward_layer_counter - 1)
+                self.forward_transaction_lists[self.forward_layer_counter - 1][i].tag = tx_content['label']
+                # We don't need to go through the outputs of this tx as we've already found out where the BTC are from.
+            else:
+                # We select the outputs that we want to keep
+                t_input = time.time()
+                selected_outputs = self.select_outputs(tx_content, txid)
+
+                t_adding = time.time()
+                t_tx = []
+                for add in selected_outputs:
+                    if add['is_standard']:  # To manage the case with OPCODE (see notes)
+                        t_0_tx = time.time()
+                        tx_layer, i = find_transaction(self.forward_transaction_lists, add["next_tx"])
+                        t_tx.append(time.time() - t_0_tx)
+                        if i == -1:  # Means we have not added that txid to the next layer yet
+                            if "next_txid" in add:      # No next_txid when btc has not been spent yet
+                                txid_to_add = add['next_txid']
+                            else:
+                                txid_to_add = None
+                            if "label" in add:
+                                tag = add['label']
+                            else:
+                                tag = None
+                            self.forward_transaction_lists[self.forward_layer_counter].append(
+                                Transaction(txid=txid_to_add, prev_txid=[(txid, self.layer_counter - 1)],
+                                            amount=add['amount'],
+                                            rto=add['rto'],
+                                            output_addresses=[add['address']],
+                                            tag=tag))
+
+                        else:
+                            self.added_before.append(add['next_tx'])
+                            if add['address'] not in self.forward_transaction_lists[tx_layer][i].input_addresses:
+                                # If the address is already in the list, it means that we ended up on a loop
+                                self.forward_transaction_lists[tx_layer][i].amount += add['amount']
+                                self.forward_transaction_lists[tx_layer][i]\
+                                    .prev_txid.append((txid, self.forward_layer_counter - 1))
+                                self.forward_transaction_lists[tx_layer][i].input_addresses.append(add['address'])
+                                self.forward_transaction_lists[tx_layer][i].rto += add['rto']
+
+                t_tx_avg = np.mean(t_tx) if t_tx else 0
+                self.time_stat_dict['request'][-self.forward_layer_counter].append(t_request - t_0)
+                self.time_stat_dict['select_input'][-self.forward_layer_counter].append(t_adding - t_input)
+                self.time_stat_dict['adding_addresses'][-self.forward_layer_counter].append(time.time() - t_adding)
+                self.time_stat_dict['find_tx'][-self.forward_layer_counter].append(t_tx_avg)
+            self.time_stat_dict['overall'][-self.forward_layer_counter].append(time.time() - t_0)
+            return link
+
+    def select_outputs(self, tx_content, txid):
+        """
+        Selects outputs that we will continue to investigate. Refer to the decision tree to have a better understanding
+        on how we decided to handle the different cases
+        :param txid: Transaction ID
+        :param tx_content: Content of the transaction that we are currently looking.
+        :return: selected output addresses
+        """
+
+        # We sort in and out lists as it will be necessary in a further step
+        tx_content['in'].sort(key=lambda x: x['amount'])
+        tx_content['out'].sort(key=lambda x: x['amount'])
+        input_values = [add['amount'] for add in tx_content['in']]
+        output_values = [add['amount'] for add in tx_content['out']]
+
+        # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
+        # This transaction is unique.
+        tx_index = find_transaction(self.forward_transaction_lists, txid, layer=self.forward_layer_counter - 1)
+        if tx_index == -1:  # This case should never happen in theory
+            print(f"Error, something went wrong. Selecting all inputs by default.")
+            self.set_rto(tx_content['out'], -1)
+            return tx_content['out']
+        else:
+            observed_addresses = self.forward_transaction_lists[
+                self.forward_layer_counter - 1][tx_index].input_addresses
+            observed_rto = self.forward_transaction_lists[self.forward_layer_counter - 1][tx_index].rto
+            observed_inputs = [add for add in tx_content['in'] if add['address'] in observed_addresses]
+
+        if len(output_values) > 1:
+            # First, we calculate the tx fee by adding all the input values and subtracting the output values
+            tx_fee = sum(input_values) - sum(output_values)
+
+            # Then, 1st check: output_values match with input_values AND that we have the same number of input/outputs
+            for i in range(len(input_values)):
+                input_values[i] -= tx_fee  # Subtracts the tx_fee to each input_value to see whether it works or not
+                input_values.sort()
+                if input_values == output_values:
+                    # Only ONE input value matches our output value(s) (two by two)
+                    # - there can be multiple output addresses to look at
+                    used_indexes = set()
+                    for add in observed_inputs:
+                        if add['amount'] in input_values and output_values.index(add['amount']) not in used_indexes:
+                            used_indexes.add(input_values.index(add['amount']))
+                    if len(used_indexes) == len(observed_addresses):  # If it's the case:
+                        selected_outputs = [tx_content['out'][i] for i in used_indexes]
+                        print(f"FINALLY")
+                    else:
+                        selected_outputs = tx_content['out']
+
+                    # We set the RTO to all the selected transactions
+                    self.set_rto(selected_outputs, observed_rto, forward=True)
+                    return selected_outputs
+
+            # Second check: there is a sublist of input values whose sum equals our input values (two by two)
+            # - Again, there can be multiple output values to look at
+            # TODO: Implement that part, complexity of n! so we need to find another way.
+
+            # Third check: if one output value represents more than 95% of the tot.
+            if output_values[-1] / sum(
+                    output_values) > 0.95:
+                selected_outputs = [tx_content['out'][-1]]
+
+            else:
+                # We also want to prune tx if a number -let's say 20%- of tx represents more than 80% of the total
+                nb_tx = math.ceil(len(input_values) * 0.2)
+                if sum(input_values[-1 - nb_tx:]) / sum(input_values) > 0.80:
+                    selected_outputs = tx_content['out'][-1 - nb_tx:]
+
+                elif len(input_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
+                    selected_outputs = tx_content['out'][-1 - 10:]
+                else:   # If none of the above conditions hold, we take all the outputs
+                    selected_outputs = tx_content['out']
+
+        else:
+            # Need to add the rto to the only input transaction (= to previous rto)
+            selected_outputs = tx_content['out']
+
+        if len(selected_outputs) != len(tx_content['in']):
+            self.forward_transaction_lists[self.forward_layer_counter - 1][tx_index].is_pruned = True
+
+        self.set_rto(selected_outputs, observed_rto, forward=True)  # We set the RTO to all the selected transactions
+        # and remove low ones
+
+        return selected_outputs
 
 
 def waiting_bar(seconds):

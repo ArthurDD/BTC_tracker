@@ -10,9 +10,9 @@ def main():
 
     # address = "3JMjHDTJjKPnrvS7DycPAgYcA6HrHRk8UG"  # Scam
 
-    scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
-    try_scraper(scamming_address)
-    # try_parser(address)
+    # scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
+    # try_scraper(scamming_address)
+    try_parser(address)
 
 
 def try_scraper(address):
@@ -27,13 +27,14 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    chain_parser = ChainParser(address, 4)
+    chain_parser = ChainParser(address, nb_layers_back=0, forward_nb_layers=1)
     res = chain_parser.start_analysis(manual=False)
     if res:
         # chain_parser.get_statistics(display=True)
 
         # Build the tree
-        tree = GraphVisualisation(chain_parser.transaction_lists, display=True)
+        tree = GraphVisualisation(chain_parser.transaction_lists, display=True,
+                                  forward_transaction_lists=chain_parser.forward_transaction_lists)
         tree.build_tree()
 
         # chain_parser.find_transactions()
