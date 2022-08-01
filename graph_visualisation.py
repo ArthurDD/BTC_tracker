@@ -17,8 +17,8 @@ class GraphVisualisation:
 
         self.depth = len(transaction_lists) if until is None else until
         self.forward_depth = 0 if forward_transaction_lists is None else len(forward_transaction_lists)
-        self.name = f'transaction-graph-{self.depth - 1}'
-        self.dot = graphviz.Digraph(f'transaction-graph-{self.depth - 1}', comment='Transaction Graph', format='svg')
+        self.name = f'transaction-graph-{self.depth}'
+        self.dot = graphviz.Digraph(f'transaction-graph-{self.depth}', comment='Transaction Graph', format='svg')
         self.dot.id = "id_test"
         self.dot.graph_attr['rankdir'] = 'LR'
         self.root_address = self.transaction_lists[0][0].output_addresses[0]
@@ -182,7 +182,7 @@ class GraphVisualisation:
         return txid_set, prev_txid_set
 
     @staticmethod
-    def get_colours(self):
+    def get_colours():
         colours = []
         with open(FILE_DIR + '/colours.txt', 'r') as f:
             for line in f.readlines():

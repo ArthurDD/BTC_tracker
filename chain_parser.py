@@ -30,13 +30,13 @@ class ChainParser:
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers_back
-        self.transaction_lists = {i: [] for i in range(nb_layers_back + 1)}
+        self.transaction_lists = {i: [] for i in range(nb_layers_back)}
 
         self.forward_parsing = forward_nb_layers is not None  # True if we want to parse forward, False otherwise
         if self.forward_parsing:
             self.forward_nb_layers = forward_nb_layers
             self.forward_layer_counter = 0
-            self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers + 1)}
+            self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
             self.forward_root_value = 0
             self.forward_rto_threshold = rto_threshold
 
@@ -214,8 +214,8 @@ class ChainParser:
                     if tx.rto < self.forward_rto_threshold:
                         self.forward_transaction_lists[0].pop(i)
 
-            print(f"Length of layer 0: {len(self.forward_transaction_lists[0])}")
-            print(f"Size of layer 0: {sys.getsizeof(self.forward_transaction_lists[0])}")
+                print(f"Length of layer 0: {len(self.forward_transaction_lists[0])}")
+                print(f"Size of layer 0: {sys.getsizeof(self.forward_transaction_lists[0])}")
             print()
             return True
 
@@ -245,14 +245,14 @@ class ChainParser:
             content = req.json()
             for tx in content['txs']:
                 if tx["amount_received"] > 0 and tx["amount_sent"] == 0:
-                    # If it is a received transaction and not a sent one, and if it's not a payment that he did
+                    # If it is a received transaction and not a sent one, and if it's not a payment that he did,
                     # re-using his address (change-address = input address)
                     self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"],
                                                                                   rto=tx["amount_received"]))
                 elif self.forward_parsing and tx["amount_received"] == 0 and tx["amount_sent"] > 0:
-                    # If it is a sent transaction and not a received one, and if it's not a payment that he did
+                    # If it is a sent transaction and not a received one, and if it's not a payment that he did,
                     # re-using his address (change-address = input address)
                     self.forward_transaction_lists[self.forward_layer_counter] \
                         .append(Transaction(tx['txid'],
@@ -317,7 +317,7 @@ class ChainParser:
                 i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
-            else:
+            elif self.layer_counter < self.nb_layers:
                 # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
                 t_input = time.time()
@@ -479,14 +479,14 @@ class ChainParser:
                     if display_partial_graph:  # To display the layer 0 graph
                         self.display_partial_graph()
                     self.analysis_time += time.time() - t_0
-                    return result  # Not sure we use this output
+                    return result  # Not sure that we use this output
         else:
             result = True
 
         if display_partial_graph:  # To display the layer 0 graph
             self.display_partial_graph()
 
-        if result and not manual:  # Only if layer 0 has been successful and we are not in manual mode
+        if result and not manual:  # Only if layer 0 has been successful, and we are not in manual mode
             while self.layer_counter <= self.nb_layers:  # Go through all the layers
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
@@ -516,7 +516,7 @@ class ChainParser:
 
             return True
 
-        elif result and manual:  # If it's not layer 0 and we are in manual mode
+        elif result and manual:  # If it's not layer 0, and we are in manual mode
             if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
 
@@ -581,7 +581,7 @@ class ChainParser:
     def print_final_results(self):
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")
         parsing_information = {"layer_info": {}, "total_txs": 0}
-        for i in range(self.nb_layers + 1):
+        for i in range(self.nb_layers):
             parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
             parsing_information["total_txs"] += len(self.transaction_lists[i])
             print(f"Layer {i}: {len(self.transaction_lists[i])}")
@@ -607,7 +607,7 @@ class ChainParser:
         tagged_tx_lists = {}
         tagged_tx_rto = {}
 
-        for layer in range(self.layer_counter):
+        for layer in range(self.nb_layers):
             pruned_tx_lists[layer] = []
             tagged_tx_lists[layer] = []
             tagged_tx_rto[layer] = 0
@@ -658,7 +658,7 @@ class ChainParser:
 
         # Request time
         ax_request = axes
-        layers = [f"L-{i} ({len(self.time_stat_dict['request'][i])} req.)" for i in range(self.nb_layers + 1)]
+        layers = [f"L-{i} ({len(self.time_stat_dict['request'][i])} req.)" for i in range(self.nb_layers)]
         x_pos = np.arange(0, len(layers))
         request_avg_time = [np.mean(time_l) for time_l in self.time_stat_dict['request'].values()]
         select_input_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
@@ -768,14 +768,14 @@ class ChainParser:
             txid = input("Enter txid: ")
 
     def find_transaction(self, txid):
-        for layer in range(self.nb_layers + 1):
+        for layer in range(self.nb_layers):
             for tx in self.transaction_lists[layer]:
                 if tx.txid == txid:
                     return layer, tx
         return None, None
 
     def check_duplicates(self):
-        for layer in range(self.nb_layers + 1):
+        for layer in range(self.nb_layers):
             diff_tx = set()
             diff_tx.update(self.transaction_lists[layer])
             if len(list(diff_tx)) != len(self.transaction_lists[layer]):
