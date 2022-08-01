@@ -102,8 +102,9 @@ class GraphVisualisation:
             tx_lists_list = [self.transaction_lists]
         for transaction_lists in tx_lists_list:
             for tx in transaction_lists[0]:
-                colour = random.choice(self.pastel_colours)
-                tx.colour = colour
+                if not tx.colour:
+                    colour = random.choice(self.pastel_colours)
+                    tx.colour = colour
                 self.dot.node(tx.txid, style='filled', fillcolor=tx.colour)
 
             for layer in range(1, len(transaction_lists)):
