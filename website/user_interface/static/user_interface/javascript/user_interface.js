@@ -262,7 +262,7 @@ function dummy_function() {
 
 
 function resume_parsing(tx_to_remove) {
-    // Called when the users finished selecting the transactions he wanna continue with in the parsing (manual mode)
+    // Called when the user finished selecting the transactions he wants to continue with in the parsing (manual mode)
     socket.send(JSON.stringify({
         'message': tx_to_remove,
         'type': 'resume_parsing',
