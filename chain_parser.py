@@ -188,20 +188,21 @@ class ChainParser:
             print(f"Length of url_list: {len(tot_url_list)}")
             self.thread_pool(self._retrieve_txids_from_wallet, tot_url_list)
 
-            # Once everything is done, increase layer counter
-            self.layer_counter += 1
-            self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)  # Ordering tx acc. to their amount
+            if self.nb_layers > 0:
+                # Once everything is done, increase layer counter
+                self.layer_counter += 1
+                self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)  # Ordering tx acc. to their amount
 
-            # Initializing values
-            self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
-            self.rto_threshold = self.root_value * (self.rto_threshold / 100)
+                # Initializing values
+                self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+                self.rto_threshold = self.root_value * (self.rto_threshold / 100)
 
-            # Need to remove the tx from layer 0 whose RTO is too low
-            for i, tx in reversed(list(enumerate(self.transaction_lists[0]))):
-                if tx.rto < self.rto_threshold:
-                    # print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
-                    self.transaction_lists[0].pop(i)
-            print(f"Root value: {self.root_value}")
+                # Need to remove the tx from layer 0 whose RTO is too low
+                for i, tx in reversed(list(enumerate(self.transaction_lists[0]))):
+                    if tx.rto < self.rto_threshold:
+                        # print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
+                        self.transaction_lists[0].pop(i)
+                print(f"Root value: {self.root_value}")
 
             # We do the same thing for the forward layers if there are any
             if self.forward_parsing:
@@ -248,7 +249,7 @@ class ChainParser:
             p_bar.update(1)
             content = req.json()
             for tx in content['txs']:
-                if tx["amount_received"] > 0 and tx["amount_sent"] == 0:
+                if self.nb_layers > 0 and tx["amount_received"] > 0 and tx["amount_sent"] == 0:
                     # If it is a received transaction and not a sent one, and if it's not a payment that he did,
                     # re-using his address (change-address = input address)
                     self.transaction_lists[self.layer_counter].append(Transaction(tx['txid'],
