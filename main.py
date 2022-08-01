@@ -27,14 +27,14 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    chain_parser = ChainParser(address, nb_layers_back=1)  # , forward_nb_layers=1)
+    chain_parser = ChainParser(address, nb_layers_back=4)  # , forward_nb_layers=1)
     res = chain_parser.start_analysis(manual=False)
     if res:
-        # chain_parser.get_statistics(display=True)
+        chain_parser.get_statistics(display=True)
 
         # Build the tree
-        tree = GraphVisualisation(chain_parser.transaction_lists, display=True,
-                                  forward_transaction_lists=chain_parser.forward_transaction_lists)
+        tree = GraphVisualisation(chain_parser.transaction_lists, display=True)
+                                  # forward_transaction_lists=chain_parser.forward_transaction_lists)
         tree.build_tree()
 
         # chain_parser.find_transactions()

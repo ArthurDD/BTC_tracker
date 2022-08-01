@@ -62,8 +62,12 @@ class ChainParser:
 
         self.web_scraper = Scraper(self.address, self.session, self.send_fct)
 
-        self.time_stat_dict = {key: {j: [] for j in range(-self.forward_nb_layers, nb_layers_back + 1)} for key in
-                               ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+        if self.forward_parsing:
+            self.time_stat_dict = {key: {j: [] for j in range(-self.forward_nb_layers, nb_layers_back)} for key in
+                                   ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+        else:
+            self.time_stat_dict = {key: {j: [] for j in range(0, nb_layers_back)} for key in
+                                   ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
         self.analysis_time = 0
 
         print(self.wallet_url)
