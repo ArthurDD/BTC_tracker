@@ -186,10 +186,7 @@ class ChainParser:
 
             # Once everything is done, increase layer counter
             self.layer_counter += 1
-            self.forward_layer_counter += 1
-
             self.transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)  # Ordering tx acc. to their amount
-            self.forward_transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
 
             # Initializing values
             self.root_value = sum([tx.amount for tx in self.transaction_lists[0]])
@@ -204,6 +201,11 @@ class ChainParser:
 
             # We do the same thing for the forward layers if there are any
             if self.forward_parsing:
+                # Once everything is done, increase layer counter
+                self.forward_layer_counter += 1
+                self.forward_transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
+
+                # Initializing values
                 self.forward_root_value = sum([tx.amount for tx in self.forward_transaction_lists[0]])
                 self.forward_rto_threshold = self.forward_root_value * (self.forward_rto_threshold / 100)
 

@@ -1,6 +1,6 @@
 class Transaction:
     def __init__(self, txid, prev_txid=None, output_addresses=None, input_addresses=None,
-                 amount=0, rto=0, is_pruned=None, tag=None):  # rto_threshold=0
+                 amount=0, rto=0, is_pruned=None, tag=None):
         """
 
         :param txid: Transaction ID of that transaction
@@ -15,8 +15,10 @@ class Transaction:
             prev_txid = []
         self.txid = txid
         self.prev_txid = prev_txid
-        self.output_addresses = output_addresses
-        self.input_addresses = input_addresses
+        self.output_addresses = output_addresses    # Contains output addresses for the backward parsing (pointing to
+        # our output(s) of the transaction)
+        self.input_addresses = input_addresses   # Contains input addresses for the forward parsing (point to
+        # our input(s) of the transaction)
         self.amount = amount
         self.rto = rto  # Ratio To Original - contains the amount of original btc that the transaction is supposed to
         # represent
@@ -31,13 +33,11 @@ class Transaction:
 
 def find_transaction(tx_lists, txid, layer=None):
     if layer is not None:
-        # print(f"Layer given")
         for i, tx in enumerate(tx_lists[layer]):
             if tx.txid == txid:
                 return i
         return -1
     else:
-        # print(f"Layer not given")
         for layer, tx_list in tx_lists.items():
             for i, tx in enumerate(tx_list):
                 if tx.txid == txid:
