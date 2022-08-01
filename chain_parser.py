@@ -461,37 +461,67 @@ class ChainParser:
             elif input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
 
-    def start_analysis(self, manual=False, tx_to_remove=None, display_partial_graph=False):
-        """ Method to start the analysis of the root address. Builds every layer.
-        If manual is set to True, start_analysis is going to build every layer but one at a time,
+    def terminal_manual_analysis(self, display_partial_graph=False):
+        worked = True
+        while worked and self.layer_counter <= self.nb_layers:  # Go through all the layers
+            worked = self.start_manual_analysis(display_partial_graph=display_partial_graph)
+
+        return True
+
+    def start_manual_analysis(self, tx_to_remove=None, display_partial_graph=False):
+        """ Method to start the manual analysis of the root address. Builds every layer.
+        start_manual_analysis is going to build every layer but one at a time,
         stopping at every layer. If self.layer_counter > self.nb_layers, display final stats
         :param display_partial_graph: Bool to display or not the graph in between each layer
         :param tx_to_remove: List of tx indexes to remove in case of a manual parsing
-        :param manual: Enables/Disables manual parsing
         :return True if layer analysis didn't encounter any error, False otherwise"""
-
         t_0 = time.time()
+
         if tx_to_remove is not None:
-            for i in tx_to_remove:  # Go through all the tx indices to stop the parsing with
-                self.transaction_lists[self.layer_counter - 1][i].is_manually_deleted = True
+            self.delete_transactions(tx_to_remove, self.layer_counter - 2)
 
         if self.layer_counter == 0:
             result = self.get_wallet_transactions()  # Counter gets increased in that method
             if result:
-                if manual:
-                    self.select_transactions()
-                    # At that point, layer 0 has been parsed and manually pruned and layer_counter is 1
-                    if display_partial_graph:  # To display the layer 0 graph
-                        self.display_partial_graph()
-                    self.analysis_time += time.time() - t_0
-                    return result  # Not sure that we use this output
+                self.analysis_time += time.time() - t_0
+                # return True  # Not sure that we use this output
+            else:
+                return False
         else:
             result = True
 
-        if display_partial_graph:  # To display the layer 0 graph
-            self.display_partial_graph()
+        if result:  # If it's not layer 0, and we are in manual mode
+            if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
+                self.get_input_addresses_from_txid()  # counter gets increased in that method
 
-        if result and not manual:  # Only if layer 0 has been successful, and we are not in manual mode
+                if self.send_fct is not None:
+                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
+
+                if display_partial_graph and self.layer_counter <= self.nb_layers:
+                    # To display the layer self.lay_counter graph only if this is not the last layer
+                    self.display_partial_graph()
+
+                    self.select_transactions()  # Prompts the user to choose his transactions
+                else:  # If everything is parsed, we print final results
+                    self.print_final_results()
+            self.analysis_time += time.time() - t_0
+            return True  # Not sure that we use this output
+
+    def start_analysis(self, display_partial_graph=False):
+        """ Method to start the analysis of the root address. Builds every layer.
+        If manual is set to True, start_analysis is going to build every layer but one at a time,
+        stopping at every layer. If self.layer_counter > self.nb_layers, display final stats
+        :param display_partial_graph: Bool to display or not the graph in between each layer
+        :return True if layer analysis didn't encounter any error, False otherwise"""
+
+        t_0 = time.time()
+
+        if self.layer_counter == 0:
+            result = self.get_wallet_transactions()  # Counter gets increased in that method
+        else:
+            result = True
+
+        if result:  # Only if layer 0 has been successful, and we are not in manual mode
             while self.layer_counter <= self.nb_layers:  # Go through all the layers
                 print(f"Layer counter: {self.layer_counter}")
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
@@ -521,35 +551,18 @@ class ChainParser:
 
             return True
 
-        elif result and manual:  # If it's not layer 0, and we are in manual mode
-            if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
-                self.get_input_addresses_from_txid()  # counter gets increased in that method
-
-                if self.send_fct is not None:
-                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
-
-                self.select_transactions()
-
-                if display_partial_graph and self.layer_counter <= self.nb_layers:
-                    # To display the layer self.lay_counter graph only if this is not the last layer
-                    self.display_partial_graph()
-            else:  # If everything is parsed, we print final results
-                self.print_final_results()
-            self.analysis_time += time.time() - t_0
-            return True  # Not sure we use this output
-
         return False
 
     def display_partial_graph(self):
         """
-        Called by start_analysis method to display partial graph once each layer is done
+        Called by start_analysis and start_manual_analysis methods to display partial graph once each layer is done
         :return:
         """
-        tree = GraphVisualisation(self.transaction_lists, until=self.layer_counter)
+        tree = GraphVisualisation(self.transaction_lists, until=self.layer_counter - 1, display=(self.send_fct is None))
         file_name = tree.build_tree()
 
         print(f"File_name is: {file_name}")
-        if file_name != "":
+        if file_name != "" and self.send_fct is not None:
             self.send_fct(message=render_to_string('user_interface/tree.html', {'file_name': file_name}),
                           message_type='partial_svg_file')
         time.sleep(1.5)
@@ -560,11 +573,12 @@ class ChainParser:
         Sets is_manually_deleted to True if tx is deleted
         :return: None
         """
-        layer = self.layer_counter - 1
+        layer = self.layer_counter - 2
         if self.send_fct is not None:  # In case program is running via UI
             data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
                                          "rto": tx.rto, "rto_pt": np.round(tx.rto / self.root_value * 100, 2)}
-                                        for i, tx in enumerate(self.transaction_lists[layer])],
+                                        for i, tx in enumerate(self.transaction_lists[layer])
+                                        if tx.tag is None and tx.rto > self.rto_threshold],
                        'layer': layer}
 
             self.send_fct(message=str(json.dumps(data_tx)), message_type="manual_tx")
@@ -572,7 +586,8 @@ class ChainParser:
         else:  # In case we are running the program in the terminal
             print(f"Transactions found for that layer: ")
             for i, tx in enumerate(self.transaction_lists[layer]):
-                print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")
+                if tx.tag is None and tx.rto > self.rto_threshold:
+                    print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")
             tx_to_del = input("Please indicate the index of transactions to prune (separated by a comma):\n")
             if tx_to_del != "":
                 tx_to_del = [int(elt) for elt in tx_to_del.split(',')]
@@ -580,8 +595,25 @@ class ChainParser:
                 tx_to_del = []
 
             print(f"tx_to_del: {tx_to_del}")
-            for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
-                self.transaction_lists[layer][i].is_manually_deleted = True
+            self.delete_transactions(tx_to_del, layer)
+
+    def delete_transactions(self, tx_to_del, layer):
+        """
+        Takes a list of tx indexes to delete and mark them as "deleted", plus deletes their next transactions in the
+        next layer.
+        """
+        for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
+            self.transaction_lists[layer][i].is_manually_deleted = True
+
+            txid = self.transaction_lists[layer][i].txid
+            # We also need to delete its kids
+            for j in range(len(self.transaction_lists[layer + 1]) - 1, - 1, -1):
+                tx = self.transaction_lists[layer + 1][j]
+                for k in range(len(tx.prev_txid) - 1, -1, -1):
+                    if tx.prev_txid[k][0] == txid:
+                        self.transaction_lists[layer + 1][j].prev_txid.pop(k)
+                if not tx.prev_txid:
+                    self.transaction_lists[layer + 1].pop(j)
 
     def print_final_results(self):
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")

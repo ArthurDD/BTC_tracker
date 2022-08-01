@@ -130,20 +130,22 @@ class UserInterfaceConsumer(WebsocketConsumer):
         send_message(self.send, html, message_type='scraping_results')
 
         send_message(self.send, message="Starting parsing...")
-        res = self.chain_parser.start_analysis(
-            manual=self.manual, display_partial_graph=True)  # Res is True if the parsing of the wallet was
-        # successful, False otherwise.
-        # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
+        if self.manual:
+            res = self.chain_parser.start_manual_analysis(display_partial_graph=True)
+            # Res is True if the parsing of the wallet was successful, False otherwise.
+        else:
+            res = self.chain_parser.start_analysis(display_partial_graph=True)
 
+        # manual_tx message is sent in select_inputs method called inside start_manual_analysis if manual == True.
         return res
 
     def resume_analysis(self, tx_to_remove):
-        if self.chain_parser.layer_counter > self.chain_parser.nb_layers:  # If there is no more layer to parse
+        if self.chain_parser.layer_counter >= self.chain_parser.nb_layers:  # If there is no more layer to parse
             self.finished_analysis = True
 
-        self.chain_parser.start_analysis(manual=self.manual, tx_to_remove=tx_to_remove,  display_partial_graph=True)
+        self.chain_parser.start_manual_analysis(tx_to_remove=tx_to_remove,  display_partial_graph=True)
         # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
-        # Need to call this function even when self.finished_analysis == True bc we still need to "prune" the last layer
+        # Need to call this function even when self.finished_analysis == True bc we still need to parse the last layer
 
     def build_graph(self):
         """

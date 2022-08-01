@@ -107,7 +107,7 @@ class GraphVisualisation:
                     tx.colour = colour
                 self.dot.node(tx.txid, style='filled', fillcolor=tx.colour)
 
-            for layer in range(1, len(transaction_lists)):
+            for layer in range(1, self.depth):
                 for tx in transaction_lists[layer]:
                     if len(set(tx.prev_txid)) > 1:
                         tx.colour = random.choice(self.pastel_colours)
@@ -172,12 +172,15 @@ class GraphVisualisation:
         We don't take into consideration transactions that have been tagged (i.e. tx.tag != None)
         :return: 2 sets, txid_set and prev_txid_set.
         """
+        print(f"GETTING ALL TXIDS")
         txid_set = set()
         prev_txid_set = set()
+        depth_to_respect = self.depth - 1
         for layer in range(self.depth):
+            print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 prev_txid_set.update([prev_txid[0] for prev_txid in tx.prev_txid])
-                if layer != self.depth - 1 and tx.tag is None:
+                if layer < depth_to_respect and tx.tag is None:
                     txid_set.add(tx.txid)
         return txid_set, prev_txid_set
 
