@@ -61,7 +61,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates',
-                 "/Users/arthur/Documents/Projects/BTC_tracker/doctest-output",
+                 MODULE_DIR / 'doctest-output',
                  ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -135,7 +135,7 @@ STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
-    "/Users/arthur/Documents/Projects/BTC_tracker/doctest-output",
+    MODULE_DIR / 'doctest-output',
 ]
 
 # Default primary key field type

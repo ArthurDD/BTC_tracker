@@ -25,20 +25,26 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 
 
 class ChainParser:
-    def __init__(self, address, nb_layers_back, rto_threshold=0.1, cache_expire=14,
-                 forward_nb_layers=None, send_fct=None):
+    def __init__(self, address, nb_layers_back=0, rto_threshold=0.1, cache_expire=14,
+                 forward_nb_layers=0, send_fct=None):
         self.address = address
         self.root_value = 0
         self.nb_layers = nb_layers_back
+        self.forward_nb_layers = forward_nb_layers
+
         self.transaction_lists = {i: [] for i in range(nb_layers_back)}
 
-        self.forward_parsing = forward_nb_layers is not None  # True if we want to parse forward, False otherwise
+        self.forward_parsing = forward_nb_layers != 0  # True if we want to parse forward, False otherwise
         if self.forward_parsing:
-            self.forward_nb_layers = forward_nb_layers
             self.forward_layer_counter = 0
-            self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
+            # self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
+            for i in range(forward_nb_layers):
+                self.transaction_lists[nb_layers_back + i] = []
             self.forward_root_value = 0
             self.forward_rto_threshold = rto_threshold
+            self.unspent_tx_counter = 1
+
+        self.tot_nb_layers = self.nb_layers + self.forward_nb_layers
 
         self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
@@ -62,12 +68,9 @@ class ChainParser:
 
         self.web_scraper = Scraper(self.address, self.session, self.send_fct)
 
-        if self.forward_parsing:
-            self.time_stat_dict = {key: {j: [] for j in range(-self.forward_nb_layers, nb_layers_back)} for key in
-                                   ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
-        else:
-            self.time_stat_dict = {key: {j: [] for j in range(0, nb_layers_back)} for key in
-                                   ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+        self.time_stat_dict = {key: {j: [] for j in range(self.tot_nb_layers)} for key in
+                               ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
+
         self.analysis_time = 0
 
         print(self.wallet_url)
@@ -208,26 +211,28 @@ class ChainParser:
             if self.forward_parsing:
                 # Once everything is done, increase layer counter
                 self.forward_layer_counter += 1
-                self.forward_transaction_lists[0].sort(key=lambda x: x.amount, reverse=True)
+                self.transaction_lists[self.nb_layers].sort(key=lambda x: x.amount, reverse=True)
+
+                print(f"Number of transactions going out of the wallet: {len(self.transaction_lists[self.nb_layers])}")
 
                 # Initializing values
-                self.forward_root_value = sum([tx.amount for tx in self.forward_transaction_lists[0]])
+                self.forward_root_value = sum([tx.amount for tx in self.transaction_lists[self.nb_layers]])
                 self.forward_rto_threshold = self.forward_root_value * (self.forward_rto_threshold / 100)
 
                 # Need to remove the tx from layer 0 whose RTO is too low
-                for i, tx in reversed(list(enumerate(self.forward_transaction_lists[0]))):
+                for i, tx in reversed(list(enumerate(self.transaction_lists[self.nb_layers]))):
                     if tx.rto < self.forward_rto_threshold:
-                        self.forward_transaction_lists[0].pop(i)
+                        self.transaction_lists[self.nb_layers].pop(i)
 
-                print(f"Length of layer 0: {len(self.forward_transaction_lists[0])}")
-                print(f"Size of layer 0: {sys.getsizeof(self.forward_transaction_lists[0])}")
+                # print(f"Length of layer 0: {len(self.transaction_lists[self.nb_layers])}")
+                # print(f"Size of layer 0: {sys.getsizeof(self.transaction_lists[self.nb_layers])}")
             print()
             return True
 
     def _retrieve_txids_from_wallet(self, p_bar, link):
         """
         Function called by get_wallet_transactions to get the transaction ids from the wallet in input.
-        Stores everything in self.transaction_lists[0].
+        Stores everything in self.transaction_lists[0] (and self.transaction_lists[self.nb_layers] for forward parsing).
         :param p_bar: tqdm progress bar, to print without messing the bar display
         :param link: url to make the request to
         :return: None
@@ -256,12 +261,13 @@ class ChainParser:
                                                                                   output_addresses=[self.address],
                                                                                   amount=tx["amount_received"],
                                                                                   rto=tx["amount_received"]))
-                elif self.forward_parsing and tx["amount_received"] == 0 and tx["amount_sent"] > 0:
+                elif self.forward_nb_layers > 0 and tx["amount_sent"] > 0:  # tx["amount_received"] == 0
+                    print(f"Sent transaction found!")
                     # If it is a sent transaction and not a received one, and if it's not a payment that he did,
                     # re-using his address (change-address = input address)
-                    self.forward_transaction_lists[self.forward_layer_counter] \
+                    self.transaction_lists[self.nb_layers + self.forward_layer_counter] \
                         .append(Transaction(tx['txid'],
-                                            output_addresses=[self.address],
+                                            input_addresses=[self.address],
                                             amount=tx["amount_sent"],
                                             rto=tx["amount_sent"]))
             self.time_stat_dict['request'][self.layer_counter].append(time.time() - t_0)
@@ -314,26 +320,31 @@ class ChainParser:
             p_bar.update(1)
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
+
             if tx_content["is_coinbase"]:  # If it's mined bitcoins
-                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
+                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1,
+                                     stop_index=self.nb_layers)
                 self.transaction_lists[self.layer_counter - 1][i].tag = "Mined"
             elif "label" in tx_content:  # If the input address has been identified, we add the tag
                 # to the tx it comes from
-                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
+                i = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1,
+                                     stop_index=self.nb_layers)
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             elif self.layer_counter < self.nb_layers:
-                # print(f"Number of inputs before pruning: {len(tx_content['in'])}")
+                print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
                 t_input = time.time()
                 selected_inputs = self.select_inputs(tx_content, txid)
+                print(f"Selected inputs: {selected_inputs}")
 
                 t_adding = time.time()
                 t_tx = []
                 for add in selected_inputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         t_0_tx = time.time()
-                        pot_layer, i = find_transaction(self.transaction_lists, add["next_tx"])
+                        pot_layer, i = find_transaction(self.transaction_lists, add["next_tx"],
+                                                        stop_index=self.nb_layers)
                         t_tx.append(time.time() - t_0_tx)
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.layer_counter].append(
@@ -377,9 +388,15 @@ class ChainParser:
 
         # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
         # This transaction is unique.
-        tx_index = find_transaction(self.transaction_lists, txid, layer=self.layer_counter - 1)
+        try:
+            tx_index = find_transaction(self.transaction_lists, txid,
+                                        layer=self.layer_counter - 1, stop_index=self.nb_layers)
+        except Exception as e:
+            print(f"Exception: {e}")
+            return
         if tx_index == -1:  # This case should never happen in theory
             print(f"Error, something went wrong. Selecting all inputs by default.")
+            print(f"{self.transaction_lists}, {txid}, layer={self.layer_counter - 1}, stop_index={self.nb_layers}")
             self.set_rto(tx_content['in'], -1)
             return tx_content['in']
         else:
@@ -409,6 +426,7 @@ class ChainParser:
                     else:
                         selected_inputs = tx_content['in']
 
+                    print(f"Select inputs: {selected_inputs}")
                     self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
                     return selected_inputs
 
@@ -458,7 +476,7 @@ class ChainParser:
             # We only keep transactions with RTOs > threshold
             if forward and input_list[i]['rto'] < self.forward_rto_threshold:
                 input_list.pop(i)
-            elif input_list[i]['rto'] < self.rto_threshold:
+            elif not forward and input_list[i]['rto'] < self.rto_threshold:
                 input_list.pop(i)
 
     def terminal_manual_analysis(self, display_partial_graph=False):
@@ -513,30 +531,30 @@ class ChainParser:
         stopping at every layer. If self.layer_counter > self.nb_layers, display final stats
         :param display_partial_graph: Bool to display or not the graph in between each layer
         :return True if layer analysis didn't encounter any error, False otherwise"""
-
         t_0 = time.time()
 
-        if self.layer_counter == 0:
-            result = self.get_wallet_transactions()  # Counter gets increased in that method
-        else:
-            result = True
+        result = self.get_wallet_transactions()  # Counter gets increased in that method
 
         if result:  # Only if layer 0 has been successful, and we are not in manual mode
-            while self.layer_counter <= self.nb_layers:  # Go through all the layers
-                print(f"Layer counter: {self.layer_counter}")
-                self.get_input_addresses_from_txid()  # counter gets increased in that method
+            if self.nb_layers > 0:
+                while self.layer_counter <= self.nb_layers:  # Go through all the layers
+                    print(f"Layer counter: {self.layer_counter}")
+                    self.get_input_addresses_from_txid()  # counter gets increased in that method
 
-                if self.send_fct is not None:
-                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
+                    if self.send_fct is not None:
+                        self.send_fct(f"Layer {self.layer_counter - 1} done!")
 
-                if display_partial_graph and self.layer_counter <= self.nb_layers:
-                    # To display the layer self.lay_counter graph only if this is not the last layer
-                    self.display_partial_graph()
+                    if display_partial_graph and (self.layer_counter <= self.nb_layers or
+                                                  (self.layer_counter - 1 <= self.nb_layers and self.forward_parsing)):
+                        # To display the layer self.lay_counter graph only if this is not the last layer
+                        print(f"DISPLAYING PARTIAL GRAPH FOR LAYER {self.layer_counter - 1}")
+                        self.display_partial_graph()
 
             if self.forward_parsing:
                 print(f"forward_layer_counter: {self.forward_layer_counter} / {self.forward_nb_layers}")
                 while self.forward_layer_counter <= self.forward_nb_layers:
-                    print(f"Layer counter: {self.forward_layer_counter}")
+                    print(f"Layer counter: {self.forward_layer_counter} "
+                          f"(actual: {self.nb_layers + self.forward_nb_layers})")
                     self.get_output_addresses_from_txid()  # counter gets increased in that method
 
                     if self.send_fct is not None:
@@ -544,7 +562,8 @@ class ChainParser:
 
                     if display_partial_graph and self.forward_layer_counter <= self.forward_nb_layers:
                         # To display the layer self.lay_counter graph only if this is not the last layer
-                        self.display_partial_graph()
+                        print(f"DISPLAYING PARTIAL FORWARD GRAPH FOR LAYER {self.forward_layer_counter - 1}")
+                        self.display_partial_graph(forward=True)
 
             self.analysis_time += time.time() - t_0
             self.print_final_results()
@@ -553,12 +572,19 @@ class ChainParser:
 
         return False
 
-    def display_partial_graph(self):
+    def display_partial_graph(self, forward=False):
         """
         Called by start_analysis and start_manual_analysis methods to display partial graph once each layer is done
         :return:
         """
-        tree = GraphVisualisation(self.transaction_lists, until=self.layer_counter - 1, display=(self.send_fct is None))
+        if not forward:
+            until = self.layer_counter - 1
+        else:
+            print(f"Layer counter: {self.layer_counter}\nnb_layers: {self.nb_layers}")
+            until = self.layer_counter + self.forward_layer_counter - 2
+        tree = GraphVisualisation(self.transaction_lists, until=until,
+                                  display=(self.send_fct is None), forward_layers=self.forward_nb_layers,
+                                  backward_layers=self.nb_layers)
         file_name = tree.build_tree()
 
         print(f"File_name is: {file_name}")
@@ -797,6 +823,9 @@ class ChainParser:
         # plt.show()
 
     def find_transactions(self):
+        """
+        Function to prompt txid and find it if it exists.
+        """
         print(f"Finding transaction...")
         txid = input("Enter txid: ")
         while txid != "end":
@@ -805,6 +834,9 @@ class ChainParser:
             txid = input("Enter txid: ")
 
     def find_transaction(self, txid):
+        """
+        Helper function of find_transactions.
+        """
         for layer in range(self.nb_layers):
             for tx in self.transaction_lists[layer]:
                 if tx.txid == txid:
@@ -828,8 +860,8 @@ class ChainParser:
         """
         print(f"\n\n\n--------- RETRIEVING ADDRESSES FROM TXID FORWARD LAYER {self.forward_layer_counter}---------\n")
         tot_url_list = [f"https://www.walletexplorer.com/api/1/tx?txid={tx.txid}&caller=paulo"
-                        for tx in self.forward_transaction_lists[self.forward_layer_counter - 1]
-                        if not tx.is_manually_deleted and tx.tag is None]
+                        for tx in self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1]
+                        if not tx.is_manually_deleted and tx.tag is None and "unspent_tx" not in tx.txid]
 
         self.thread_pool(self._get_output_addresses, tot_url_list)
 
@@ -868,9 +900,11 @@ class ChainParser:
             tx_content = req.json()
             txid = link[link.find("txid="):].split("&")[0][5:]
             if "label" in tx_content:  # If the transaction address has been identified, we add the tag
-                # to the tx it comes from --> Can only happen in layer 0, since tags are displayed in the tx output info
-                i = find_transaction(self.forward_transaction_lists, txid, layer=self.forward_layer_counter - 1)
-                self.forward_transaction_lists[self.forward_layer_counter - 1][i].tag = tx_content['label']
+                # to the tx it comes from --> Can only happen in layer 0 (when counter is at 1),
+                # since tags are displayed in the tx output info
+                i = find_transaction(self.transaction_lists, txid,
+                                     layer=self.nb_layers + self.forward_layer_counter - 1)
+                self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the outputs of this tx as we've already found out where the BTC are from.
             else:
                 # We select the outputs that we want to keep
@@ -882,40 +916,47 @@ class ChainParser:
                 for add in selected_outputs:
                     if add['is_standard']:  # To manage the case with OPCODE (see notes)
                         t_0_tx = time.time()
-                        tx_layer, i = find_transaction(self.forward_transaction_lists, add["next_tx"])
+                        if "next_tx" not in add:  # No next_txid when btc has not been spent yet
+                            add['next_tx'] = f"unspent_tx_{self.unspent_tx_counter}"
+                            self.unspent_tx_counter += 1
+
+                        if "label" in add:
+                            tag = add['label']
+                        else:
+                            tag = None
+
+                        tx_layer, i = find_transaction(self.transaction_lists, add["next_tx"],
+                                                       start_index=self.nb_layers)
+                        tx_layer += self.nb_layers
                         t_tx.append(time.time() - t_0_tx)
                         if i == -1:  # Means we have not added that txid to the next layer yet
-                            if "next_txid" in add:      # No next_txid when btc has not been spent yet
-                                txid_to_add = add['next_txid']
-                            else:
-                                txid_to_add = None
-                            if "label" in add:
-                                tag = add['label']
-                            else:
-                                tag = None
-                            self.forward_transaction_lists[self.forward_layer_counter].append(
-                                Transaction(txid=txid_to_add, prev_txid=[(txid, self.layer_counter - 1)],
+                            print(f"self.forward_layer_counter is: {self.forward_layer_counter}")
+                            self.transaction_lists[self.nb_layers + self.forward_layer_counter].append(
+                                Transaction(txid=add['next_tx'],
+                                            prev_txid=[(txid, self.nb_layers + self.forward_layer_counter - 1)],
                                             amount=add['amount'],
                                             rto=add['rto'],
-                                            output_addresses=[add['address']],
+                                            input_addresses=[add['address']],
                                             tag=tag))
 
                         else:
                             self.added_before.append(add['next_tx'])
-                            if add['address'] not in self.forward_transaction_lists[tx_layer][i].input_addresses:
+                            if add['address'] not in self.transaction_lists[tx_layer][i].input_addresses:
                                 # If the address is already in the list, it means that we ended up on a loop
-                                self.forward_transaction_lists[tx_layer][i].amount += add['amount']
-                                self.forward_transaction_lists[tx_layer][i]\
-                                    .prev_txid.append((txid, self.forward_layer_counter - 1))
-                                self.forward_transaction_lists[tx_layer][i].input_addresses.append(add['address'])
-                                self.forward_transaction_lists[tx_layer][i].rto += add['rto']
+                                self.transaction_lists[tx_layer][i].amount += add['amount']
+                                self.transaction_lists[tx_layer][i]\
+                                    .prev_txid.append((txid, self.nb_layers + self.forward_layer_counter - 1))
+                                self.transaction_lists[tx_layer][i].input_addresses.append(add['address'])
+                                self.transaction_lists[tx_layer][i].rto += add['rto']
 
                 t_tx_avg = np.mean(t_tx) if t_tx else 0
-                self.time_stat_dict['request'][-self.forward_layer_counter].append(t_request - t_0)
-                self.time_stat_dict['select_input'][-self.forward_layer_counter].append(t_adding - t_input)
-                self.time_stat_dict['adding_addresses'][-self.forward_layer_counter].append(time.time() - t_adding)
-                self.time_stat_dict['find_tx'][-self.forward_layer_counter].append(t_tx_avg)
-            self.time_stat_dict['overall'][-self.forward_layer_counter].append(time.time() - t_0)
+                self.time_stat_dict['request'][self.nb_layers + self.forward_layer_counter].append(t_request - t_0)
+                self.time_stat_dict['select_input'][self.nb_layers + self.forward_layer_counter]\
+                    .append(t_adding - t_input)
+                self.time_stat_dict['adding_addresses'][self.nb_layers + self.forward_layer_counter]\
+                    .append(time.time() - t_adding)
+                self.time_stat_dict['find_tx'][self.nb_layers + self.forward_layer_counter].append(t_tx_avg)
+            self.time_stat_dict['overall'][self.nb_layers + self.forward_layer_counter].append(time.time() - t_0)
             return link
 
     def select_outputs(self, tx_content, txid):
@@ -930,22 +971,29 @@ class ChainParser:
         # We sort in and out lists as it will be necessary in a further step
         tx_content['in'].sort(key=lambda x: x['amount'])
         tx_content['out'].sort(key=lambda x: x['amount'])
-        input_values = [add['amount'] for add in tx_content['in']]
-        output_values = [add['amount'] for add in tx_content['out']]
 
         # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
         # This transaction is unique.
-        tx_index = find_transaction(self.forward_transaction_lists, txid, layer=self.forward_layer_counter - 1)
+        tx_index = find_transaction(self.transaction_lists, txid, layer=self.nb_layers + self.forward_layer_counter - 1)
         if tx_index == -1:  # This case should never happen in theory
             print(f"Error, something went wrong. Selecting all inputs by default.")
             self.set_rto(tx_content['out'], -1)
             return tx_content['out']
         else:
-            observed_addresses = self.forward_transaction_lists[
-                self.forward_layer_counter - 1][tx_index].input_addresses
-            observed_rto = self.forward_transaction_lists[self.forward_layer_counter - 1][tx_index].rto
+            observed_addresses = self.transaction_lists[
+                self.nb_layers + self.forward_layer_counter - 1][tx_index].input_addresses
+            observed_rto = self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][tx_index].rto
             observed_inputs = [add for add in tx_content['in'] if add['address'] in observed_addresses]
 
+            # Remove "out" transactions that go to a change address
+            for i in range(len(tx_content['out']) - 1, -1, -1):
+                if tx_content['out'][i]['address'] in observed_addresses or tx_content['out'][i]['is_standard'] is False:
+                    tx_content['out'].pop(i)
+
+        input_values = [add['amount'] for add in tx_content['in']]
+        output_values = [add['amount'] for add in tx_content['out']]
+
+        print(f"tx_content['out']: {tx_content['out']}")
         if len(output_values) > 1:
             # First, we calculate the tx fee by adding all the input values and subtracting the output values
             tx_fee = sum(input_values) - sum(output_values)
@@ -994,13 +1042,14 @@ class ChainParser:
         else:
             # Need to add the rto to the only input transaction (= to previous rto)
             selected_outputs = tx_content['out']
+            print(f"Only one valid output! {tx_content['out']}")
 
-        if len(selected_outputs) != len(tx_content['in']):
-            self.forward_transaction_lists[self.forward_layer_counter - 1][tx_index].is_pruned = True
+        if len(selected_outputs) != len(tx_content['out']):
+            self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][tx_index].is_pruned = True
 
         self.set_rto(selected_outputs, observed_rto, forward=True)  # We set the RTO to all the selected transactions
         # and remove low ones
-
+        print(f"selected_outputs: {selected_outputs}")
         return selected_outputs
 
 

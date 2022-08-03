@@ -11,6 +11,8 @@ class Transaction:
         """
         if output_addresses is None:
             output_addresses = []
+        if input_addresses is None:
+            input_addresses = []
         if prev_txid is None:
             prev_txid = []
         self.txid = txid
@@ -31,14 +33,19 @@ class Transaction:
         return str(self.__dict__)
 
 
-def find_transaction(tx_lists, txid, layer=None):
+def find_transaction(tx_lists, txid, layer=None, start_index=None, stop_index=None):
     if layer is not None:
         for i, tx in enumerate(tx_lists[layer]):
             if tx.txid == txid:
                 return i
         return -1
     else:
-        for layer, tx_list in tx_lists.items():
+        if start_index is None:
+            start_index = 0
+        if stop_index is None:
+            stop_index = len(tx_lists)
+        for layer in range(start_index, stop_index):
+            tx_list = tx_lists[layer]
             for i, tx in enumerate(tx_list):
                 if tx.txid == txid:
                     return layer, i
