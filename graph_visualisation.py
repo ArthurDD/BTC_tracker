@@ -45,7 +45,8 @@ class GraphVisualisation:
     def build_tree(self):
         self.dot.node_attr['shape'] = 'record'
         print(f"Depth: {self.depth}\n backward_layers: {self.backward_layers}")
-        if self.depth <= self.backward_layers:   # Case where only backward tree needs to be built
+        if self.backward_layers > 0 and self.depth <= self.backward_layers:
+            # Case where only backward tree needs to be built
             self.dot.node('root', rf"{self.root_address}\nReceived: {self.backward_root_value} BTC\n{self.depth} - backward")
             print(f"Building backward only")
             self.build_backward_tree()
@@ -66,8 +67,8 @@ class GraphVisualisation:
             self.get_all_txids(start_index=0, stop_index=self.backward_layers)  # For the backward tree
             self.get_all_txids(start_index=self.backward_layers, stop_index=self.depth)  # For the forward tree
 
-        self.add_labels()
         self.set_low_rto()
+        self.add_labels()
         self.set_removed()
 
         # self.make_legend()
@@ -198,7 +199,7 @@ class GraphVisualisation:
         for layer in range(self.backward_layers, self.depth):
             for tx in self.transaction_lists[layer]:
                 if "unspent_tx" in tx.txid:
-                    self.dot.node(tx.txid, color='red', style='filled', fillcolor='red')
+                    self.dot.node(tx.txid, color='red', shape='ellipse' , style='filled', fillcolor='red')
 
     def make_legend(self):
         with self.dot.subgraph(name='cluster_legend') as c:
@@ -226,7 +227,7 @@ class GraphVisualisation:
             print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 self.prev_txid_set.update([prev_txid[0] for prev_txid in tx.prev_txid])
-                if layer < depth_to_respect - 1 and tx.tag is None:
+                if layer < depth_to_respect - 1 and tx.tag is None and "unspent_" not in tx.txid:
                     self.txid_set.add(tx.txid)
 
     @staticmethod

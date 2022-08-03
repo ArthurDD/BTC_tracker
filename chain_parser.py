@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 from datetime import timedelta
 from functools import partial
-import sys
 import requests_cache
 
 from django.template.loader import render_to_string
@@ -484,6 +483,10 @@ class ChainParser:
         while worked and self.layer_counter <= self.nb_layers:  # Go through all the layers
             worked = self.start_manual_analysis(display_partial_graph=display_partial_graph)
 
+        while worked and self.forward_layer_counter <= self.forward_nb_layers:
+            worked = self.start_manual_analysis(display_partial_graph=display_partial_graph)
+
+        print(f"Tx_lists:", '\n'.join([str(tx.__dict__) for tx in self.transaction_lists[3]]))
         return True
 
     def start_manual_analysis(self, tx_to_remove=None, display_partial_graph=False):
@@ -499,7 +502,7 @@ class ChainParser:
             self.delete_transactions(tx_to_remove, self.layer_counter - 2)
 
         if self.layer_counter == 0:
-            result = self.get_wallet_transactions()  # Counter gets increased in that method
+            result = self.get_wallet_transactions()  # Counters get increased in that method
             if result:
                 self.analysis_time += time.time() - t_0
                 # return True  # Not sure that we use this output
@@ -509,18 +512,38 @@ class ChainParser:
             result = True
 
         if result:  # If it's not layer 0, and we are in manual mode
-            if self.layer_counter <= self.nb_layers:  # If there is still a layer to parse
+            print(f"Layer_counter <= np_layers: {self.layer_counter} <= {self.nb_layers}\n"
+                  f"forward_layer_counter < forward_nb_layers: {self.forward_layer_counter} < {self.forward_nb_layers}")
+            if self.layer_counter <= self.nb_layers:  # If there is still a backward layer to parse
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
-                    self.send_fct(f"Layer {self.layer_counter - 1} done!")
+                    self.send_fct(f"Backward Layer {self.layer_counter - 1} done!")
 
-                if display_partial_graph and self.layer_counter <= self.nb_layers:
-                    # To display the layer self.lay_counter graph only if this is not the last layer
-                    self.display_partial_graph()
+                if self.layer_counter <= self.nb_layers:
+                    if display_partial_graph:
+                        # To display the layer self.lay_counter graph only if this is not the last layer
+                        self.display_partial_graph()
 
+                    print(f"Select transaactions :(")
                     self.select_transactions()  # Prompts the user to choose his transactions
                 else:  # If everything is parsed, we print final results
+                    self.print_final_results()
+
+            elif self.forward_parsing and self.forward_layer_counter <= self.forward_nb_layers:
+                # If there is still a forward layer to parse
+                self.get_output_addresses_from_txid()   # counter gets increased in that method
+
+                if self.send_fct is not None:
+                    self.send_fct(f"Forward Layer {self.forward_layer_counter - 1} done!")
+
+                if self.forward_layer_counter <= self.forward_nb_layers:
+                    if display_partial_graph:
+                        # To display the layer self.lay_counter graph only if this is not the last layer
+                        self.display_partial_graph(forward=True)
+
+                    self.select_transactions(forward=True)  # Prompts the user to choose his transactions
+                else:
                     self.print_final_results()
             self.analysis_time += time.time() - t_0
             return True  # Not sure that we use this output
@@ -581,7 +604,7 @@ class ChainParser:
             until = self.layer_counter - 1
         else:
             print(f"Layer counter: {self.layer_counter}\nnb_layers: {self.nb_layers}")
-            until = self.layer_counter + self.forward_layer_counter - 2
+            until = self.layer_counter + self.forward_layer_counter - 1
         tree = GraphVisualisation(self.transaction_lists, until=until,
                                   display=(self.send_fct is None), forward_layers=self.forward_nb_layers,
                                   backward_layers=self.nb_layers)
@@ -591,20 +614,27 @@ class ChainParser:
         if file_name != "" and self.send_fct is not None:
             self.send_fct(message=render_to_string('user_interface/tree.html', {'file_name': file_name}),
                           message_type='partial_svg_file')
-        time.sleep(1.5)
+        time.sleep(1)
 
-    def select_transactions(self):
+    def select_transactions(self, forward=False):
         """
         Select transactions to delete (=stop the parsing with) in case manual analysis is made.
         Sets is_manually_deleted to True if tx is deleted
         :return: None
         """
-        layer = self.layer_counter - 2
+        if not forward:
+            layer = self.layer_counter - 2
+            root_value = self.root_value
+            rto_threshold = self.rto_threshold
+        else:
+            layer = self.nb_layers + self.forward_layer_counter - 2
+            root_value = self.forward_root_value
+            rto_threshold = self.forward_rto_threshold
         if self.send_fct is not None:  # In case program is running via UI
             data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
-                                         "rto": tx.rto, "rto_pt": np.round(tx.rto / self.root_value * 100, 2)}
+                                         "rto": tx.rto, "rto_pt": np.round(tx.rto / root_value * 100, 2)}
                                         for i, tx in enumerate(self.transaction_lists[layer])
-                                        if tx.tag is None and tx.rto > self.rto_threshold],
+                                        if tx.tag is None and tx.rto > rto_threshold],
                        'layer': layer}
 
             self.send_fct(message=str(json.dumps(data_tx)), message_type="manual_tx")
@@ -612,15 +642,16 @@ class ChainParser:
         else:  # In case we are running the program in the terminal
             print(f"Transactions found for that layer: ")
             for i, tx in enumerate(self.transaction_lists[layer]):
-                if tx.tag is None and tx.rto > self.rto_threshold:
+                if tx.tag is None and tx.rto > rto_threshold:
                     print(f"{i}: {tx.txid}\nAmount: {tx.amount}BTC\nRTO: {tx.rto} BTC\n")
             tx_to_del = input("Please indicate the index of transactions to prune (separated by a comma):\n")
-            if tx_to_del != "":
-                tx_to_del = [int(elt) for elt in tx_to_del.split(',')]
-            else:
+            try:
+                if tx_to_del != "":
+                    tx_to_del = [int(elt) for elt in tx_to_del.split(',')]
+            except Exception as e:
+                print(f"Couldn't read the indexes to delete ({e}). Keeping all transactions...")
                 tx_to_del = []
 
-            print(f"tx_to_del: {tx_to_del}")
             self.delete_transactions(tx_to_del, layer)
 
     def delete_transactions(self, tx_to_del, layer):
@@ -629,6 +660,8 @@ class ChainParser:
         next layer.
         """
         for i in tx_to_del:  # Go through all the tx indices to stop the parsing with
+            if i >= len(self.transaction_lists[layer]):
+                pass
             self.transaction_lists[layer][i].is_manually_deleted = True
 
             txid = self.transaction_lists[layer][i].txid
@@ -645,12 +678,24 @@ class ChainParser:
         print(f"\n\n\n--------- FINAL RESULTS ---------\n")
         parsing_information = {"layer_info": {}, "total_txs": 0}
         for i in range(self.nb_layers):
-            parsing_information["layer_info"][i] = f"Layer {i}: {len(self.transaction_lists[i])}"
+            parsing_information["layer_info"][i] = f"Backward Layer {i}: {len(self.transaction_lists[i])}"
             parsing_information["total_txs"] += len(self.transaction_lists[i])
-            print(f"Layer {i}: {len(self.transaction_lists[i])}")
+            print(f"Backward Layer {i}: {len(self.transaction_lists[i])}")
+
+        for i in range(self.forward_nb_layers):
+            parsing_information["layer_info"][self.nb_layers + i] = f"Forward Layer {i}: " \
+                                                                    f"{len(self.transaction_lists[self.nb_layers + i])}"
+            parsing_information["total_txs"] += len(self.transaction_lists[self.nb_layers + i])
+            print(f"Forward Layer {self.nb_layers + i}: {len(self.transaction_lists[self.nb_layers + i])}")
 
         print(f"RTO threshold is: {self.rto_threshold}")
-        parsing_information["rto_threshold"] = self.rto_threshold
+        if self.forward_parsing and self.nb_layers > 0:
+            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold} - " \
+                                                   f"Forward: {self.forward_rto_threshold}"
+        elif self.nb_layers > 0:
+            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold}"
+        else:
+            parsing_information["rto_threshold"] = f"Forward: {self.forward_rto_threshold}"
         parsing_information["total_time"] = self.analysis_time
 
         if self.send_fct is not None:
