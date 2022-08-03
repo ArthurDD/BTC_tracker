@@ -680,15 +680,16 @@ class ChainParser:
         for i in range(self.nb_layers):
             parsing_information["layer_info"][i] = f"Backward Layer {i}: {len(self.transaction_lists[i])}"
             parsing_information["total_txs"] += len(self.transaction_lists[i])
-            print(f"Backward Layer {i}: {len(self.transaction_lists[i])}")
+            if self.send_fct is None:
+                print(f"Backward Layer {i}: {len(self.transaction_lists[i])}")
 
         for i in range(self.forward_nb_layers):
             parsing_information["layer_info"][self.nb_layers + i] = f"Forward Layer {i}: " \
                                                                     f"{len(self.transaction_lists[self.nb_layers + i])}"
             parsing_information["total_txs"] += len(self.transaction_lists[self.nb_layers + i])
-            print(f"Forward Layer {self.nb_layers + i}: {len(self.transaction_lists[self.nb_layers + i])}")
+            if self.send_fct is None:
+                print(f"Forward Layer {self.nb_layers + i}: {len(self.transaction_lists[self.nb_layers + i])}")
 
-        print(f"RTO threshold is: {self.rto_threshold}")
         if self.forward_parsing and self.nb_layers > 0:
             parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold} - " \
                                                    f"Forward: {self.forward_rto_threshold}"
@@ -700,7 +701,9 @@ class ChainParser:
 
         if self.send_fct is not None:
             self.send_fct(message=str(json.dumps(parsing_information)), message_type='final_stats')
-        print("\n\n")
+        else:
+            print(f"RTO threshold is: {self.rto_threshold}")
+            print("\n\n")
 
     def get_statistics(self, display=False):
         """
@@ -975,7 +978,6 @@ class ChainParser:
                         tx_layer += self.nb_layers
                         t_tx.append(time.time() - t_0_tx)
                         if i == -1:  # Means we have not added that txid to the next layer yet
-                            print(f"self.forward_layer_counter is: {self.forward_layer_counter}")
                             self.transaction_lists[self.nb_layers + self.forward_layer_counter].append(
                                 Transaction(txid=add['next_tx'],
                                             prev_txid=[(txid, self.nb_layers + self.forward_layer_counter - 1)],
@@ -1038,7 +1040,6 @@ class ChainParser:
         input_values = [add['amount'] for add in tx_content['in']]
         output_values = [add['amount'] for add in tx_content['out']]
 
-        print(f"tx_content['out']: {tx_content['out']}")
         if len(output_values) > 1:
             # First, we calculate the tx fee by adding all the input values and subtracting the output values
             tx_fee = sum(input_values) - sum(output_values)
@@ -1087,14 +1088,12 @@ class ChainParser:
         else:
             # Need to add the rto to the only input transaction (= to previous rto)
             selected_outputs = tx_content['out']
-            print(f"Only one valid output! {tx_content['out']}")
 
         if len(selected_outputs) != len(tx_content['out']):
             self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][tx_index].is_pruned = True
 
         self.set_rto(selected_outputs, observed_rto, forward=True)  # We set the RTO to all the selected transactions
         # and remove low ones
-        print(f"selected_outputs: {selected_outputs}")
         return selected_outputs
 
 

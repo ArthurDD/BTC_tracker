@@ -44,7 +44,6 @@ class GraphVisualisation:
 
     def build_tree(self):
         self.dot.node_attr['shape'] = 'record'
-        print(f"Depth: {self.depth}\n backward_layers: {self.backward_layers}")
         if self.backward_layers > 0 and self.depth <= self.backward_layers:
             # Case where only backward tree needs to be built
             self.dot.node('root', rf"{self.root_address}\nReceived: {self.backward_root_value} BTC\n{self.depth} - backward")
@@ -91,8 +90,6 @@ class GraphVisualisation:
 
         # Add all the edges between the different layers.
         for layer in range(0, depth):
-            # print(f"Building layer {layer}")
-            # print(f"Tx list: {[(tx.txid, tx.prev_txid) for tx in self.transaction_lists[layer]]}")
             for tx in self.transaction_lists[layer]:
                 if tx.prev_txid:  # Only not for the layer 0
                     for prev_tuple in tx.prev_txid:
@@ -105,9 +102,6 @@ class GraphVisualisation:
                             self.dot.edge(tx.txid, prev_txid, style='dashed, bold', color="azure3")
 
         self.colorize_nodes(start_index=0, depth=depth)
-        # self.add_labels()
-        # self.set_low_rto()
-        # self.set_removed()
 
     def build_forward_tree(self):
         self.get_output_addresses()
@@ -120,8 +114,6 @@ class GraphVisualisation:
 
         # Add all the edges between the different layers.
         for layer in range(self.backward_layers, self.depth):
-            # print(f"Building forward layer {layer}")
-            # print(f"Tx list: {[tx.txid for tx in self.transaction_lists[layer]]}")
             for tx in self.transaction_lists[layer]:
                 if tx.prev_txid:  # Only not for the layer 0
                     for prev_tuple in tx.prev_txid:
@@ -219,12 +211,10 @@ class GraphVisualisation:
         We don't take into consideration transactions that have been tagged (i.e. tx.tag != None)
         :return: 2 sets, txid_set and prev_txid_set.
         """
-        print(f"Start and stop indexes: {start_index, stop_index}")
         if stop_index is None:
             stop_index = self.depth
         depth_to_respect = stop_index
         for layer in range(start_index, depth_to_respect):
-            print(f"Layer: {layer}")
             for tx in self.transaction_lists[layer]:
                 self.prev_txid_set.update([prev_txid[0] for prev_txid in tx.prev_txid])
                 if layer < depth_to_respect - 1 and tx.tag is None and "unspent_" not in tx.txid:
@@ -240,9 +230,7 @@ class GraphVisualisation:
         return colours
 
     def get_input_addresses(self):
-        print(f"Backward layers: {self.backward_layers}")
         depth = min(self.depth, self.backward_layers)
-        print(f"Depth chosen: {depth}")
         for layer in range(0, depth):
             for tx in self.transaction_lists[layer]:
                 if tx.txid not in self.input_addresses:
