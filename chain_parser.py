@@ -261,7 +261,6 @@ class ChainParser:
                                                                                   amount=tx["amount_received"],
                                                                                   rto=tx["amount_received"]))
                 elif self.forward_nb_layers > 0 and tx["amount_sent"] > 0:  # tx["amount_received"] == 0
-                    print(f"Sent transaction found!")
                     # If it is a sent transaction and not a received one, and if it's not a payment that he did,
                     # re-using his address (change-address = input address)
                     self.transaction_lists[self.nb_layers + self.forward_layer_counter] \
@@ -395,7 +394,6 @@ class ChainParser:
             return
         if tx_index == -1:  # This case should never happen in theory
             print(f"Error, something went wrong. Selecting all inputs by default.")
-            print(f"{self.transaction_lists}, {txid}, layer={self.layer_counter - 1}, stop_index={self.nb_layers}")
             self.set_rto(tx_content['in'], -1)
             return tx_content['in']
         else:
