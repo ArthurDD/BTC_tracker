@@ -29,7 +29,7 @@ def try_parser(address):
     # Start the parsing
     nb_layers_back = 3
     nb_layers_forward = 4
-    chain_parser = ChainParser(address, nb_layers_back=nb_layers_back, forward_nb_layers=nb_layers_forward)
+    chain_parser = ChainParser(address, backward_layers=nb_layers_back, forward_layers=nb_layers_forward)
     res = chain_parser.start_analysis(display_partial_graph=False)
     # res = chain_parser.terminal_manual_analysis(display_partial_graph=False)
     if res:

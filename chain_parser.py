@@ -24,21 +24,21 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 
 
 class ChainParser:
-    def __init__(self, address, nb_layers_back=0, rto_threshold=0.1, cache_expire=14,
-                 forward_nb_layers=0, send_fct=None):
+    def __init__(self, address, backward_layers=0, rto_threshold=0.1, cache_expire=14,
+                 forward_layers=0, send_fct=None):
         self.address = address
         self.root_value = 0
-        self.nb_layers = nb_layers_back
-        self.forward_nb_layers = forward_nb_layers
+        self.nb_layers = backward_layers
+        self.forward_nb_layers = forward_layers
 
-        self.transaction_lists = {i: [] for i in range(nb_layers_back)}
+        self.transaction_lists = {i: [] for i in range(backward_layers)}
 
-        self.forward_parsing = forward_nb_layers != 0  # True if we want to parse forward, False otherwise
+        self.forward_parsing = forward_layers != 0  # True if we want to parse forward, False otherwise
         if self.forward_parsing:
             self.forward_layer_counter = 0
             # self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
-            for i in range(forward_nb_layers):
-                self.transaction_lists[nb_layers_back + i] = []
+            for i in range(forward_layers):
+                self.transaction_lists[backward_layers + i] = []
             self.forward_root_value = 0
             self.forward_rto_threshold = rto_threshold
             self.unspent_tx_counter = 1
@@ -769,7 +769,8 @@ class ChainParser:
 
         # Request time
         ax_request = axes
-        layers = [f"L-{i} ({len(self.time_stat_dict['request'][i])} req.)" for i in range(self.nb_layers)]
+        layers = [f"L-{i} ({len(self.time_stat_dict['request'][i])} req.)" for i in range(self.nb_layers
+                                                                                          + self.forward_nb_layers)]
         x_pos = np.arange(0, len(layers))
         request_avg_time = [np.mean(time_l) for time_l in self.time_stat_dict['request'].values()]
         select_input_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in

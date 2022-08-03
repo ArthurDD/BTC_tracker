@@ -6,6 +6,7 @@ function connect() {
     socket.onopen = function open() {
         display_banner("Connection to the server established!", "alert-success");
         $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
+        console.log("Button enabled!")
 
         console.log('WebSockets connection created.');
     };
@@ -49,7 +50,8 @@ function connect() {
             case "progress_bar_start":      // Called at the beginning of each layer being parsed
                 reset_progress_bar(true)        // Reset the loading bar
                 my_json = JSON.parse(data.message)
-                $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + $('#layer_input').val())
+                let total_layers = (parseInt($('#forward_layer_input').val()) + parseInt($('#backward_layer_input').val())).toString()
+                $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + total_layers)
                 progress_bar_total = my_json['total']
                 bar_width = 0  // We need to reset progress bar and prepare it for the new layer coming
                 break;

@@ -78,8 +78,9 @@ class UserInterfaceConsumer(WebsocketConsumer):
             send_message(self.send, 'Process started...')
             manual_mode = 'manual_input' in data
 
-            success = self.start_search(self.send, data['address_input'], int(data['layer_input']),
-                                        float(data['rto_input']), manual_mode)
+            success = self.start_search(self.send, data['address_input'], rto_threshold=float(data['rto_input']),
+                                        backward_layers=int(data['backward_layer_input']),
+                                        forward_layers=int(data['forward_layer_input']), manual_mode=manual_mode)
 
             if success and not manual_mode:  # If the parsing was successful and we're not in manual mode (i.e all done)
                 self.build_graph()
@@ -108,28 +109,30 @@ class UserInterfaceConsumer(WebsocketConsumer):
                 'message': 'I received your message, dummy!'
             }))
 
-    def start_search(self, send_function, address, layer_nb, rto_threshold, manual_mode):
+    def start_search(self, send_function, address, backward_layers, forward_layers, rto_threshold, manual_mode):
         """
-        Method only called once to start the parsing. If it returns false, error encountered so we need to start
+        Method only called once to start the parsing. If it returns false, error encountered, so we need to start
         the parsing again.
         :param rto_threshold:
         :param send_function:
         :param address:
-        :param layer_nb:
+        :param backward_layers:
+        :param forward_layers:
         :param manual_mode:
         :return:
         """
         send_function_bis = partial(send_message, send_function)
 
         self.manual = manual_mode
-        self.chain_parser = ChainParser(address, layer_nb, rto_threshold=rto_threshold, send_fct=send_function_bis)
+        self.chain_parser = ChainParser(address, backward_layers=backward_layers, forward_layers=forward_layers,
+                                        rto_threshold=rto_threshold, send_fct=send_function_bis)
 
         scraping_results = self.chain_parser.web_scraper.start_scraping()
         send_message(self.send, message="Scraping done!")
         html = render_to_string('user_interface/web_scraping_info.html', scraping_results)
         send_message(self.send, html, message_type='scraping_results')
 
-        send_message(self.send, message="Starting parsing...")
+        send_message(self.send, message="Parsing started...")
         if self.manual:
             res = self.chain_parser.start_manual_analysis(display_partial_graph=True)
             # Res is True if the parsing of the wallet was successful, False otherwise.
@@ -155,7 +158,8 @@ class UserInterfaceConsumer(WebsocketConsumer):
         self.chain_parser.get_statistics()  # Calculates the stats that will be later displayed when front end
         # receives a message whose message_type == svg_file
 
-        tree = GraphVisualisation(self.chain_parser.transaction_lists)
+        tree = GraphVisualisation(self.chain_parser.transaction_lists, backward_layers=self.chain_parser.nb_layers,
+                                  forward_layers=self.chain_parser.forward_nb_layers)
         file_name = tree.build_tree()
 
         html_graph = render_to_string('user_interface/tree.html', {'file_name': file_name})
