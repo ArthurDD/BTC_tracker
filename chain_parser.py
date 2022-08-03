@@ -470,7 +470,7 @@ class ChainParser:
         sum_value = sum([float(tx['amount']) for tx in input_list])
 
         for i in range(len(input_list) - 1, -1, -1):
-            input_list[i]['rto'] = (float(input_list[i]['amount']) / sum_value) * rto
+            input_list[i]['rto'] = min(input_list[i]['amount'], (float(input_list[i]['amount']) / sum_value) * rto)
 
             # We only keep transactions with RTOs > threshold
             if forward and input_list[i]['rto'] < self.forward_rto_threshold:
@@ -1035,7 +1035,8 @@ class ChainParser:
 
             # Remove "out" transactions that go to a change address
             for i in range(len(tx_content['out']) - 1, -1, -1):
-                if tx_content['out'][i]['address'] in observed_addresses or tx_content['out'][i]['is_standard'] is False:
+                if tx_content['out'][i]['address'] in observed_addresses \
+                        or tx_content['out'][i]['is_standard'] is False:
                     tx_content['out'].pop(i)
 
         input_values = [add['amount'] for add in tx_content['in']]
