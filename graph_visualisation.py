@@ -104,10 +104,9 @@ class GraphVisualisation:
         self.colorize_nodes(start_index=0, depth=depth)
 
     def build_forward_tree(self):
-        self.get_output_addresses()
         for layer in range(self.backward_layers, self.depth):
             for tx in self.transaction_lists[layer]:
-                self.dot.node(tx.txid, label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0" href="''' + str(self.output_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
+                self.dot.node(tx.txid, label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0" href="''' + str(tx.input_addresses[0]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
 
         # Add edges between the root node (= input address) and its associated transactions
         self.dot.edges(('root', add.txid) for add in self.transaction_lists[self.backward_layers])
@@ -162,7 +161,7 @@ class GraphVisualisation:
                     if layer < self.backward_layers:
                         self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(self.input_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.backward_root_value*100, 2)) + '''%)</td></tr></table>>''')
                     else:
-                        self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(self.output_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
+                        self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(tx.input_addresses[0]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
 
     def set_removed(self):
         """
@@ -245,6 +244,10 @@ class GraphVisualisation:
                         raise e
 
     def get_output_addresses(self):
+        """
+                                Not used anymore
+        Builds a dict of output addresses of each txid ({'txid':output_add, ...})
+        """
         for layer in range(self.backward_layers, self.depth):
             for tx in self.transaction_lists[layer]:
 
