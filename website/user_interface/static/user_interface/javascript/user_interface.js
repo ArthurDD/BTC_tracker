@@ -5,14 +5,16 @@ function connect() {
 
     socket.onopen = function open() {
         display_banner("Connection to the server established!", "alert-success");
-        $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
-        console.log("Button enabled!")
+        setTimeout(function () {
+            $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
+        }, 500);
 
         console.log('WebSockets connection created.');
     };
 
     let progress_bar_total = -1;
     let bar_width = 0;
+    let req_made = 0;
 
     socket.onmessage = function (e) {
         let text_area = $('#terminal_output');
