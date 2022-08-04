@@ -109,6 +109,9 @@ class ChainParser:
                 with ThreadPoolExecutor(max_workers=40) as executor:
                     # Makes requests if they are already cached (bc we don't have any rate limit)
                     executor.map(fn, cached_urls)
+                    # for result in executor.map(fn, cached_urls):
+                    #     print(result)
+
                     # Wait for the futures to be finished
 
             # Requests that have not been cached
@@ -583,7 +586,7 @@ class ChainParser:
                 print(f"forward_layer_counter: {self.forward_layer_counter} / {self.forward_nb_layers}")
                 while self.forward_layer_counter <= self.forward_nb_layers:
                     print(f"Layer counter: {self.forward_layer_counter} "
-                          f"(actual: {self.nb_layers + self.forward_nb_layers})")
+                          f"(actual: {self.nb_layers + self.forward_layer_counter})")
                     self.get_output_addresses_from_txid()  # counter gets increased in that method
 
                     if self.send_fct is not None:
@@ -1000,7 +1003,7 @@ class ChainParser:
                                      layer=self.nb_layers + self.forward_layer_counter - 1)
                 self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the outputs of this tx as we've already found out where the BTC are from.
-            else:
+            elif self.forward_layer_counter < self.forward_nb_layers:
                 # We select the outputs that we want to keep
                 t_input = time.time()
                 selected_outputs = self.select_outputs(tx_content, txid)
@@ -1049,7 +1052,9 @@ class ChainParser:
                 self.time_stat_dict['adding_addresses'][self.nb_layers + self.forward_layer_counter] \
                     .append(time.time() - t_adding)
                 self.time_stat_dict['find_tx'][self.nb_layers + self.forward_layer_counter].append(t_tx_avg)
-            self.time_stat_dict['overall'][self.nb_layers + self.forward_layer_counter].append(time.time() - t_0)
+
+            if self.layer_counter < self.nb_layers:
+                self.time_stat_dict['overall'][self.nb_layers + self.forward_layer_counter].append(time.time() - t_0)
             return link
 
     def select_outputs(self, tx_content, txid):
