@@ -613,7 +613,7 @@ class ChainParser:
         if file_name != "" and self.send_fct is not None:
             self.send_fct(message=render_to_string('user_interface/tree.html', {'file_name': file_name}),
                           message_type='partial_svg_file')
-        time.sleep(1)
+        time.sleep(0.4)
 
     def select_transactions(self, forward=False):
         """
@@ -821,12 +821,24 @@ class ChainParser:
         plt.style.use('seaborn')
         plt.clf()
 
-        transactions_by_layer = [len(transaction_list) for transaction_list in self.transaction_lists.values()]
-        layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
-                  for i in range(len(transactions_by_layer))]
-        plt.bar(layers, transactions_by_layer, color='green', width=0.4)
+        transactions_by_layer_backward = [len(self.transaction_lists[i]) for i in range(self.nb_layers)]
+        transactions_by_layer_backward.reverse()
+        transactions_by_layer_backward += [0 for _ in range(self.forward_nb_layers)]
+
+        transactions_by_layer_forward = [0 for _ in range(self.nb_layers)] + \
+                                        [len(self.transaction_lists[self.nb_layers + i])
+                                         for i in range(self.forward_nb_layers)]
+
+        layers = [f"b-{i}" for i in range(self.nb_layers - 1, -1, -1)] + \
+                 [f"f-{i}" for i in range(self.forward_nb_layers)]
+        plt.bar(layers, transactions_by_layer_backward, width=0.4)
+        plt.bar(layers, transactions_by_layer_forward, width=0.4)
+
         for i in range(len(layers)):
-            plt.text(i, transactions_by_layer[i], transactions_by_layer[i], ha='center')
+            if "b" in layers[i]:
+                plt.text(i, transactions_by_layer_backward[i], transactions_by_layer_backward[i], ha='center')
+            else:
+                plt.text(i, transactions_by_layer_forward[i], transactions_by_layer_forward[i], ha='center')
 
         plt.ylabel("Number of tx", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
@@ -838,16 +850,25 @@ class ChainParser:
         if display:
             plt.show()
 
+        # NUMBER OF TAGGED TRANSACTIONS BY LAYER
         plt.clf()
-        tagged_by_layer = []
-        tagged_by_layer += [len(tx_list) for tx_list in tagged_tx_lists['backward'].values()]
-        tagged_by_layer += [len(tx_list) for tx_list in tagged_tx_lists['forward'].values()]
-        layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
-                  for i in range(len(tagged_by_layer))]
+        tagged_by_layer_backward = [len(tx_list) for tx_list in tagged_tx_lists['backward'].values()]
+        tagged_by_layer_backward.reverse()
+        tagged_by_layer_backward += [0 for _ in range(self.forward_nb_layers)]
 
-        plt.bar(layers, tagged_by_layer, width=0.4)
+        tagged_by_layer_forward = [0 for _ in range(self.nb_layers)] + \
+                                  [len(tx_list) for tx_list in tagged_tx_lists['forward'].values()]
+
+        # layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
+        #           for i in range(len(tagged_by_layer))]
+
+        plt.bar(layers, tagged_by_layer_backward, width=0.4)
+        plt.bar(layers, tagged_by_layer_forward, width=0.4)
         for i in range(len(layers)):
-            plt.text(i, tagged_by_layer[i], tagged_by_layer[i], ha='center')
+            if "b" in layers[i]:
+                plt.text(i, tagged_by_layer_backward[i], tagged_by_layer_backward[i], ha='center')
+            else:
+                plt.text(i, tagged_by_layer_forward[i], tagged_by_layer_forward[i], ha='center')
 
         plt.ylabel("Tagged tx", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
@@ -859,6 +880,7 @@ class ChainParser:
         if display:
             plt.show()
 
+        # SUM OF TAGGED TX RTO BY LAYER
         plt.clf()
         print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
         tagged_tx_rto_tot = list(tagged_tx_rto['backward'].values()) + list(tagged_tx_rto['forward'].values())
@@ -869,10 +891,12 @@ class ChainParser:
         plt.title("Sum of tagged tx's RTO by layer")
 
         backward_sum_rto_by_layer = [sum(list(tagged_tx_rto['backward'].values())[:i + 1])
-                                     for i in range(len(tagged_tx_rto['backward']))] + \
-                                    ['' for _ in range(self.forward_nb_layers)]
+                                     for i in range(len(tagged_tx_rto['backward']))]
+        backward_sum_rto_by_layer.reverse()
+        backward_sum_rto_by_layer.extend([None for _ in range(self.forward_nb_layers)])
+        print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}")
 
-        forward_sum_rto_by_layer = ['' for _ in range(self.nb_layers)] + \
+        forward_sum_rto_by_layer = [None for _ in range(self.nb_layers)] + \
                                    [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
                                     for i in range(len(tagged_tx_rto['forward']))]
 
@@ -882,9 +906,9 @@ class ChainParser:
         ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
         ax_twin.set_ylabel("Total (BTC)", fontsize=18)
 
-        ax_twin = plt.twinx()
+        # ax_twin_bis = plt.twinx()
         ax_twin.plot(layers, forward_sum_rto_by_layer, color='green')
-        ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
+        # ax_twin_bis.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
 
         plt.tight_layout()
         plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png')
