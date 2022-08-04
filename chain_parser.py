@@ -222,8 +222,6 @@ class ChainParser:
                 self.forward_layer_counter += 1
                 self.transaction_lists[self.nb_layers].sort(key=lambda x: x.amount, reverse=True)
 
-                print(f"Number of transactions going out of the wallet: {len(self.transaction_lists[self.nb_layers])}")
-
                 # Initializing values
                 self.forward_root_value = sum([tx.amount for tx in self.transaction_lists[self.nb_layers]])
                 self.forward_rto_threshold = self.forward_root_value * (self.forward_rto_threshold / 100)
@@ -534,7 +532,6 @@ class ChainParser:
                         # To display the layer self.lay_counter graph only if this is not the last layer
                         self.display_partial_graph()
 
-                    print(f"Select transaactions :(")
                     self.select_transactions()  # Prompts the user to choose his transactions
                 else:  # If everything is parsed, we print final results
                     self.print_final_results()
@@ -594,7 +591,6 @@ class ChainParser:
 
                     if display_partial_graph and self.forward_layer_counter <= self.forward_nb_layers:
                         # To display the layer self.lay_counter graph only if this is not the last layer
-                        print(f"DISPLAYING PARTIAL FORWARD GRAPH FOR LAYER {self.forward_layer_counter - 1}")
                         self.display_partial_graph(forward=True)
 
             self.analysis_time += time.time() - t_0
@@ -802,12 +798,16 @@ class ChainParser:
 
         ax_request.bar(x_pos, request_avg_time, align='center', width=0.4, label="Avg. Request")
         ax_request.bar(x_pos, select_input_avg_time, align='center', width=0.4, label="Avg. Input Sel.")
-        ax_request.set_xlabel('Layers', fontsize=18)
-        ax_request.set_ylabel('Time (s)', fontsize=18)
-        ax_request.set_title('Average function time per layer')
+        ax_request.set_xlabel('Layers', fontsize=20)
+        ax_request.set_ylabel('Time (s)', fontsize=20)
+        # ax_request.set_title('Average function time per layer')
         ax_request.legend(loc='best')
 
-        plt.savefig(FILE_DIR + '/doctest-output/plots/avg_function_time.png')
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.grid(color="#87CBECFF")
+
+        plt.savefig(FILE_DIR + '/doctest-output/plots/avg_function_time.png', transparent=True)
         if display:
             plt.show()
 
@@ -821,6 +821,16 @@ class ChainParser:
 
         plt.style.use('seaborn')
         plt.clf()
+
+        colour = "white"
+        axis_colour = "#87CBECFF"
+        plt.rcParams['text.color'] = colour
+        plt.rcParams['axes.labelcolor'] = colour
+        plt.rcParams['xtick.color'] = axis_colour
+        plt.rcParams['ytick.color'] = axis_colour
+        plt.grid(color=axis_colour)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
 
         transactions_by_layer_backward = [len(self.transaction_lists[i]) for i in range(self.nb_layers)]
         transactions_by_layer_backward.reverse()
@@ -837,16 +847,18 @@ class ChainParser:
 
         for i in range(len(layers)):
             if "b" in layers[i]:
-                plt.text(i, transactions_by_layer_backward[i], transactions_by_layer_backward[i], ha='center')
+                plt.text(i, transactions_by_layer_backward[i], transactions_by_layer_backward[i],
+                         ha='center', fontsize=14)
             else:
-                plt.text(i, transactions_by_layer_forward[i], transactions_by_layer_forward[i], ha='center')
+                plt.text(i, transactions_by_layer_forward[i], transactions_by_layer_forward[i],
+                         ha='center', fontsize=14)
 
-        plt.ylabel("Number of tx", fontsize=18)
-        plt.xlabel("Layers", fontsize=18)
-        plt.title("Number of transactions by layer")
+        plt.ylabel("Number of tx", fontsize=20)
+        plt.xlabel("Layers", fontsize=20)
+        # plt.title("Number of transactions by layer")
 
         plt.tight_layout()
-        plt.savefig(FILE_DIR + '/doctest-output/plots/transactions_by_layer.png')
+        plt.savefig(FILE_DIR + '/doctest-output/plots/transactions_by_layer.png', transparent=True)
 
         if display:
             plt.show()
@@ -864,16 +876,20 @@ class ChainParser:
         plt.bar(layers, tagged_by_layer_forward, width=0.4)
         for i in range(len(layers)):
             if "b" in layers[i]:
-                plt.text(i, tagged_by_layer_backward[i], tagged_by_layer_backward[i], ha='center')
+                plt.text(i, tagged_by_layer_backward[i], tagged_by_layer_backward[i], ha='center', fontsize=14)
             else:
-                plt.text(i, tagged_by_layer_forward[i], tagged_by_layer_forward[i], ha='center')
+                plt.text(i, tagged_by_layer_forward[i], tagged_by_layer_forward[i], ha='center', fontsize=14)
 
         plt.ylabel("Tagged tx", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
-        plt.title("Tagged transactions by layer")
+        plt.grid(color=axis_colour)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+
+        # plt.title("Tagged transactions by layer")
 
         plt.tight_layout()
-        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_transactions_by_layer.png')
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_transactions_by_layer.png', transparent=True)
 
         if display:
             plt.show()
@@ -881,12 +897,17 @@ class ChainParser:
         # SUM OF TAGGED TX RTO BY LAYER
         plt.clf()
         # print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
-        tagged_tx_rto_tot = list(tagged_tx_rto['backward'].values()) + list(tagged_tx_rto['forward'].values())
+        tagged_tx_rto_tot_backward = list(tagged_tx_rto['backward'].values())
+        tagged_tx_rto_tot_backward.reverse()
+        tagged_tx_rto_tot_backward += [0 for _ in range(self.forward_nb_layers)]
 
-        plt.bar(layers, tagged_tx_rto_tot, color='orange', width=0.4)
+        tagged_tx_rto_tot_forward = [0 for _ in range(self.nb_layers)] + list(tagged_tx_rto['forward'].values())
+
+        plt.bar(layers, tagged_tx_rto_tot_backward, width=0.4)
+        plt.bar(layers, tagged_tx_rto_tot_forward, width=0.4)
         plt.ylabel("RTO tagged by layer", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
-        plt.title("Sum of tagged tx's RTO by layer")
+        # plt.title("Sum of tagged tx's RTO by layer")
 
         backward_sum_rto_by_layer = [sum(list(tagged_tx_rto['backward'].values())[:i + 1])
                                      for i in range(len(tagged_tx_rto['backward']))]
@@ -897,19 +918,21 @@ class ChainParser:
         forward_sum_rto_by_layer = [None for _ in range(self.nb_layers)] + \
                                    [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
                                     for i in range(len(tagged_tx_rto['forward']))]
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
 
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
         ax_twin = plt.twinx()
-        ax_twin.plot(layers, backward_sum_rto_by_layer, color='blue')
-        ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
+        ax_twin.plot(layers, backward_sum_rto_by_layer)
+        ax_twin.plot(layers, forward_sum_rto_by_layer)
         ax_twin.set_ylabel("Total (BTC)", fontsize=18)
 
-        # ax_twin_bis = plt.twinx()
-        ax_twin.plot(layers, forward_sum_rto_by_layer, color='green')
-        # ax_twin_bis.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
 
         plt.tight_layout()
-        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png')
+        plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png', transparent=True)
 
         if display:
             plt.show()
