@@ -31,7 +31,8 @@ function connect() {
                 break;
 
             case "svg_file":    // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
-                $('#progress_div').hide()   // Hide the progress bar element
+                // $('#progress_div').hide()   // Hide the progress bar element
+                reset_progress_bar(false)        // Reset the loading bar
                 display_graph(data.message['html_graph']);
                 display_charts(data.message['html_charts']);
                 display_stats(data.message['html_stats']);
@@ -55,14 +56,16 @@ function connect() {
                 let total_layers = (parseInt($('#forward_layer_input').val()) + parseInt($('#backward_layer_input').val())).toString()
                 $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + total_layers)
                 progress_bar_total = my_json['total']
+                req_made = 0;
                 bar_width = 0  // We need to reset progress bar and prepare it for the new layer coming
                 break;
 
             case "progress_bar_update": // Sent every time a request is parsed in each layer.
                 bar_width += data.message / progress_bar_total;
+                req_made += 1;
                 let percentage = Math.min(Math.ceil(bar_width*100), 100)
                 $('#progress_bar').css('width', percentage + '%')
-                $('#p_current_progress').html(percentage + '%')
+                $('#p_current_progress').html(percentage + '% (' + req_made + '/' + progress_bar_total + ' req.)')
                 break;
 
             case "waiting_bar":  // Display the waiting bar when requests failed and we need to wait
