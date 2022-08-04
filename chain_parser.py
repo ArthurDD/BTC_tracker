@@ -124,49 +124,49 @@ class ChainParser:
             pause_required = False
             if url_list:
                 while not finished:
-                    # try:
-                    url = url_list[req_counter]
-                    fn(url)
-                    # except RequestLimitReached:
-                    #     if nb_tries == 0:
-                    #         if self.send_fct is not None:
-                    #             self.send_fct(message="Error while making requests. Number of tries exceeded."
-                    #                                   " Please start the parsing again.")
-                    #         raise err
-                    #     else:
-                    #         nb_tries -= 1
-                    #         reason = "Request Limit reached"
-                    #         pause_required = True
-                    #     pass
-                    # except Exception as err:
-                    #     if nb_tries == 0:
-                    #         if self.send_fct is not None:
-                    #             self.send_fct(message="Error while making requests. Number of tries exceeded."
-                    #                                   " Please start the parsing again.")
-                    #         raise err
-                    #     else:
-                    #         nb_tries -= 1
-                    #         p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
-                    #         reason = str(err)
-                    #         pause_required = True
+                    try:
+                        url = url_list[req_counter]
+                        fn(url)
+                    except RequestLimitReached:
+                        if nb_tries == 0:
+                            if self.send_fct is not None:
+                                self.send_fct(message="Error while making requests. Number of tries exceeded."
+                                                      " Please start the parsing again.")
+                            raise err
+                        else:
+                            nb_tries -= 1
+                            reason = "Request Limit reached"
+                            pause_required = True
+                        pass
+                    except Exception as err:
+                        if nb_tries == 0:
+                            if self.send_fct is not None:
+                                self.send_fct(message="Error while making requests. Number of tries exceeded."
+                                                      " Please start the parsing again.")
+                            raise err
+                        else:
+                            nb_tries -= 1
+                            p_bar.write(f"Requests failed. ({err})\n {nb_tries} tries left.")
+                            reason = str(err)
+                            pause_required = True
 
-                    # if pause_required:  # If the request did not go through, we pause
-                    #     p_bar.write(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
-                    #                 f"({nb_tries} attempts left)")
-                    #     if self.send_fct is not None:
-                    #         self.send_fct(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
-                    #                       f"({nb_tries} attempt(s) left)")
-                    #         self.send_fct(sec_to_wait, message_type='waiting_bar')
-                    #
-                    #     self.session.close()
-                    #     waiting_bar(sec_to_wait)  # Waiting for the limit to fade
-                    #     self.session = requests_cache.CachedSession('parser_cache')
-                    # else:  # Otherwise, if it did go through, it means we can go to the next request
-                    req_counter += 1
-                    if req_counter == len(url_list):  # End condition
-                        finished = True
-                    else:
-                        time.sleep(0.6)  # Limited by the API to 2 req/sec
+                    if pause_required:  # If the request did not go through, we pause
+                        p_bar.write(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
+                                    f"({nb_tries} attempts left)")
+                        if self.send_fct is not None:
+                            self.send_fct(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
+                                          f"({nb_tries} attempt(s) left)")
+                            self.send_fct(sec_to_wait, message_type='waiting_bar')
+
+                        self.session.close()
+                        waiting_bar(sec_to_wait)  # Waiting for the limit to fade
+                        self.session = requests_cache.CachedSession('parser_cache')
+                    else:  # Otherwise, if it did go through, it means we can go to the next request
+                        req_counter += 1
+                        if req_counter == len(url_list):  # End condition
+                            finished = True
+                        else:
+                            time.sleep(0.6)  # Limited by the API to 2 req/sec
 
     def get_wallet_transactions(self):
         """
@@ -1165,8 +1165,8 @@ class ChainParser:
 
             else:
                 # We also want to prune tx if a number -let's say 20%- of tx represents more than 80% of the total
-                nb_tx = math.ceil(len(input_values) * 0.2)
-                if sum(input_values[-1 - nb_tx:]) / sum(input_values) > 0.80:
+                nb_tx = math.ceil(len(output_values) * 0.2)
+                if sum(output_values[-1 - nb_tx:]) / sum(output_values) > 0.80:
                     selected_outputs = tx_content['out'][-1 - nb_tx:]
 
                 elif len(input_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
