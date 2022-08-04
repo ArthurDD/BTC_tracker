@@ -83,7 +83,11 @@ class ChainParser:
         sec_to_wait = 25
         print("Starting threads...")
         if self.send_fct is not None:
-            message = '{' + f'"layer": {self.layer_counter + self.forward_layer_counter - 1}, ' \
+            if self.layer_counter == 0 or self.forward_layer_counter == 0:
+                counter = self.layer_counter + self.forward_layer_counter
+            else:
+                counter = self.layer_counter + self.forward_layer_counter - 1
+            message = '{' + f'"layer": {counter}, ' \
                             f'"total": "{len(url_list)}"' + '}'
             self.send_fct(message=message, message_type='progress_bar_start')
 
@@ -95,6 +99,8 @@ class ChainParser:
                 url_list.pop(i)
         print(f"Length of cached urls: {len(cached_urls)}")
         print(f"Length of not-cached urls: {len(url_list)}")
+        if self.send_fct is not None:
+            self.send_fct(message=f"Length of cached/not cached urls: {len(cached_urls)}/{len(url_list)}")
         with tqdm(total=len(url_list) + len(cached_urls),
                   desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
@@ -367,7 +373,8 @@ class ChainParser:
                 self.time_stat_dict['select_input'][self.layer_counter].append(t_adding - t_input)
                 self.time_stat_dict['adding_addresses'][self.layer_counter].append(time.time() - t_adding)
                 self.time_stat_dict['find_tx'][self.layer_counter].append(t_tx_avg)
-            self.time_stat_dict['overall'][self.layer_counter].append(time.time() - t_0)
+            if self.layer_counter < self.nb_layers:
+                self.time_stat_dict['overall'][self.layer_counter].append(time.time() - t_0)
             return link
 
     def select_inputs(self, tx_content, txid):
