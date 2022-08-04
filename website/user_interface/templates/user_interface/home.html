@@ -52,7 +52,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0" disabled>
+                        <button id="submit_starting_btn" class="btn mb-2 mt-2 btn_submit" type="submit" style="margin-top: 0" disabled>
                             Start tracking!
                         </button>
                         <br>
@@ -114,7 +114,10 @@
                     </div>
                 </div>
                 <div id="progress_div">
-                    <p id="p_current_layer" class="blink_me"></p>
+                    <div style="margin-bottom:5px">
+                        <span id="p_current_layer" class="blink_me" style="margin-bottom: 5px"></span>
+                        <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Uncached requests are made every 0.6s to respect WalletExplorer's request limit." style="margin-left: 10px"></i>
+                    </div>
                     <div id="progress_bar_div">
                         <div id="progress_bar"></div>
                     </div>
