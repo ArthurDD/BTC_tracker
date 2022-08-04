@@ -20,27 +20,39 @@
                         <div class="form-group mb-2">
                             <div class="row">
                                 <div class="col-6">
-                                    <label for="layer_input">Number of layer(s):</label><br>
-                                    <select id="layer_input" class="form-select" name="layer_input" style="max-width: 80px">
+                                    <label for="backward_layer_input">Number of backward layer(s):</label><br>
+                                    <select id="backward_layer_input" class="form-select" name="backward_layer_input" style="max-width: 80px">
                                         {% for i in max_layer_number %}
                                             <option value="{{ i }}">{{ i }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-6">
+                                    <label for="forward_layer_input">Number of forward layer(s):</label><br>
+                                    <select id="forward_layer_input" class="form-select" name="forward_layer_input" style="max-width: 80px">
+                                        {% for i in max_layer_number %}
+                                            <option value="{{ i }}">{{ i }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <br>
+                        </div>
+                        <div class="form-group mb-2">
+                            <div class="row">
+                                <div class="col-6">
                                     <label for="rto_input">RTO threshold (in %): </label><br>
                                     <input type="text" id="rto_input" class="form-control" name="rto_input" value="0.1" style="max-width: 80px"><br>
                                 </div>
+                                <div class="col-6">
+                                    <label for="manual_input">Manual Mode:  </label>
+                                    <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Manually select transactions while parsing each layer" style="margin-left: 10px"></i>
+                                    <br>
+                                    <input type="checkbox" id="manual_input" class="form-checkbox" name="manual_input"><br>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group mb-2">
-                            <label for="manual_input">Manual Mode:  </label>
-                            <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Manually select transactions while parsing each layer" style="margin-left: 10px"></i>
-                            <br>
-
-                            <input type="checkbox" id="manual_input" class="form-checkbox" name="manual_input"><br>
-                        </div>
-                        <button id="submit_starting_btn" class="btn mb-2 my-4 btn_submit" type="submit" style="margin-top: 0" disabled>
+                        <button id="submit_starting_btn" class="btn mb-2 mt-2 btn_submit" type="submit" style="margin-top: 0" disabled>
                             Start tracking!
                         </button>
                         <br>
@@ -51,6 +63,7 @@
                 <script>
                     $(document).ready(function () {
                         $("#starting_form").submit(function (e) {
+                            console.log("Form Submitted")
                             e.preventDefault(); // prevent actual form submit
 
                             let invalid_input = $('#invalid_input');
@@ -59,6 +72,11 @@
 
                             // Send the ws to start the parsing
                             if ($('#address_input').val() === "") {
+                                invalid_input.html("Please enter an address!")
+                                invalid_input.css('visibility', 'visible')
+                                return false
+                            } else if (parseInt(form.find("#forward_layer_input option:selected").html()) + parseInt(form.find("#backward_layer_input option:selected").html()) === 0) {
+                                invalid_input.html("At least one layer must be parsed!")
                                 invalid_input.css('visibility', 'visible')
                                 return false
                             }
@@ -77,7 +95,7 @@
                             $('#terminal_output').val('');
 
                             socket.send(JSON.stringify({
-                                'message': 'It should work :(',
+                                'message': 'It should work :)',
                                 'type': 'start_parsing',
                                 'data': values,
                             }));
@@ -96,7 +114,10 @@
                     </div>
                 </div>
                 <div id="progress_div">
-                    <p id="p_current_layer" class="blink_me"></p>
+                    <div style="margin-bottom:5px">
+                        <span id="p_current_layer" class="blink_me" style="margin-bottom: 5px"></span>
+                        <i class="bi bi-question-circle-fill" data-bs-toggle="tooltip" title="Uncached requests are made every 0.6s to respect WalletExplorer's request limit." style="margin-left: 10px"></i>
+                    </div>
                     <div id="progress_bar_div">
                         <div id="progress_bar"></div>
                     </div>

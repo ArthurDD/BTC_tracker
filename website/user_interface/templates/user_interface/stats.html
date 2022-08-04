@@ -1,27 +1,65 @@
 <h5 style="margin-bottom: 40px; margin-top: 10px; width: 100%; text-align: center">
     Tagged Addresses according to <a href="https://walletexplorer.com" style="color: #c4dce8">WalletExplorer.com</a>
 </h5>
-<table id="stats_table" class="table">
-    <tr>
-        <th>Tag</th>
-        <th>BTC from the root add. </th>
-        <th> Closeness<span style="color:red">*</span> to these tags</th>
-    </tr>
 
-    {% for key, value in data.items %}
-        <tr class="stat_tagged" style="width: 100% ; margin-bottom: 10px; color: aliceblue">
-            <td><a target="_blank" style="color: #79b7d3" href="https://www.walletexplorer.com/wallet/{{ key }}">{{ key }}</a></td>
-            <td>{{ value.rto }} BTC (<i>{{ value.percentage }}%</i>)</td>
-            <td>
-                {% for layer, percentage in value.closeness.items %}
-                    <span style='color:#79b7d3'>{{ layer }}</span> - {{ percentage }}%{% if forloop.counter < value.closeness|length %}%&nbsp;&nbsp;|&nbsp;&nbsp;{% endif %}
-                {% endfor %}
-            </td>
-        </tr>
-    {% endfor %}
-</table>
-<div class="info_note">
-    <span style="color:red">*</span>Closeness of <span style="color:#79b7d3">0</span> means that this address has received a direct transaction from that service.
-    <br>
-    Closeness of <span style="color:#79b7d3">1</span> means there has been one transaction in between, and so on.
-</div>
+{% if data.backward.items or data.forward.items %}
+    {% if data.backward.items %}
+        <table id="stats_table_backward" class="table stats_table">
+            <tr>
+                 <th style="color:indianred">Received BTCs</th>
+                <th>BTC from the root add. </th>
+                <th> Closeness<span style="color:red">*</span> to these tags</th>
+            </tr>
+
+            {% for key, value in data.backward.items %}
+                <tr class="stat_tagged" style="width: 100% ; margin-bottom: 10px; color: aliceblue">
+                    <td><a target="_blank" style="color: #79b7d3" href="https://www.walletexplorer.com/wallet/{{ key }}">{{ key }}</a></td>
+                    <td>{{ value.rto }} BTC (<i>{{ value.percentage }}%</i>)</td>
+                    <td>
+                        {% for layer, percentage in value.closeness.items %}
+                            <span style='color:#79b7d3'>{{ layer }}</span> - {{ percentage }}%{% if forloop.counter < value.closeness|length %}%&nbsp;&nbsp;|&nbsp;&nbsp;{% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    {% if data.forward.items %}
+        <table id="stats_table_forward" class="table stats_table">
+            <tr>
+                <th style="color:indianred">Sent BTCs</th>
+                <th>BTC from the root add. </th>
+                <th> Closeness<span style="color:#00ff0d">*</span> to these tags</th>
+            </tr>
+
+            {% for key, value in data.forward.items %}
+                <tr class="stat_tagged" style="width: 100% ; margin-bottom: 10px; color: aliceblue">
+                    <td><a target="_blank" style="color: #79b7d3" href="https://www.walletexplorer.com/wallet/{{ key }}">{{ key }}</a></td>
+                    <td>{{ value.rto }} BTC (<i>{{ value.percentage }}%</i>)</td>
+                    <td>
+                        {% for layer, percentage in value.closeness.items %}
+                            <span style='color:#79b7d3'>{{ layer }}</span> - {{ percentage }}%{% if forloop.counter < value.closeness|length %}%&nbsp;&nbsp;|&nbsp;&nbsp;{% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <div class="info_note">
+        {% if data.forward.items and data.backward.items %}
+            <span style="color:red">*</span>Closeness of <span style="color:#79b7d3">0</span> means that this address has received (<span style="color:#00ff0d">*</span>sent) a direct transaction from that service.
+        {% elif data.forward.items %}
+            <span style="color:#00ff0d">*</span>Closeness of <span style="color:#79b7d3">0</span> means that this address has sent a direct transaction from that service.
+        {% else %}
+            <span style="color:red">*</span>Closeness of <span style="color:#79b7d3">0</span> means that this address has received a direct transaction from that service.
+        {% endif %}
+        <br>
+        Closeness of <span style="color:#79b7d3">1</span> means there has been one transaction in between, and so on.
+    </div>
+{% else %}
+    <div class="info_note">
+        No tagged addresses were encountered during the parsing.
+    </div>
+{% endif %}

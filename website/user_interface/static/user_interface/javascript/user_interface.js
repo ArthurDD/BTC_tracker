@@ -5,13 +5,16 @@ function connect() {
 
     socket.onopen = function open() {
         display_banner("Connection to the server established!", "alert-success");
-        $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
+        setTimeout(function () {
+            $('#submit_starting_btn').prop('disabled', false);  // Enables the submit button again
+        }, 500);
 
         console.log('WebSockets connection created.');
     };
 
     let progress_bar_total = -1;
     let bar_width = 0;
+    let req_made = 0;
 
     socket.onmessage = function (e) {
         let text_area = $('#terminal_output');
@@ -28,7 +31,8 @@ function connect() {
                 break;
 
             case "svg_file":    // Displays the graph and charts. Message sent once the analysis is finished and graph has been built
-                $('#progress_div').hide()   // Hide the progress bar element
+                // $('#progress_div').hide()   // Hide the progress bar element
+                reset_progress_bar(false)        // Reset the loading bar
                 display_graph(data.message['html_graph']);
                 display_charts(data.message['html_charts']);
                 display_stats(data.message['html_stats']);
@@ -49,16 +53,19 @@ function connect() {
             case "progress_bar_start":      // Called at the beginning of each layer being parsed
                 reset_progress_bar(true)        // Reset the loading bar
                 my_json = JSON.parse(data.message)
-                $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + $('#layer_input').val())
+                let total_layers = (parseInt($('#forward_layer_input').val()) + parseInt($('#backward_layer_input').val())).toString()
+                $('#p_current_layer').html("Current layer: " + my_json['layer'].toString() + '/' + total_layers)
                 progress_bar_total = my_json['total']
+                req_made = 0;
                 bar_width = 0  // We need to reset progress bar and prepare it for the new layer coming
                 break;
 
             case "progress_bar_update": // Sent every time a request is parsed in each layer.
                 bar_width += data.message / progress_bar_total;
+                req_made += 1;
                 let percentage = Math.min(Math.ceil(bar_width*100), 100)
                 $('#progress_bar').css('width', percentage + '%')
-                $('#p_current_progress').html(percentage + '%')
+                $('#p_current_progress').html(percentage + '% (' + req_made + '/' + progress_bar_total + ' req.)')
                 break;
 
             case "waiting_bar":  // Display the waiting bar when requests failed and we need to wait
@@ -171,6 +178,7 @@ function initialise_svg_pan_zoom () {
         zoomEnabled: true,
         controlIconsEnabled: true,
         fit: true,
+        maxZoom: 30,
     });
 }
 
@@ -262,7 +270,7 @@ function dummy_function() {
 
 
 function resume_parsing(tx_to_remove) {
-    // Called when the users finished selecting the transactions he wanna continue with in the parsing (manual mode)
+    // Called when the user finished selecting the transactions he wants to continue with in the parsing (manual mode)
     socket.send(JSON.stringify({
         'message': tx_to_remove,
         'type': 'resume_parsing',

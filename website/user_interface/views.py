@@ -9,7 +9,7 @@ from pathlib import Path
 def index(request):
     if request.method == 'GET':
         print(f"Path: {Path(__file__).resolve().parent.parent.parent}")
-        return render(request, 'user_interface/home.html', {'max_layer_number': range(1, 100)})
+        return render(request, 'user_interface/home.html', {'max_layer_number': range(0, 100)})
     else:
         return HttpResponse("Not OK")
 
