@@ -191,7 +191,7 @@ class GraphVisualisation:
             for tx in self.transaction_lists[layer]:
                 if "unspent_tx" in tx.txid:
                     self.dot.node(tx.txid, color='red', shape='ellipse', style='filled', fillcolor='gray51',
-                                  label='''<<table border="0"><tr><td border="0">Unspent Tx.</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0" href="''' + "None" + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
+                                  label='''<<table border="0"><tr><td border="0">Unspent Tx.</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
 
     def make_legend(self):
         with self.dot.subgraph(name='cluster_legend') as c:
