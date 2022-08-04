@@ -173,6 +173,7 @@ function initialise_svg_pan_zoom () {
         zoomEnabled: true,
         controlIconsEnabled: true,
         fit: true,
+        maxZoom: 30,
     });
 }
 
