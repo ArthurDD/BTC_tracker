@@ -34,8 +34,8 @@ class ChainParser:
         self.transaction_lists = {i: [] for i in range(backward_layers)}
 
         self.forward_parsing = forward_layers != 0  # True if we want to parse forward, False otherwise
+        self.forward_layer_counter = 0
         if self.forward_parsing:
-            self.forward_layer_counter = 0
             # self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
             for i in range(forward_layers):
                 self.transaction_lists[backward_layers + i] = []
@@ -718,27 +718,18 @@ class ChainParser:
         tagged_tx_rto = {'backward': {}, 'forward': {}}
 
         for layer in range(self.nb_layers):
-            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction="backward")
+            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer,
+                                        self.root_value, direction="backward")
 
         for layer in range(self.forward_nb_layers):
-            # layer = layer - self.nb_layers
-            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction="forward")
+            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer,
+                                        self.forward_root_value, direction="forward")
 
-        print(f"tagged_tx_rto: {tagged_tx_rto}")
-        print(f"tagged_tx_lists: {tagged_tx_lists}")
-        # print(f"Number of tagged transactions by layer: \n" +
-        #      "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
-        #                  for layer in range(self.layer_counter)]) + "\n")
-        #
-        # print(f"Number of pruned transactions by layer: \n" +
-        #       "\n".join([f"Layer {layer}: {len(pruned_tx_lists[layer])}"
-        #                  for layer in range(self.layer_counter)]) + "\n\n\n")
-        #
-        # print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
-        #       f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
+        # print(f"tagged_tx_rto: {tagged_tx_rto}")
+        # print(f"tagged_tx_lists: {tagged_tx_lists}")
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
-    def _helper_get_statistics(self, pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction):
+    def _helper_get_statistics(self, pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, root_value, direction):
         pruned_tx_lists[direction][layer] = []
         tagged_tx_lists[direction][layer] = []
         tagged_tx_rto[direction][layer] = 0
@@ -748,7 +739,7 @@ class ChainParser:
             layer_tx = layer
         for tx in self.transaction_lists[layer_tx]:
             if tx.tag:
-                percentage = np.round(tx.rto / self.root_value * 100, 2)
+                percentage = np.round(tx.rto / root_value * 100, 2)
                 if tx.tag in self.transaction_tags[direction]:
                     self.transaction_tags[direction][tx.tag]['rto'] += np.round(tx.rto, 2)
                     self.transaction_tags[direction][tx.tag]['percentage'] += percentage
@@ -859,9 +850,6 @@ class ChainParser:
         tagged_by_layer_forward = [0 for _ in range(self.nb_layers)] + \
                                   [len(tx_list) for tx_list in tagged_tx_lists['forward'].values()]
 
-        # layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
-        #           for i in range(len(tagged_by_layer))]
-
         plt.bar(layers, tagged_by_layer_backward, width=0.4)
         plt.bar(layers, tagged_by_layer_forward, width=0.4)
         for i in range(len(layers)):
@@ -882,7 +870,7 @@ class ChainParser:
 
         # SUM OF TAGGED TX RTO BY LAYER
         plt.clf()
-        print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
+        # print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
         tagged_tx_rto_tot = list(tagged_tx_rto['backward'].values()) + list(tagged_tx_rto['forward'].values())
 
         plt.bar(layers, tagged_tx_rto_tot, color='orange', width=0.4)
@@ -894,7 +882,7 @@ class ChainParser:
                                      for i in range(len(tagged_tx_rto['backward']))]
         backward_sum_rto_by_layer.reverse()
         backward_sum_rto_by_layer.extend([None for _ in range(self.forward_nb_layers)])
-        print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}")
+        # print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}")
 
         forward_sum_rto_by_layer = [None for _ in range(self.nb_layers)] + \
                                    [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
@@ -916,7 +904,7 @@ class ChainParser:
         if display:
             plt.show()
 
-        print(f"Almost at the end")
+        # print(f"Almost at the end")
         self.display_time_stats()
 
         # plt.show()
