@@ -61,7 +61,7 @@ class ChainParser:
         self.added_before = []
         self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
         self.input_addresses = dict()
-        self.transaction_tags = {}  # Dict where keys are tags and values are RTO
+        self.transaction_tags = {'backward': dict(), 'forward': dict()}  # Dict where keys are tags and values are RTO
 
         self.send_fct = send_fct  # Takes 2 arg = message to send to the socket and message_type (optional)
 
@@ -83,7 +83,8 @@ class ChainParser:
         sec_to_wait = 25
         print("Starting threads...")
         if self.send_fct is not None:
-            message = '{' + f'"layer": {self.layer_counter}, "total": "{len(url_list)}"' + '}'
+            message = '{' + f'"layer": {self.layer_counter + self.forward_layer_counter - 1}, ' \
+                            f'"total": "{len(url_list)}"' + '}'
             self.send_fct(message=message, message_type='progress_bar_start')
 
         cached_urls = []
@@ -148,7 +149,7 @@ class ChainParser:
                     #     self.session.close()
                     #     waiting_bar(sec_to_wait)  # Waiting for the limit to fade
                     #     self.session = requests_cache.CachedSession('parser_cache')
-                        # else:  # Otherwise, if it did go through, it means we can go to the next request
+                    # else:  # Otherwise, if it did go through, it means we can go to the next request
                     req_counter += 1
                     if req_counter == len(url_list):  # End condition
                         finished = True
@@ -408,7 +409,7 @@ class ChainParser:
             # Then, 1st check: input_values match with output_values AND that we have the same number of input/outputs
             for i in range(len(output_values)):
                 output_values[i] += tx_fee
-                output_values.sort()    # Need to sort output values or we may change the order by adding the tx_fee
+                output_values.sort()  # Need to sort output values or we may change the order by adding the tx_fee
                 if input_values == output_values:
                     # Only ONE input value matches our output value(s) (two by two)
                     # - there can be multiple output addresses to look at
@@ -530,7 +531,7 @@ class ChainParser:
 
             elif self.forward_parsing and self.forward_layer_counter <= self.forward_nb_layers:
                 # If there is still a forward layer to parse
-                self.get_output_addresses_from_txid()   # counter gets increased in that method
+                self.get_output_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
                     self.send_fct(f"Forward Layer {self.forward_layer_counter - 1} done!")
@@ -712,34 +713,19 @@ class ChainParser:
         :return: None
         """
         print(f"\n\n\n--------- STATISTICS ---------\n")
-        pruned_tx_lists = {}
-        tagged_tx_lists = {}
-        tagged_tx_rto = {}
+        pruned_tx_lists = {'backward': {}, 'forward': {}}
+        tagged_tx_lists = {'backward': {}, 'forward': {}}
+        tagged_tx_rto = {'backward': {}, 'forward': {}}
 
         for layer in range(self.nb_layers):
-            pruned_tx_lists[layer] = []
-            tagged_tx_lists[layer] = []
-            tagged_tx_rto[layer] = 0
-            for tx in self.transaction_lists[layer]:
-                if tx.tag:
-                    percentage = np.round(tx.rto / self.root_value * 100, 2)
-                    if tx.tag in self.transaction_tags:
-                        self.transaction_tags[tx.tag]['rto'] += np.round(tx.rto, 2)
-                        self.transaction_tags[tx.tag]['percentage'] += percentage
-                        if layer in self.transaction_tags[tx.tag]['closeness']:
-                            self.transaction_tags[tx.tag]['closeness'][layer] += percentage
-                        else:
-                            self.transaction_tags[tx.tag]['closeness'][layer] = percentage
-                    else:
-                        self.transaction_tags[tx.tag] = {'rto': np.round(tx.rto, 2),
-                                                         'percentage': percentage,
-                                                         'closeness': {layer: percentage}}
+            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction="backward")
 
-                    tagged_tx_lists[layer].append(tx)
-                    tagged_tx_rto[layer] += tx.rto
-                if tx.is_pruned:
-                    pruned_tx_lists[layer].append(tx)
+        for layer in range(self.forward_nb_layers):
+            # layer = layer - self.nb_layers
+            self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction="forward")
 
+        print(f"tagged_tx_rto: {tagged_tx_rto}")
+        print(f"tagged_tx_lists: {tagged_tx_lists}")
         # print(f"Number of tagged transactions by layer: \n" +
         #      "\n".join([f"Layer {layer}: {len(tagged_tx_lists[layer])} - {[tx.txid for tx in tagged_tx_lists[layer]]}"
         #                  for layer in range(self.layer_counter)]) + "\n")
@@ -750,8 +736,35 @@ class ChainParser:
         #
         # print(f"Tagged transactions represent: {round(sum(tagged_tx_rto.values()), 4)} of the total amount of BTC. "
         #       f"({round(sum(tagged_tx_rto.values()) / self.root_value * 100, 2)}% of the total)")
-        print(f"Display is: {display}")
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
+
+    def _helper_get_statistics(self, pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, direction):
+        pruned_tx_lists[direction][layer] = []
+        tagged_tx_lists[direction][layer] = []
+        tagged_tx_rto[direction][layer] = 0
+        if direction == "forward":
+            layer_tx = layer + self.nb_layers
+        else:
+            layer_tx = layer
+        for tx in self.transaction_lists[layer_tx]:
+            if tx.tag:
+                percentage = np.round(tx.rto / self.root_value * 100, 2)
+                if tx.tag in self.transaction_tags[direction]:
+                    self.transaction_tags[direction][tx.tag]['rto'] += np.round(tx.rto, 2)
+                    self.transaction_tags[direction][tx.tag]['percentage'] += percentage
+                    if layer in self.transaction_tags[direction][tx.tag]['closeness']:
+                        self.transaction_tags[direction][tx.tag]['closeness'][layer] += percentage
+                    else:
+                        self.transaction_tags[direction][tx.tag]['closeness'][layer] = percentage
+                else:
+                    self.transaction_tags[direction][tx.tag] = {'rto': np.round(tx.rto, 2),
+                                                                'percentage': percentage,
+                                                                'closeness': {layer: percentage}}
+
+                tagged_tx_lists[direction][layer].append(tx)
+                tagged_tx_rto[direction][layer] += tx.rto
+            if tx.is_pruned:
+                pruned_tx_lists[direction][layer].append(tx)
 
     def display_time_stats(self, axes=None):
         """
@@ -780,11 +793,11 @@ class ChainParser:
         overall_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
                             self.time_stat_dict['overall'].values()]
 
-        print(f"Request_avg_time: {request_avg_time}")
-        print(f"select_input_avg_time: {select_input_avg_time}")
-        print(f"find_tx_avg_time: {find_tx_avg_time}")
-        print(f"adding_addresses_avg_time: {adding_addresses_avg_time}")
-        print(f"overall_avg_time: {overall_avg_time}")
+        # print(f"Request_avg_time: {request_avg_time}")
+        # print(f"select_input_avg_time: {select_input_avg_time}")
+        # print(f"find_tx_avg_time: {find_tx_avg_time}")
+        # print(f"adding_addresses_avg_time: {adding_addresses_avg_time}")
+        # print(f"overall_avg_time: {overall_avg_time}")
 
         ax_request.bar(x_pos, request_avg_time, align='center', width=0.4, label="Avg. Request")
         ax_request.bar(x_pos, select_input_avg_time, align='center', width=0.4, label="Avg. Input Sel.")
@@ -809,7 +822,8 @@ class ChainParser:
         plt.clf()
 
         transactions_by_layer = [len(transaction_list) for transaction_list in self.transaction_lists.values()]
-        layers = [i for i in range(len(transactions_by_layer))]
+        layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
+                  for i in range(len(transactions_by_layer))]
         plt.bar(layers, transactions_by_layer, color='green', width=0.4)
         for i in range(len(layers)):
             plt.text(i, transactions_by_layer[i], transactions_by_layer[i], ha='center')
@@ -825,8 +839,11 @@ class ChainParser:
             plt.show()
 
         plt.clf()
-        tagged_by_layer = [len(tx_list) for tx_list in tagged_tx_lists.values()]
-        layers = [i for i in range(len(tagged_by_layer))]
+        tagged_by_layer = []
+        tagged_by_layer += [len(tx_list) for tx_list in tagged_tx_lists['backward'].values()]
+        tagged_by_layer += [len(tx_list) for tx_list in tagged_tx_lists['forward'].values()]
+        layers = [f"b-{i}" if i < self.nb_layers else f"f-{i - self.nb_layers}"
+                  for i in range(len(tagged_by_layer))]
 
         plt.bar(layers, tagged_by_layer, width=0.4)
         for i in range(len(layers)):
@@ -843,20 +860,31 @@ class ChainParser:
             plt.show()
 
         plt.clf()
-        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
         print(f"Tagged_tx_rto.values: {tagged_tx_rto.values()}")
+        tagged_tx_rto_tot = list(tagged_tx_rto['backward'].values()) + list(tagged_tx_rto['forward'].values())
 
-        plt.bar(layers, tagged_tx_rto.values(), color='orange', width=0.4)
+        plt.bar(layers, tagged_tx_rto_tot, color='orange', width=0.4)
         plt.ylabel("RTO tagged by layer", fontsize=18)
         plt.xlabel("Layers", fontsize=18)
         plt.title("Sum of tagged tx's RTO by layer")
 
-        sum_rto_by_layer = [sum(list(tagged_tx_rto.values())[:i + 1]) for i in range(len(tagged_tx_rto))]
+        backward_sum_rto_by_layer = [sum(list(tagged_tx_rto['backward'].values())[:i + 1])
+                                     for i in range(len(tagged_tx_rto['backward']))] + \
+                                    ['' for _ in range(self.forward_nb_layers)]
+
+        forward_sum_rto_by_layer = ['' for _ in range(self.nb_layers)] + \
+                                   [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
+                                    for i in range(len(tagged_tx_rto['forward']))]
+
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
         ax_twin = plt.twinx()
-        ax_twin.plot(layers, sum_rto_by_layer, color='green')
+        ax_twin.plot(layers, backward_sum_rto_by_layer, color='blue')
         ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
         ax_twin.set_ylabel("Total (BTC)", fontsize=18)
+
+        ax_twin = plt.twinx()
+        ax_twin.plot(layers, forward_sum_rto_by_layer, color='green')
+        ax_twin.yaxis.grid(False)  # Remove the horizontal lines for the second y_axis
 
         plt.tight_layout()
         plt.savefig(FILE_DIR + '/doctest-output/plots/tagged_tx_rto.png')
@@ -990,16 +1018,16 @@ class ChainParser:
                             if add['address'] not in self.transaction_lists[tx_layer][i].input_addresses:
                                 # If the address is already in the list, it means that we ended up on a loop
                                 self.transaction_lists[tx_layer][i].amount += add['amount']
-                                self.transaction_lists[tx_layer][i]\
+                                self.transaction_lists[tx_layer][i] \
                                     .prev_txid.append((txid, self.nb_layers + self.forward_layer_counter - 1))
                                 self.transaction_lists[tx_layer][i].input_addresses.append(add['address'])
                                 self.transaction_lists[tx_layer][i].rto += add['rto']
 
                 t_tx_avg = np.mean(t_tx) if t_tx else 0
                 self.time_stat_dict['request'][self.nb_layers + self.forward_layer_counter].append(t_request - t_0)
-                self.time_stat_dict['select_input'][self.nb_layers + self.forward_layer_counter]\
+                self.time_stat_dict['select_input'][self.nb_layers + self.forward_layer_counter] \
                     .append(t_adding - t_input)
-                self.time_stat_dict['adding_addresses'][self.nb_layers + self.forward_layer_counter]\
+                self.time_stat_dict['adding_addresses'][self.nb_layers + self.forward_layer_counter] \
                     .append(time.time() - t_adding)
                 self.time_stat_dict['find_tx'][self.nb_layers + self.forward_layer_counter].append(t_tx_avg)
             self.time_stat_dict['overall'][self.nb_layers + self.forward_layer_counter].append(time.time() - t_0)
@@ -1082,7 +1110,7 @@ class ChainParser:
 
                 elif len(input_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
                     selected_outputs = tx_content['out'][-1 - 10:]
-                else:   # If none of the above conditions hold, we take all the outputs
+                else:  # If none of the above conditions hold, we take all the outputs
                     selected_outputs = tx_content['out']
 
         else:
