@@ -1,5 +1,10 @@
 {% load static %}
 
+<div class="info_note">
+    "b-<span style="color:#79b7d3">i</span>" stands for backward layer #<span style="color:#79b7d3">i</span>. <br>
+    "f-<span style="color:#79b7d3">j</span>" stands for forward layer #<span style="color:#79b7d3">j</span>.
+</div>
+
 <div id="transactions_by_layer" class="chart">
     <h4> Total transactions by layer:</h4>
     <img src="{% static  'plots/transactions_by_layer.png'%}" alt="Total transactions chart">
@@ -13,6 +18,10 @@
 <div id="tagged_tx_rto" class="chart">
     <h4> Sum of tagged transactions' RTO by layer:</h4>
     <img src="{% static  'plots/tagged_tx_rto.png'%}" alt="Transactions' RTO chart">
+    <div class="info_note">
+        Bars represent the sum of RTO of transactions that have been tagged, by layer. <br>
+        Curves represent the total sum of RTO layer after layer.
+    </div>
 </div>
 
 <div id="avg_function_time" class="chart">
