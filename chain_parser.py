@@ -82,6 +82,7 @@ class ChainParser:
         """
         sec_to_wait = 25
         print("Starting threads...")
+        counter = 0
         if self.send_fct is not None:
             if self.layer_counter == 0 or self.forward_layer_counter == 0:
                 counter = self.layer_counter + self.forward_layer_counter
@@ -100,7 +101,9 @@ class ChainParser:
         print(f"Length of cached urls: {len(cached_urls)}")
         print(f"Length of not-cached urls: {len(url_list)}")
         if self.send_fct is not None:
-            self.send_fct(message=f"Length of cached/not cached urls: {len(cached_urls)}/{len(url_list)}")
+            self.send_fct(message=f"Layer {counter}:\n"
+                                  f"|- Number of cached cached urls: {len(cached_urls)}\n"
+                                  f"|- Number of uncached urls: {len(url_list)}")
         with tqdm(total=len(url_list) + len(cached_urls),
                   desc=f"Retrieving transactions for the layer {self.layer_counter}") as p_bar:
             fn = partial(function, p_bar)
@@ -525,7 +528,7 @@ class ChainParser:
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
-                    self.send_fct(f"Backward Layer {self.layer_counter - 1} done!")
+                    self.send_fct(f"|--> Backward Layer {self.layer_counter - 1} done!\n")
 
                 if self.layer_counter <= self.nb_layers:
                     if display_partial_graph:
@@ -541,7 +544,7 @@ class ChainParser:
                 self.get_output_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
-                    self.send_fct(f"Forward Layer {self.forward_layer_counter - 1} done!")
+                    self.send_fct(f"|--> Forward Layer {self.forward_layer_counter - 1} done!\n")
 
                 if self.forward_layer_counter <= self.forward_nb_layers:
                     if display_partial_graph:
@@ -563,6 +566,8 @@ class ChainParser:
         t_0 = time.time()
 
         result = self.get_wallet_transactions()  # Counter gets increased in that method
+        if self.send_fct is not None:
+            self.send_fct(f"|--> Layer 0 done!\n")
 
         if result:  # Only if layer 0 has been successful, and we are not in manual mode
             if self.nb_layers > 0:
@@ -571,7 +576,7 @@ class ChainParser:
                     self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                     if self.send_fct is not None:
-                        self.send_fct(f"Layer {self.layer_counter - 1} done!")
+                        self.send_fct(f"|--> Backward Layer {self.layer_counter - 1} done!\n")
 
                     if display_partial_graph and (self.layer_counter <= self.nb_layers or
                                                   (self.layer_counter - 1 <= self.nb_layers and self.forward_parsing)):
@@ -587,7 +592,7 @@ class ChainParser:
                     self.get_output_addresses_from_txid()  # counter gets increased in that method
 
                     if self.send_fct is not None:
-                        self.send_fct(f"Forward layer {self.forward_layer_counter - 1} done!")
+                        self.send_fct(f"|--> Forward layer {self.forward_layer_counter - 1} done!\n")
 
                     if display_partial_graph and self.forward_layer_counter <= self.forward_nb_layers:
                         # To display the layer self.lay_counter graph only if this is not the last layer
@@ -762,6 +767,15 @@ class ChainParser:
                 tagged_tx_rto[direction][layer] += tx.rto
             if tx.is_pruned:
                 pruned_tx_lists[direction][layer].append(tx)
+
+        # We make sure every percentage/data has been rounded:
+        for tag in self.transaction_tags[direction]:
+            self.transaction_tags[direction][tag]['rto'] = np.round(self.transaction_tags[direction][tag]['rto'], 2)
+            self.transaction_tags[direction][tag]['percentage'] = np.round(
+                self.transaction_tags[direction][tag]['percentage'], 2)
+            for layer in self.transaction_tags[direction][tag]['closeness']:
+                self.transaction_tags[direction][tag]['closeness'][layer] = np.round(
+                    self.transaction_tags[direction][tag]['closeness'][layer], 2)
 
     def display_time_stats(self, axes=None):
         """
