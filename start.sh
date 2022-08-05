@@ -11,13 +11,13 @@ activate () {
 
 # Set up the venv
 set_up_venv () {
-  python3 -m venv venv
+  python3 -m virtualenv ./venv
   echo "Virtual Environment created! Installing requirements..."
   activate
   pip install -r requirements.txt
 
   # Since it is the first time the app will be launched, database will be created so we need to migrate
-  python website/manage.py migrate
+  python3 website/manage.py migrate
 }
 
 if [ -f ./credentials.json ]
@@ -43,4 +43,4 @@ fi
 find $GRAPH_PATH -maxdepth 1 -type f -delete
 
 # Start the app
-python website/manage.py runserver 0.0.0.0:$PORT
+python3 website/manage.py runserver 0.0.0.0:$PORT
