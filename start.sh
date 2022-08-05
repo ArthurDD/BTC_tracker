@@ -25,7 +25,7 @@ then
     echo "Credentials.json file found."
 else
     echo "credentials.json missing from the directory. Creating an empty one."
-    touch ./credentials.json
+    echo {} > ./credentials.json
 fi
 
 
