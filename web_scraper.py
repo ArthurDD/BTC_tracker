@@ -46,7 +46,6 @@ class Scraper:
         else:
             self.ba_on = False
 
-
         if 'google' in credentials:
             self.google_keywords: list = self.get_google_keywords()
             self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']

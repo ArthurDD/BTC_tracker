@@ -146,11 +146,16 @@ class UserInterfaceConsumer(WebsocketConsumer):
         self.chain_parser.start_manual_analysis(tx_to_remove=tx_to_remove,  display_partial_graph=True)
         # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
         # Need to call this function even when self.finished_analysis == True bc we still need to parse the last layer
-        if self.chain_parser.layer_counter >= self.chain_parser.nb_layers and \
+
+        # This case is to make the transition between the last backward layer parsed and the first forward layer
+        if self.chain_parser.layer_counter - 1 >= self.chain_parser.nb_layers and \
                 self.chain_parser.forward_layer_counter == 1:
             self.chain_parser.start_manual_analysis(tx_to_remove=[], display_partial_graph=True)
-        elif self.chain_parser.layer_counter >= self.chain_parser.nb_layers and \
-                self.chain_parser.forward_layer_counter >= self.chain_parser.forward_nb_layers:
+
+        elif (self.chain_parser.layer_counter - 1 >= self.chain_parser.nb_layers
+              or self.chain_parser.layer_counter == 0) \
+            and (self.chain_parser.forward_layer_counter == 0
+                 or self.chain_parser.forward_layer_counter - 1 >= self.chain_parser.forward_nb_layers):
             # If there is no more layer to parse
             self.finished_analysis = True
 
