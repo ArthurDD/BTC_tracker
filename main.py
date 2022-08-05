@@ -3,14 +3,11 @@ from graph_visualisation import *
 
 
 def main():
-    # address = "bc1q6u5hsdjvz90fkzzmudz84jqtpdl0vc0yqd3375"
     # address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  # Satoshi's Address (50 mined BTC)
     # address = "115ZFznB6rTteLDF18AQTf2SWNBtoywoxb"  # Smaller address
-    address = "1G42zsc3uhWomk3wZUy1e2UQqHgvB1UFWm"  # To test backward and forward
+    # address = "1G42zsc3uhWomk3wZUy1e2UQqHgvB1UFWm"  # To test backward and forward
+    address = "3JMjHDTJjKPnrvS7DycPAgYcA6HrHRk8UG"  # Romance Scam Address
 
-    # address = "3JMjHDTJjKPnrvS7DycPAgYcA6HrHRk8UG"  # Scam
-
-    # scamming_address = "bc1qhuz2x7pceg5el4y94v888em625cgnmn3aewmcd"
     # try_scraper(scamming_address)
     try_parser(address)
 
@@ -27,7 +24,7 @@ def try_scraper(address):
 
 def try_parser(address):
     # Start the parsing
-    nb_layers_back = 3
+    nb_layers_back = 2
     nb_layers_forward = 2
     chain_parser = ChainParser(address, backward_layers=nb_layers_back, forward_layers=nb_layers_forward)
     res = chain_parser.start_analysis(display_partial_graph=False)
