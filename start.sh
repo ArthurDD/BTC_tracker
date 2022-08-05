@@ -20,6 +20,13 @@ set_up_venv () {
   python website/manage.py migrate
 }
 
+if [ -f ./credentials.json ]
+then
+    echo "Credentials.json file found."
+else
+    echo "credentials.json missing from the directory. Creating an empty one."
+    touch ./credentials.json
+fi
 
 
 if [ -f $VENV_PATH ]
