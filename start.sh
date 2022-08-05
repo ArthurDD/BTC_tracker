@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 PORT=8000
 VENV_PATH="./venv/bin/activate"
