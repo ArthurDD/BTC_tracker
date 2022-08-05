@@ -1,7 +1,9 @@
 ## BTC Tracker tool
 
+Project tracking Bitcoins received on and/or sent from an address.
 
-
+Setting up APIs
+----------
 In order to use this tool, you will need to use different APIs:  
     
 - BitcoinAbuse API
@@ -28,7 +30,8 @@ In order to use this tool, you will need to use different APIs:
   - Tutorial: https://towardsdatascience.com/how-to-use-the-reddit-api-in-python-5e05ddfd1e5c
 
 
-### Credentials
+Credentials
+----------
 Once every API has been configured, you will need to create your own _**credentials.json**_ file containing all the required keys to make the tool work.
 To do so, you can simply copy/paste the following one and replace the **_##_** by your own credentials:
 
@@ -60,4 +63,5 @@ Run the start.sh script:
 ```console
 source start.sh
 ```
+Once this is done, go to your browser and connect the User Interface (default address is ```localhost:8000```, but you can change the port in start.sh directly)
 And you should be set!

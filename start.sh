@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+PORT=8000
 VENV_PATH="./venv/bin/activate"
 GRAPH_PATH="./doctest-output/"
 
@@ -43,4 +43,4 @@ fi
 find $GRAPH_PATH -maxdepth 1 -type f -delete
 
 # Start the app
-python website/manage.py runserver 0.0.0.0:8000
+python website/manage.py runserver 0.0.0.0:$PORT
