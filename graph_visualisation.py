@@ -204,7 +204,7 @@ class GraphVisualisation:
             c.node("tagged_tx", label="Tagged TX", color='red', style='filled, bold', fillcolor='orange')
             c.node("removed_tx", label="Removed Transactions", color='gray88', style='filled, bold', fillcolor='gray51')
             c.node("unspent_tx", color='gray88', shape='ellipse', style='filled, bold', fillcolor='gray51',
-                   label="Unspent Transaction")
+                   label="Unspent Transactions")
 
     def get_all_txids(self, start_index=0, stop_index=None):
         """
