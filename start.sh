@@ -15,6 +15,9 @@ set_up_venv () {
   echo "Virtual Environment created! Installing requirements..."
   activate
   pip install -r requirements.txt
+
+  # Since it is the first time the app will be launched, database will be created so we need to migrate
+  python website/manage.py migrate
 }
 
 
