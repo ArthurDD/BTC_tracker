@@ -33,25 +33,45 @@ class Scraper:
         self.send_fct = send_fct
 
         credentials = self.setup()
-        self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
-        self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
-        self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-        self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
-        self.ba_wait = False
-        self.ba_time = 0
+        if 'bitcoinabuse' in credentials:
+            self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
 
-        self.google_keywords: list = self.get_google_keywords()
-        self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']
-        self.google_custom_engine_id: str = credentials['google']['custom_engine_id']
+            self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
+            self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+            self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
+            self.ba_wait = False
+            self.ba_time = 0
 
-        self.twitter_bearer_token = credentials['twitter']['bearer_token']
+            self.ba_on = True
+        else:
+            self.ba_on = False
 
-        self.reddit_client_id = credentials['reddit']['client_id']
-        self.reddit_secret_token = credentials['reddit']['secret_token']
-        self.reddit_username = credentials['reddit']['username']
-        self.reddit_password = credentials['reddit']['password']
 
-        self.reddit_access_token = self.get_reddit_token()
+        if 'google' in credentials:
+            self.google_keywords: list = self.get_google_keywords()
+            self.google_custom_search_api_key: str = credentials['google']['custom_search_api_key']
+            self.google_custom_engine_id: str = credentials['google']['custom_engine_id']
+            self.google_on = True
+        else:
+            self.google_on = False
+
+        if 'twitter' in credentials:
+            self.twitter_bearer_token = credentials['twitter']['bearer_token']
+            self.twitter_on = True
+        else:
+            self.twitter_on = False
+
+        if 'reddit' in credentials:
+            self.reddit_client_id = credentials['reddit']['client_id']
+            self.reddit_secret_token = credentials['reddit']['secret_token']
+            self.reddit_username = credentials['reddit']['username']
+            self.reddit_password = credentials['reddit']['password']
+
+            self.reddit_access_token = self.get_reddit_token()
+
+            self.reddit_on = True
+        else:
+            self.reddit_on = False
 
         self.result_dict = dict()  # Dict where all information is gathered
 
@@ -90,6 +110,10 @@ class Scraper:
         self.result_dict['google'] = self.google_search()
         self.result_dict['reddit'] = self.reddit_search()
         self.result_dict['address'] = self.address
+
+        self.result_dict['apis_on'] = ['BitcoinAbuse' if self.ba_on else None, 'Twitter' if self.twitter_on else None,
+                                       'Google' if self.google_on else None, 'Reddit' if self.reddit_on else None]
+        self.result_dict['apis_on'] = ", ".join([elt for elt in self.result_dict['apis_on'] if elt is not None])
         return self.result_dict
 
     def bitcoinabuse_search(self, address="", display=False) -> dict:
@@ -99,6 +123,9 @@ class Scraper:
         :param display: Whether we print information or we return them.
         :return: dict of information about the reports
         """
+        if not self.ba_on:
+            return {'found': False, 'address': address}
+
         self.check_ba_wait()
         if not self.ba_wait:
             if not address:
@@ -180,6 +207,9 @@ class Scraper:
         """
         Gets potentially useful information from Google.
         """
+        if not self.google_on:
+            return {'found': False}
+
         if not address:
             address = self.address
         try:
@@ -217,6 +247,9 @@ class Scraper:
         Gets potentially useful information from Twitter
         :return: None
         """
+        if not self.twitter_on:
+            return {'found': False}
+
         if not address:
             address = self.address
 
@@ -287,6 +320,9 @@ class Scraper:
         Gets potentially useful information from Reddit
         :return: None
         """
+        if not self.reddit_on:
+            return {'found': False}
+
         if not address:
             address = self.address
 
