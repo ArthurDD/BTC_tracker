@@ -341,11 +341,9 @@ class ChainParser:
                 self.transaction_lists[self.layer_counter - 1][i].tag = tx_content['label']
                 # We don't need to go through the inputs of this tx as we've already found out where the BTC are from.
             elif self.layer_counter < self.nb_layers:
-                print(f"Number of inputs before pruning: {len(tx_content['in'])}")
                 # We select the inputs that we want to keep
                 t_input = time.time()
                 selected_inputs = self.select_inputs(tx_content, txid)
-                print(f"Selected inputs: {selected_inputs}")
 
                 t_adding = time.time()
                 t_tx = []
@@ -496,7 +494,6 @@ class ChainParser:
         while worked and self.forward_layer_counter <= self.forward_nb_layers:
             worked = self.start_manual_analysis(display_partial_graph=display_partial_graph)
 
-        print(f"Tx_lists:", '\n'.join([str(tx.__dict__) for tx in self.transaction_lists[3]]))
         return True
 
     def start_manual_analysis(self, tx_to_remove=None, display_partial_graph=False):
@@ -511,7 +508,7 @@ class ChainParser:
         if tx_to_remove is not None:
             self.delete_transactions(tx_to_remove, self.layer_counter - 2)
 
-        if self.layer_counter == 0:
+        if self.layer_counter == 0 and self.forward_layer_counter == 0:
             result = self.get_wallet_transactions()  # Counters get increased in that method
             if result:
                 self.analysis_time += time.time() - t_0
@@ -523,8 +520,8 @@ class ChainParser:
 
         if result:  # If it's not layer 0, and we are in manual mode
             print(f"Layer_counter <= np_layers: {self.layer_counter} <= {self.nb_layers}\n"
-                  f"forward_layer_counter < forward_nb_layers: {self.forward_layer_counter} < {self.forward_nb_layers}")
-            if self.layer_counter <= self.nb_layers:  # If there is still a backward layer to parse
+                  f"forward_layer_counter <= forward_nb_layers: {self.forward_layer_counter} <= {self.forward_nb_layers}")
+            if self.layer_counter <= self.nb_layers != 0:  # If there is still a backward layer to parse
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
 
                 if self.send_fct is not None:
@@ -536,7 +533,7 @@ class ChainParser:
                         self.display_partial_graph()
 
                     self.select_transactions()  # Prompts the user to choose his transactions
-                else:  # If everything is parsed, we print final results
+                elif self.forward_layer_counter == 0:  # If everything is parsed and no forward, we print final results
                     self.print_final_results()
 
             elif self.forward_parsing and self.forward_layer_counter <= self.forward_nb_layers:
@@ -640,6 +637,7 @@ class ChainParser:
             layer = self.nb_layers + self.forward_layer_counter - 2
             root_value = self.forward_root_value
             rto_threshold = self.forward_rto_threshold
+
         if self.send_fct is not None:  # In case program is running via UI
             data_tx = {'transactions': [{'index': i, 'txid': tx.txid, "amount": tx.amount,
                                          "rto": tx.rto, "rto_pt": np.round(tx.rto / root_value * 100, 2)}

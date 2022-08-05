@@ -143,12 +143,16 @@ class UserInterfaceConsumer(WebsocketConsumer):
         return res
 
     def resume_analysis(self, tx_to_remove):
-        if self.chain_parser.layer_counter >= self.chain_parser.nb_layers:  # If there is no more layer to parse
-            self.finished_analysis = True
-
         self.chain_parser.start_manual_analysis(tx_to_remove=tx_to_remove,  display_partial_graph=True)
         # manual_tx message is sent in select_inputs method called inside start_analysis if manual == True.
         # Need to call this function even when self.finished_analysis == True bc we still need to parse the last layer
+        if self.chain_parser.layer_counter >= self.chain_parser.nb_layers and \
+                self.chain_parser.forward_layer_counter == 1:
+            self.chain_parser.start_manual_analysis(tx_to_remove=[], display_partial_graph=True)
+        elif self.chain_parser.layer_counter >= self.chain_parser.nb_layers and \
+                self.chain_parser.forward_layer_counter >= self.chain_parser.forward_nb_layers:
+            # If there is no more layer to parse
+            self.finished_analysis = True
 
     def build_graph(self):
         """

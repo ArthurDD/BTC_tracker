@@ -83,11 +83,18 @@ function connect() {
                 break;
 
             case "manual_tx":
-                let url = 'display_manual_transactions/'
-                $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
-                    $('#modal_div').html(resp);  // load modal
-                    $('#display_modal').click()  // display modal
-                })
+                my_json = JSON.parse(data.message);
+                if (my_json['transactions'].length === 0) {
+                    let message = '{"tx_to_remove": []}'
+                    resume_parsing(message)
+                } else {
+                    let url = 'display_manual_transactions/'
+                    $.post(url, {'data': data.message}, function (resp) {   // Make the request to display the modal /w txs
+                        $('#modal_div').html(resp);  // load modal
+                        $('#display_modal').click()  // display modal
+                    })
+                }
+
                 break;
 
             case "ba_report":   // Message received when user wanted to display a ba report for an address and we get the answer from the backend
