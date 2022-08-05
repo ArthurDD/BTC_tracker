@@ -40,11 +40,12 @@ class Scraper:
                 self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
                 self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
                 self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
-                self.ba_wait = False
-                self.ba_time = 0
+
             else:
                 self.BA_predict = None
             self.ba_on = True
+            self.ba_wait = False
+            self.ba_time = 0
         else:
             self.ba_on = False
 
