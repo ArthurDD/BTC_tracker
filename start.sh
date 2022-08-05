@@ -1,0 +1,36 @@
+#!/bin/bash
+
+
+VENV_PATH="./venv/bin/activate"
+GRAPH_PATH="./doctest-output/"
+
+# Activate the venv
+activate () {
+  . $VENV_PATH
+}
+
+# Set up the venv
+set_up_venv () {
+  python3 -m venv venv
+  echo "Virtual Environment created! Installing requirements..."
+  activate
+  pip install -r requirements.txt
+}
+
+
+
+if [ -f $VENV_PATH ]
+then
+    echo "Virtual Environment found. Activating it..."
+    activate
+else
+    echo "Virtual Environment not found. Creating it.."
+    set_up_venv
+fi
+
+
+# Delete old graphs from the graph folder
+find $GRAPH_PATH -maxdepth 1 -type f -delete
+
+# Start the app
+python website/manage.py runserver 0.0.0.0:8000
