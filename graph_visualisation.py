@@ -27,7 +27,7 @@ class GraphVisualisation:
         else:
             self.root_address = self.transaction_lists[0][0].input_addresses[0]
 
-        self.display = display      # Indicates whether we want to open the graph at the end of the build.
+        self.display = display  # Indicates whether we want to open the graph at the end of the build.
 
         if backward_layers > 0:
             self.backward_root_value = sum([tx.amount for tx in self.transaction_lists[0]])
@@ -36,7 +36,7 @@ class GraphVisualisation:
 
         self.pastel_colours = generate_pastel_colours()
 
-        self.input_addresses = dict()   # Dict containing input addresses of each txid (key=txid and value=address)
+        self.input_addresses = dict()  # Dict containing input addresses of each txid (key=txid and value=address)
         self.output_addresses = dict()
 
         self.txid_set = set()
@@ -46,18 +46,19 @@ class GraphVisualisation:
         self.dot.node_attr['shape'] = 'record'
         if self.backward_layers > 0 and self.depth <= self.backward_layers:
             # Case where only backward tree needs to be built
-            self.dot.node('root', rf"{self.root_address}\nReceived: {self.backward_root_value} BTC\n{self.depth} - backward")
+            self.dot.node('root',
+                          rf"{self.root_address}\nReceived: {self.backward_root_value} BTC\n{self.depth} - backward")
             print(f"Building backward only")
             self.build_backward_tree()
             self.get_all_txids(stop_index=self.depth)
 
-        elif self.backward_layers == 0:     # Case when only forward tree needs to be built
+        elif self.backward_layers == 0:  # Case when only forward tree needs to be built
             self.dot.node('root', rf"{self.root_address}\nSent: {self.forward_root_value} BTC\n{self.depth} - forward")
             print(f"Building forward only")
             self.build_forward_tree()
             self.get_all_txids(stop_index=self.depth)
 
-        else:   # Here, depth > backward_layers, so we need to build both trees
+        else:  # Here, depth > backward_layers, so we need to build both trees
             self.dot.node('root', rf"{self.root_address}\nReceived: {self.backward_root_value} BTC\n" +
                           rf"Sent: {self.forward_root_value} BTC\n{self.depth} - both")
             print(f"Building backward and forward")
@@ -143,7 +144,7 @@ class GraphVisualisation:
                     if start_index < self.backward_layers:  # In the case of the backward tree
                         index = find_transaction(self.transaction_lists, tx.prev_txid[0][0], layer=tx.prev_txid[0][1],
                                                  stop_index=self.backward_layers)
-                    else:   # In the case of the forward tree
+                    else:  # In the case of the forward tree
                         index = find_transaction(self.transaction_lists, tx.prev_txid[0][0], layer=tx.prev_txid[0][1],
                                                  start_index=self.backward_layers)
                     prev_tx = self.transaction_lists[tx.prev_txid[0][1]][index]
@@ -159,9 +160,9 @@ class GraphVisualisation:
             for tx in self.transaction_lists[layer]:
                 if tx.tag:
                     if layer < self.backward_layers:
-                        self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(self.input_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.backward_root_value*100, 2)) + '''%)</td></tr></table>>''')
+                        self.dot.node(tx.txid, color='red', style='filled, bold', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(self.input_addresses[tx.txid]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.backward_root_value*100, 2)) + '''%)</td></tr></table>>''')
                     else:
-                        self.dot.node(tx.txid, style='filled', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(tx.input_addresses[0]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
+                        self.dot.node(tx.txid, color='red', style='filled, bold', fillcolor='orange', label='''<<table border="0"><tr><td border="0" href="https://www.walletexplorer.com/txid/''' + tx.txid + '''" target="_blank">''' + tx.txid[:8] + '''...</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + tx.tag + '''</td></tr><tr><td border="0" href="''' + str(tx.input_addresses[0]) + '''">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
 
     def set_removed(self):
         """
@@ -171,7 +172,7 @@ class GraphVisualisation:
         for layer in range(0, self.depth):
             for tx in self.transaction_lists[layer]:
                 if tx.is_manually_deleted:  # If the user decided not to keep that transaction
-                    self.dot.node(tx.txid, color='gray', style='filled', fillcolor='gray51')
+                    self.dot.node(tx.txid, color='gray88', style='filled, bold', fillcolor='gray51')
 
     def set_low_rto(self):
         """
@@ -181,7 +182,7 @@ class GraphVisualisation:
         """
         nodes_to_highlight = list(self.txid_set - self.prev_txid_set)
         for txid in nodes_to_highlight:
-            self.dot.node(txid, color='blue', style='filled', fillcolor='azure3')
+            self.dot.node(txid, color='blue', style='filled, bold', fillcolor='azure3')
 
     def set_unspent_tx(self):
         """
@@ -190,7 +191,7 @@ class GraphVisualisation:
         for layer in range(self.backward_layers, self.depth):
             for tx in self.transaction_lists[layer]:
                 if "unspent_tx" in tx.txid:
-                    self.dot.node(tx.txid, color='red', shape='ellipse', style='filled', fillcolor='gray51',
+                    self.dot.node(tx.txid, color='gray88', shape='ellipse', style='filled', fillcolor='gray51',
                                   label='''<<table border="0"><tr><td border="0">Unspent Tx.</td></tr><tr><td border="0">''' + str(tx.amount) + ''' BTC</td></tr><tr><td border="0">''' + str(np.round(tx.rto, 4)) + ''' RTO (''' + str(np.round(tx.rto/self.forward_root_value*100, 2)) + '''%)</td></tr></table>>''')
 
     def make_legend(self):
@@ -199,10 +200,11 @@ class GraphVisualisation:
             c.node("pruned_tx", label="", penwidth='0')
             c.node("pruned_tx_end", label="", penwidth='0')
             c.edge("pruned_tx", "pruned_tx_end", label="Pruned Tx", style='dashed, bold', color="azure3")
-            c.node("low_rto", label="Low RTO", color='blue', style='filled', fillcolor='azure3')
-            c.node("tagged_tx", label="Tagged TX", color='orange', style='filled', fillcolor='orange')
-            c.node("removed_tx", label="Removed Transactions", color='gray', style='filled', fillcolor='gray51')
-            c.node("reported_add", label="Reported Address", color='red', style='bold')
+            c.node("low_rto", label="Low RTO", color='blue', style='filled, bold', fillcolor='azure3')
+            c.node("tagged_tx", label="Tagged TX", color='red', style='filled, bold', fillcolor='orange')
+            c.node("removed_tx", label="Removed Transactions", color='gray88', style='filled, bold', fillcolor='gray51')
+            c.node("unspent_tx", color='gray88', shape='ellipse', style='filled, bold', fillcolor='gray51',
+                   label="Unspent Transaction")
 
     def get_all_txids(self, start_index=0, stop_index=None):
         """
