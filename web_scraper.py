@@ -36,12 +36,14 @@ class Scraper:
         if 'bitcoinabuse' in credentials:
             self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
 
-            self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
-            self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-            self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
-            self.ba_wait = False
-            self.ba_time = 0
-
+            if os.path.exists(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/'):
+                self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
+                self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+                self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
+                self.ba_wait = False
+                self.ba_time = 0
+            else:
+                self.BA_predict = None
             self.ba_on = True
         else:
             self.ba_on = False
@@ -157,13 +159,14 @@ class Scraper:
                     if content['count'] > 0:
                         abuse_type_dict = {f'{key}': 0 for key in self.bitcoinabuse_ids.values()}
 
-                        for i in range(len(content['recent']) - 1, -1, -1):
-                            # If it's a genuine report:
-                            if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
-                                # Count abuse types
-                                abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
-                            else:  # We remove fake reports
-                                content['recent'].pop(i)
+                        if self.BA_predict is not None:
+                            for i in range(len(content['recent']) - 1, -1, -1):
+                                # If it's a genuine report:
+                                if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
+                                    # Count abuse types
+                                    abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
+                                else:  # We remove fake reports
+                                    content['recent'].pop(i)
                         if display:
                             print(f"Address ({address[:10]}...)reported {content['count']} time(s) in the past: "
                                   f"(Last time reported: {content['last_seen']})")
