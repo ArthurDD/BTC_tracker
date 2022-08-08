@@ -58,8 +58,9 @@ To do so, you can simply copy/paste the following one and replace the **_##_** b
 
 How To Use
 ----------
+<ins>IMPORTANT:</ins> In order to generate graphs, the app requires GraphViz to be installed on your computer (https://www.graphviz.org/download/)
 
-Run the start.sh script:
+Once this is installed, you just have to run the ```start.sh``` script:
 ```console
 source start.sh
 ```
