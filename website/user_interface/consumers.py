@@ -168,7 +168,9 @@ class UserInterfaceConsumer(WebsocketConsumer):
         # receives a message whose message_type == svg_file
 
         tree = GraphVisualisation(self.chain_parser.transaction_lists, backward_layers=self.chain_parser.nb_layers,
-                                  forward_layers=self.chain_parser.forward_nb_layers)
+                                  forward_layers=self.chain_parser.forward_nb_layers,
+                                  backward_root_value=self.chain_parser.root_value,
+                                  forward_root_value=self.chain_parser.forward_root_value)
         file_name = tree.build_tree()
 
         html_graph = render_to_string('user_interface/tree.html', {'file_name': file_name})
