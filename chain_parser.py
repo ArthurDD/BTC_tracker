@@ -1198,7 +1198,7 @@ class ChainParser:
         if len(selected_outputs) != len(tx_content['out']):
             self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][tx_index].is_pruned = True
 
-        self.set_rto(selected_outputs, observed_rto, forward=True, print_ret=True)  # We set the RTO to all the selected transactions
+        self.set_rto(selected_outputs, observed_rto, forward=True)  # We set the RTO to all the selected transactions
         # and remove low ones
         return selected_outputs
 
