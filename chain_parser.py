@@ -168,6 +168,7 @@ class ChainParser:
                                                                     cache_control=True,
                                                                     expire_after=timedelta(days=self.cache_expire),
                                                                     )
+                        pause_required = False
                     else:  # Otherwise, if it did go through, it means we can go to the next request
                         req_counter += 1
                         if req_counter == len(url_list):  # End condition
