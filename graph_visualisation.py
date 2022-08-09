@@ -11,7 +11,8 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class GraphVisualisation:
-    def __init__(self, transaction_lists=None, display=False, until=None, backward_layers=0, forward_layers=0):
+    def __init__(self, transaction_lists=None, display=False, until=None, backward_layers=0, forward_layers=0,
+                 backward_root_value=0, forward_root_value=0):
         self.transaction_lists = transaction_lists
 
         self.backward_layers = backward_layers
@@ -30,9 +31,9 @@ class GraphVisualisation:
         self.display = display  # Indicates whether we want to open the graph at the end of the build.
 
         if backward_layers > 0:
-            self.backward_root_value = sum([tx.amount for tx in self.transaction_lists[0]])
+            self.backward_root_value = backward_root_value
         if forward_layers > 0:
-            self.forward_root_value = sum([tx.amount for tx in self.transaction_lists[self.backward_layers]])
+            self.forward_root_value = forward_root_value
 
         self.pastel_colours = generate_pastel_colours()
 

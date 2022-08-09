@@ -624,7 +624,8 @@ class ChainParser:
             until = self.layer_counter + self.forward_layer_counter - 1
         tree = GraphVisualisation(self.transaction_lists, until=until,
                                   display=(self.send_fct is None), forward_layers=self.forward_nb_layers,
-                                  backward_layers=self.nb_layers)
+                                  backward_layers=self.nb_layers,
+                                  backward_root_value=self.root_value, forward_root_value=self.forward_root_value)
         file_name = tree.build_tree()
 
         print(f"File_name is: {file_name}")
@@ -1197,7 +1198,7 @@ class ChainParser:
         if len(selected_outputs) != len(tx_content['out']):
             self.transaction_lists[self.nb_layers + self.forward_layer_counter - 1][tx_index].is_pruned = True
 
-        self.set_rto(selected_outputs, observed_rto, forward=True)  # We set the RTO to all the selected transactions
+        self.set_rto(selected_outputs, observed_rto, forward=True, print_ret=True)  # We set the RTO to all the selected transactions
         # and remove low ones
         return selected_outputs
 
