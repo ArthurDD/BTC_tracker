@@ -1080,7 +1080,11 @@ class ChainParser:
 
                         else:
                             self.added_before.append(add['next_tx'])
-                            prev_txid_list = [elt[0] for elt in self.transaction_lists[tx_layer][i].prev_txid]
+                            if self.transaction_lists[tx_layer][i].prev_txid:
+                                prev_txid_list = [elt[0] for elt in self.transaction_lists[tx_layer][i].prev_txid]
+                            else:
+                                print(f"prev_txid looks like {self.transaction_lists[tx_layer][i].prev_txid}")
+                                prev_txid_list = []
                             if txid not in prev_txid_list:
                                 # If the txid is already in the list, it means that we ended up on a loop
                                 self.transaction_lists[tx_layer][i].amount += add['amount']
