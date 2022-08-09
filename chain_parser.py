@@ -95,7 +95,7 @@ class ChainParser:
             self.send_fct(message=message, message_type='progress_bar_start')
 
         cached_urls = []
-        all_cached_urls = self.session.cache.urls
+        all_cached_urls = list(self.session.cache.urls)
         for i in range(len(url_list) - 1, -1, -1):
             url = url_list[i]
             if url in all_cached_urls:
