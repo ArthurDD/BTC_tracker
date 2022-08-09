@@ -113,9 +113,10 @@ class ChainParser:
             if cached_urls:
                 with ThreadPoolExecutor(max_workers=40) as executor:
                     # Makes requests if they are already cached (bc we don't have any rate limit)
-                    executor.map(fn, cached_urls)
-                    # for result in executor.map(fn, cached_urls):
-                    #     print(result)
+                    # executor.map(fn, cached_urls)
+                    for result in executor.map(fn, cached_urls):
+                        # print(result)
+                        pass
 
                     # Wait for the futures to be finished
 
@@ -978,10 +979,14 @@ class ChainParser:
         """
         Helper function of find_transactions.
         """
-        for layer in range(self.nb_layers):
+        for layer in range(len(self.transaction_lists)):
             for tx in self.transaction_lists[layer]:
                 if tx.txid == txid:
-                    return layer, tx
+                    if layer >= self.nb_layers:
+                        layer_return = f"f-{layer - self.nb_layers}"
+                    else:
+                        layer_return = f"b-{layer}"
+                    return layer_return, tx
         return None, None
 
     def check_duplicates(self):
@@ -1068,7 +1073,6 @@ class ChainParser:
 
                         tx_layer, i = find_transaction(self.transaction_lists, add["next_tx"],
                                                        start_index=self.nb_layers)
-                        tx_layer += self.nb_layers
                         t_tx.append(time.time() - t_0_tx)
                         if i == -1:  # Means we have not added that txid to the next layer yet
                             self.transaction_lists[self.nb_layers + self.forward_layer_counter].append(
@@ -1084,7 +1088,6 @@ class ChainParser:
                             if self.transaction_lists[tx_layer][i].prev_txid:
                                 prev_txid_list = [elt[0] for elt in self.transaction_lists[tx_layer][i].prev_txid]
                             else:
-                                print(f"prev_txid looks like {self.transaction_lists[tx_layer][i].prev_txid}")
                                 prev_txid_list = []
                             if txid not in prev_txid_list:
                                 # If the txid is already in the list, it means that we ended up on a loop
