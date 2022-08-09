@@ -240,6 +240,7 @@ class ChainParser:
                 # Need to remove the tx from layer 0 whose RTO is too low
                 for i, tx in reversed(list(enumerate(self.transaction_lists[self.nb_layers]))):
                     if tx.rto < self.forward_rto_threshold:
+                        # print(f"Removing: {tx.__dict__}")
                         self.transaction_lists[self.nb_layers].pop(i)
 
                 # print(f"Length of layer 0: {len(self.transaction_lists[self.nb_layers])}")
