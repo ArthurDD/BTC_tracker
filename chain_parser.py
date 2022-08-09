@@ -29,7 +29,10 @@ class ChainParser:
         self.cache_expire = cache_expire
 
         self.address = address
+
         self.root_value = 0
+        self.forward_root_value = 0
+
         self.nb_layers = backward_layers
         self.forward_nb_layers = forward_layers
 
@@ -41,8 +44,7 @@ class ChainParser:
             # self.forward_transaction_lists = {i: [] for i in range(forward_nb_layers)}
             for i in range(forward_layers):
                 self.transaction_lists[backward_layers + i] = []
-            self.forward_root_value = 0
-            self.forward_rto_threshold = rto_threshold
+
             self.unspent_tx_counter = 1
 
         self.tot_nb_layers = self.nb_layers + self.forward_nb_layers
@@ -62,6 +64,8 @@ class ChainParser:
         self.layer_counter = 0
         self.added_before = []
         self.rto_threshold = rto_threshold  # here, rto_threshold is in percentage of the total address received amount
+        self.forward_rto_threshold = rto_threshold
+
         self.input_addresses = dict()
         self.transaction_tags = {'backward': dict(), 'forward': dict()}  # Dict where keys are tags and values are RTO
 
