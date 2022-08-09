@@ -26,6 +26,8 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 class ChainParser:
     def __init__(self, address, backward_layers=0, rto_threshold=0.1, cache_expire=14,
                  forward_layers=0, send_fct=None):
+        self.cache_expire = cache_expire
+
         self.address = address
         self.root_value = 0
         self.nb_layers = backward_layers
@@ -80,7 +82,7 @@ class ChainParser:
         :param url_list: List of URLs to parse
         :return: None
         """
-        sec_to_wait = 25
+        sec_to_wait = 30
         print("Starting threads...")
         counter = 0
         if self.send_fct is not None:
@@ -136,6 +138,7 @@ class ChainParser:
                         else:
                             nb_tries -= 1
                             reason = "Request Limit reached"
+                            p_bar.write(f"Reason is: {reason} (in else statement, nb_tries={nb_tries})")
                             pause_required = True
                         pass
                     except Exception as err:
@@ -151,6 +154,7 @@ class ChainParser:
                             pause_required = True
 
                     if pause_required:  # If the request did not go through, we pause
+                        p_bar.write("PAAAAAUSE")
                         p_bar.write(f"Error while making requests ({reason}). Retrying in {sec_to_wait}sec... "
                                     f"({nb_tries} attempts left)")
                         if self.send_fct is not None:
@@ -160,13 +164,16 @@ class ChainParser:
 
                         self.session.close()
                         waiting_bar(sec_to_wait)  # Waiting for the limit to fade
-                        self.session = requests_cache.CachedSession('parser_cache')
+                        self.session = requests_cache.CachedSession('parser_cache',
+                                                                    cache_control=True,
+                                                                    expire_after=timedelta(days=self.cache_expire),
+                                                                    )
                     else:  # Otherwise, if it did go through, it means we can go to the next request
                         req_counter += 1
                         if req_counter == len(url_list):  # End condition
                             finished = True
                         else:
-                            time.sleep(0.6)  # Limited by the API to 2 req/sec
+                            time.sleep(0.7)  # Limited by the API to 2 req/sec
 
     def get_wallet_transactions(self):
         """
