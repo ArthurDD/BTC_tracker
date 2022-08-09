@@ -1130,7 +1130,8 @@ class ChainParser:
             # Remove "out" transactions that go to a change address
             for i in range(len(tx_content['out']) - 1, -1, -1):
                 if tx_content['out'][i]['address'] in observed_addresses \
-                        or tx_content['out'][i]['is_standard'] is False:
+                        or tx_content['out'][i]['is_standard'] is False:  # or \
+                    # tx_content['wallet_id'] == tx_content['out'][i]['wallet_id']:
                     tx_content['out'].pop(i)
 
         input_values = [add['amount'] for add in tx_content['in']]
