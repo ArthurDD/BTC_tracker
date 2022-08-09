@@ -1080,8 +1080,9 @@ class ChainParser:
 
                         else:
                             self.added_before.append(add['next_tx'])
-                            if add['address'] not in self.transaction_lists[tx_layer][i].input_addresses:
-                                # If the address is already in the list, it means that we ended up on a loop
+                            prev_txid_list = [elt[0] for elt in self.transaction_lists[tx_layer][i].prev_txid]
+                            if txid not in prev_txid_list:
+                                # If the txid is already in the list, it means that we ended up on a loop
                                 self.transaction_lists[tx_layer][i].amount += add['amount']
                                 self.transaction_lists[tx_layer][i] \
                                     .prev_txid.append((txid, self.nb_layers + self.forward_layer_counter - 1))
@@ -1118,7 +1119,7 @@ class ChainParser:
         tx_index = find_transaction(self.transaction_lists, txid, layer=self.nb_layers + self.forward_layer_counter - 1)
         if tx_index == -1:  # This case should never happen in theory
             print(f"Error, something went wrong. Selecting all inputs by default.")
-            self.set_rto(tx_content['out'], -1)
+            self.set_rto(tx_content['out'], -1, forward=True)
             return tx_content['out']
         else:
             observed_addresses = self.transaction_lists[
@@ -1175,7 +1176,7 @@ class ChainParser:
                 if sum(output_values[-1 - nb_tx:]) / sum(output_values) > 0.80:
                     selected_outputs = tx_content['out'][-1 - nb_tx:]
 
-                elif len(input_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
+                elif len(output_values) > 50:  # If too many transactions, we prune them and only take the 10 biggest
                     selected_outputs = tx_content['out'][-1 - 10:]
                 else:  # If none of the above conditions hold, we take all the outputs
                     selected_outputs = tx_content['out']
