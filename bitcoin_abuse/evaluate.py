@@ -18,6 +18,7 @@ def predict_BA(tokenizer, model, input):
     preds = torch.max(output, 1)
 
     return {'prediction': preds[1], 'confidence': preds[0]}
+    # return {'prediction': 1, 'confidence': preds[0]}
 
 
 def evaluate(model, tokenizer, data_loader):
