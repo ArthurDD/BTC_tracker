@@ -95,11 +95,11 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.stdout = Logger()
-    sys.stderr = ErrorLogger(sys.stdout)
+    # sys.stdout = Logger()
+    # sys.stderr = ErrorLogger(sys.stdout)
     try:
         main()
     except:
         traceback.print_exc(file=sys.stderr)
-    sys.stdout.terminate()
+    # sys.stdout.terminate()
 
