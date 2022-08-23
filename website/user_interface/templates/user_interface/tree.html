@@ -2,7 +2,18 @@
 {% include file_name %}
 
 <div id="graph_legend">
-  <img src="{% static 'plots/graph_legend.png' %}" style="width: 90%; height:auto">
+    <img src="{% static 'plots/graph_legend.png' %}" style="width: 90%; height:auto">
+    <button class="btn btn_submit mt-2 mb-2" id="download_svg" onclick="download_svg()">Download Transaction Graph</button>
+    <script>
+        function download_svg() {
+            let svg_content = $('#graph svg').prop("outerHTML");
+            let blob = new Blob([svg_content], {
+                type: "text/plain;charset=utf-8"
+            });
+
+            saveAs(blob, 'transaction_graph.svg');
+        }
+    </script>
 </div>
 
 <div id="reported_addresses">
