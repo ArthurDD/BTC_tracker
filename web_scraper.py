@@ -36,13 +36,7 @@ class Scraper:
         if 'bitcoinabuse' in credentials:
             self.bitcoinabuse_token: str = credentials['bitcoinabuse']['token']
 
-            if os.path.exists(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/'):
-                self.BA_model = BertBA.from_pretrained(f'{FILE_DIR}/bitcoin_abuse/models/ht_bert_finetuned_{0}/')
-                self.BA_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-                self.BA_predict = partial(predict_BA, self.BA_tokenizer, self.BA_model)
-
-            else:
-                self.BA_predict = None
+            self.BA_predict = partial(predict_BA)
             self.ba_on = True
             self.ba_wait = False
             self.ba_time = 0
@@ -163,7 +157,7 @@ class Scraper:
                         if self.BA_predict is not None:
                             for i in range(len(content['recent']) - 1, -1, -1):
                                 # If it's a genuine report:
-                                if self.BA_predict(content['recent'][i]['description'])['prediction'] == 1:
+                                if self.BA_predict(content['recent'][i]['description']) == 1:
                                     # Count abuse types
                                     abuse_type_dict[self.bitcoinabuse_ids[content['recent'][i]['abuse_type_id']]] += 1
                                 else:  # We remove fake reports
