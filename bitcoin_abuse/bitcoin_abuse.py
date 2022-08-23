@@ -69,13 +69,13 @@ def main():
 
     # Train the model:
     param_list = [{"id_param": 0, "epochs": 1, "batch_size": 32, "learning_rate": 0.0005},
-                  {"id_param": 1, "epochs": 1, "batch_size": 16, "learning_rate": 0.0005},
-                  {"id_param": 2, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005},
-                  {"id_param": 3, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005}]
+                  {"id_param": 1, "epochs": 1, "batch_size": 16, "learning_rate": 0.0005},]
+                  # {"id_param": 2, "epochs": 3, "batch_size": 32, "learning_rate": 0.00005},
+                  # {"id_param": 3, "epochs": 3, "batch_size": 16, "learning_rate": 0.00005}]
 
     train_dataset, dev_dataset, test_dataset = build_sets(tokenizer)
 
-    param_list = {}
+    # param_list = {}
     for params in param_list:
         print(f"Params used: {params}")
         train_model(train_dataset, dev_dataset, params)
@@ -90,16 +90,16 @@ def main():
         print(f"\n\n--------- EVALUATION ON THE DEV DATASET ---------")
         report = evaluate(model, tokenizer, test_loader)
         print(f"Accurary: {report['accuracy']}")
-        print(f"non-PCL f1-score: {report['Fake_Reports']['f1-score']}")
-        print(f"PCL f1-score: {report['Genuine_Reports']['f1-score']}")
+        print(f"Fake_reports f1-score: {report['Fake_Reports']['f1-score']}")
+        print(f"Genuine_reports f1-score: {report['Genuine_Reports']['f1-score']}")
 
 
 if __name__ == "__main__":
-    sys.stdout = Logger()
-    sys.stderr = ErrorLogger(sys.stdout)
+    # sys.stdout = Logger()
+    # sys.stderr = ErrorLogger(sys.stdout)
     try:
         main()
     except:
         traceback.print_exc(file=sys.stderr)
-    sys.stdout.terminate()
+    # sys.stdout.terminate()
 

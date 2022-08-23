@@ -45,7 +45,7 @@ def build_sets(tokenizer):
     :return: train_dataset, dev_dataset, test_dataset, experiments
     """
     # {'texts': texts, 'labels': labels}
-    dataset = pd.read_csv('./bitcoin_abuse/dataset.csv')
+    dataset = pd.read_csv('dataset.csv')
 
     # Split train dataset in train and test dataset:
     train_set, dev_set, test_set = split_sets(dataset, 0.8)
