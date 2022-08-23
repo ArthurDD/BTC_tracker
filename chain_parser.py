@@ -950,6 +950,7 @@ class ChainParser:
         plt.yticks(fontsize=16)
 
         # print(f"sum_rto_by_layer: {sum_rto_by_layer}")
+        plt.grid(color=axis_colour)
         ax_twin = plt.twinx()
         ax_twin.plot(layers, backward_sum_rto_by_layer)
         ax_twin.plot(layers, forward_sum_rto_by_layer)
