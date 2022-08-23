@@ -3,22 +3,21 @@ from sklearn.metrics import classification_report
 from tqdm import tqdm
 
 
-def predict_BA(tokenizer, model, input):
+def predict_BA(report_input):
     """
     Predicts the label of the input according to the model.
-    :param input: texts to predict label of.
+    :param report_input: texts to predict label of.
     :param tokenizer: tokenizer used
     :param model: trained model
     :return: {'prediction': _, 'confidence': _}
     """
-    model.eval()
-    encodings = tokenizer(input, return_tensors='pt', padding=True, truncation=True, max_length=128)
-
-    output = model(**encodings)
-    preds = torch.max(output, 1)
-
-    return {'prediction': preds[1], 'confidence': preds[0]}
-    # return {'prediction': 1, 'confidence': preds[0]}
+    keywords = ['recover', 'good work', 'call', '+1 (']  # www, 'http'
+    for keyword in keywords:
+        if keyword in report_input:
+            # print(f"False report\n")
+            return 0
+    # print("Real report\n")
+    return 1
 
 
 def evaluate(model, tokenizer, data_loader):
