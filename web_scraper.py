@@ -1,33 +1,21 @@
 import os
 import time
-from datetime import timedelta
 
 import requests
-import requests_cache
 from requests.exceptions import HTTPError
 import json
 from functools import partial
 
-from transformers import BertTokenizer
-
-from bitcoin_abuse.bert_model import BertBA
+# from transformers import BertTokenizer
+#
+# from bitcoin_abuse.bert_model import BertBA
 from bitcoin_abuse.evaluate import predict_BA
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Scraper:
-    def __init__(self, address="", session=None, send_fct=None):
-        if session is None:
-            self.session = requests_cache.CachedSession('parser_cache',
-                                                        cache_control=True,
-                                                        # Use Cache-Control headers for expiration, if available
-                                                        expire_after=timedelta(days=14),
-                                                        # Otherwise expire responses after 14 days)
-                                                        )
-        else:
-            self.session = session
-
+    def __init__(self, address="", send_fct=None):
         self.address = address
         self.bitcoinabuse_ids: dict = {}  # {'abuse_id': 'abuse_type, ...}
         self.send_fct = send_fct
@@ -79,7 +67,7 @@ class Scraper:
         if self.send_fct is not None:
             self.send_fct(message="Setting up the web scraper...")
         try:
-            req = self.session.get(f"https://www.bitcoinabuse.com/api/abuse-types")
+            req = requests.get(f"https://www.bitcoinabuse.com/api/abuse-types")
 
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
@@ -133,7 +121,7 @@ class Scraper:
                     link = f"https://www.bitcoinabuse.com/api/reports/check?address={address}" \
                            f"&api_token={self.bitcoinabuse_token}"
                     # print(f"Link is: {link}")
-                    req = self.session.get(link)
+                    req = requests.get(link)
 
                     # If the response was successful, no Exception will be raised
                     req.raise_for_status()
@@ -211,7 +199,7 @@ class Scraper:
             address = self.address
         try:
             params = {'cx': self.google_custom_engine_id, 'q': address, 'key': self.google_custom_search_api_key}
-            req = self.session.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
+            req = requests.get("https://customsearch.googleapis.com/customsearch/v1", params=params)
             # If the response was successful, no Exception will be raised
             req.raise_for_status()
         except HTTPError as http_err:
@@ -256,8 +244,8 @@ class Scraper:
             headers = {"Authorization": f"Bearer {self.twitter_bearer_token}"}
             params = {'query': query, 'tweet.fields': {tweet_fields}, 'max_results': 10}
 
-            response = self.session.get("https://api.twitter.com/2/tweets/search/recent",
-                                        headers=headers, params=params)
+            response = requests.get("https://api.twitter.com/2/tweets/search/recent",
+                                    headers=headers, params=params)
 
             # To get user's username from its ID
             # response2 = self.session.get("https://api.twitter.com/2/users/1451510344329965570", headers=headers)
@@ -331,11 +319,11 @@ class Scraper:
 
         # add authorization to our headers dictionary
         headers = {'User-Agent': 'BTC_Tracker/0.0.1', 'Authorization': f"bearer {self.reddit_access_token}"}
-        self.session.get('https://oauth.reddit.com/api/v1/me', headers=headers)
+        requests.get('https://oauth.reddit.com/api/v1/me', headers=headers)
 
         try:
-            req = self.session.get(f"https://oauth.reddit.com/search?q={address}",
-                                   headers=headers)
+            req = requests.get(f"https://oauth.reddit.com/search?q={address}",
+                               headers=headers)
             req.raise_for_status()
         except HTTPError as http_err:
             if req.status_code == 401:  # If the token is not valid anymore, we request a new one
@@ -363,5 +351,3 @@ class Scraper:
             if display:
                 print(response_dict)
             return response_dict
-
-

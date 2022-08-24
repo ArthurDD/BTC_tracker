@@ -2,7 +2,6 @@ class Transaction:
     def __init__(self, txid, prev_txid=None, output_addresses=None, input_addresses=None,
                  amount=0, rto=0, is_pruned=None, tag=None):
         """
-
         :param txid: Transaction ID of that transaction
         :param prev_txid: List of tuples of the transaction ID to which that tx is linked with the previous layer and
         the layer of the previous transaction. [(prev_txid1, layer1), (prev_txid2, layer2),...]

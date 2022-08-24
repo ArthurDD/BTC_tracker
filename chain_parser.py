@@ -71,7 +71,7 @@ class ChainParser:
 
         self.send_fct = send_fct  # Takes 2 arg = message to send to the socket and message_type (optional)
 
-        self.web_scraper = Scraper(self.address, self.session, self.send_fct)
+        self.web_scraper = Scraper(self.address, self.send_fct)
 
         self.time_stat_dict = {key: {j: [] for j in range(self.tot_nb_layers)} for key in
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
