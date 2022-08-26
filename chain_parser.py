@@ -49,7 +49,7 @@ class ChainParser:
 
         self.tot_nb_layers = self.nb_layers + self.forward_nb_layers
 
-        self.wallet_url = f"http://www.walletexplorer.com/api/1/address?address={address}" \
+        self.wallet_url = f"https://www.walletexplorer.com/api/1/address?address={address}" \
                           f"&from=0&count=100&caller=3"
 
         self.session = requests_cache.CachedSession('parser_cache',
@@ -57,7 +57,7 @@ class ChainParser:
                                                     cache_control=True,
                                                     # Use Cache-Control headers for expiration, if available
                                                     expire_after=timedelta(days=cache_expire),
-                                                    # Otherwise expire responses after 14 days)
+                                                    # Otherwise expire responses after 14 days
                                                     )
 
         print("PAAAAAAATTTTHHHHH: ", self.session.cache.db_path)
@@ -77,6 +77,9 @@ class ChainParser:
                                ['request', 'find_tx', 'select_input', 'adding_addresses', 'overall']}
 
         self.analysis_time = 0
+        self.nb_tx_removed = {i: 0 for i in range(backward_layers)}
+        self.nb_tx_low_RTO = {i: 0 for i in range(self.nb_layers)}
+        self.tot_nb_tx = {i: 0 for i in range(self.nb_layers)}
 
         print(self.wallet_url)
 
@@ -118,10 +121,10 @@ class ChainParser:
             if cached_urls:
                 with ThreadPoolExecutor(max_workers=40) as executor:
                     # Makes requests if they are already cached (bc we don't have any rate limit)
-                    # executor.map(fn, cached_urls)
-                    for result in executor.map(fn, cached_urls):
-                        # print(result)
-                        pass
+                    executor.map(fn, cached_urls)
+                    # for result in executor.map(fn, cached_urls):
+                    #     # print(result)
+                    #     pass
 
                     # Wait for the futures to be finished
 
@@ -229,9 +232,11 @@ class ChainParser:
                 # Need to remove the tx from layer 0 whose RTO is too low
                 for i, tx in reversed(list(enumerate(self.transaction_lists[0]))):
                     if tx.rto < self.rto_threshold:
+                        self.nb_tx_low_RTO[0] += 1
                         # print(f"Tx {tx.txid}'s RTO is too low! ({tx.rto} RTO)")
                         self.transaction_lists[0].pop(i)
                 print(f"Root value: {self.root_value}")
+                print(f"RTO VALUE LAYER 0: {sum([tx.rto for tx in self.transaction_lists[0]])}")
 
             # We do the same thing for the forward layers if there are any
             if self.forward_parsing:
@@ -309,7 +314,7 @@ class ChainParser:
 
         self.thread_pool(self._get_input_addresses, tot_url_list)
 
-        print(f"\n\nTransactions added before: {self.added_before}\n\n")
+        # print(f"\n\nTransactions added before: {self.added_before}\n\n")
         # print(f"Tx of layer {self.layer_counter}:")
         # for tx in self.transaction_lists[self.layer_counter][:15]:
         #     print(tx)
@@ -409,6 +414,7 @@ class ChainParser:
         input_values = [add['amount'] for add in tx_content['in']]
         output_values = [add['amount'] for add in tx_content['out']]
 
+        self.tot_nb_tx[self.layer_counter] += len(tx_content['in'])
         # We get the previous transaction, from which tx_content comes from. (So, from the previous layer)
         # This transaction is unique.
         try:
@@ -433,7 +439,7 @@ class ChainParser:
             # Then, 1st check: input_values match with output_values AND that we have the same number of input/outputs
             for i in range(len(output_values)):
                 output_values[i] += tx_fee
-                output_values.sort()  # Need to sort output values or we may change the order by adding the tx_fee
+                output_values.sort()  # Need to sort output values, or we may change the order by adding the tx_fee
                 if input_values == output_values:
                     # Only ONE input value matches our output value(s) (two by two)
                     # - there can be multiple output addresses to look at
@@ -443,18 +449,18 @@ class ChainParser:
                             used_indexes.add(input_values.index(add['amount']))
                     if len(used_indexes) == len(observed_addresses):  # If it's the case:
                         selected_inputs = [tx_content['in'][i] for i in used_indexes]
-                        print(f"FINALLY")
+                        # print(f"FINALLY")
                         # self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
                     else:
                         selected_inputs = tx_content['in']
 
-                    print(f"Select inputs: {selected_inputs}")
+                    self.nb_tx_removed[self.layer_counter] += len(tx_content['in']) - len(selected_inputs)
                     self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
                     return selected_inputs
 
             # Second check: there is a sublist of input values whose sum equals our output values (two by two)
             # - Again, there can be multiple output values to look at
-            # TODO: Implement that part, complexity of n! so we need to find another way.
+            # Complexity of n*2^n, so we decided not to implement it
 
             if input_values[-1] / sum(input_values) > 0.95:  # If one input value represents more than 95% of the tot.
                 selected_inputs = [tx_content['in'][-1]]
@@ -477,6 +483,7 @@ class ChainParser:
         if len(selected_inputs) != len(tx_content['in']):
             self.transaction_lists[self.layer_counter - 1][tx_index].is_pruned = True
 
+        self.nb_tx_removed[self.layer_counter] += len(tx_content['in']) - len(selected_inputs)
         self.set_rto(selected_inputs, observed_rto)  # We set the RTO to all the selected transactions
         # and remove low ones
 
@@ -490,6 +497,7 @@ class ChainParser:
         :param rto: rto of the current transaction to share between the next transactions
         :return: None
         """
+
         sum_value = sum([float(tx['amount']) for tx in input_list])
 
         for i in range(len(input_list) - 1, -1, -1):
@@ -499,6 +507,7 @@ class ChainParser:
             if forward and input_list[i]['rto'] < self.forward_rto_threshold:
                 input_list.pop(i)
             elif not forward and input_list[i]['rto'] < self.rto_threshold:
+                self.nb_tx_low_RTO[self.layer_counter] += 1
                 input_list.pop(i)
 
     def terminal_manual_analysis(self, display_partial_graph=False):
@@ -535,7 +544,8 @@ class ChainParser:
 
         if result:  # If it's not layer 0, and we are in manual mode
             print(f"Layer_counter <= np_layers: {self.layer_counter} <= {self.nb_layers}\n"
-                  f"forward_layer_counter <= forward_nb_layers: {self.forward_layer_counter} <= {self.forward_nb_layers}")
+                  f"forward_layer_counter <= forward_nb_layers: {self.forward_layer_counter} <= "
+                  f"{self.forward_nb_layers}")
             if self.layer_counter <= self.nb_layers != 0:  # If there is still a backward layer to parse
                 self.get_input_addresses_from_txid()  # counter gets increased in that method
 
@@ -754,6 +764,8 @@ class ChainParser:
         # print(f"tagged_tx_lists: {tagged_tx_lists}")
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
+        # self.display_backward_stats_report()
+
     def _helper_get_statistics(self, pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, root_value, direction):
         pruned_tx_lists[direction][layer] = []
         tagged_tx_lists[direction][layer] = []
@@ -811,12 +823,12 @@ class ChainParser:
         request_avg_time = [np.mean(time_l) for time_l in self.time_stat_dict['request'].values()]
         select_input_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
                                  self.time_stat_dict['select_input'].values()]
-        find_tx_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
-                            self.time_stat_dict['find_tx'].values()]
-        adding_addresses_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
-                                     self.time_stat_dict['adding_addresses'].values()]
-        overall_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
-                            self.time_stat_dict['overall'].values()]
+        # find_tx_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+        #                     self.time_stat_dict['find_tx'].values()]
+        # adding_addresses_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+        #                              self.time_stat_dict['adding_addresses'].values()]
+        # overall_avg_time = [np.mean(time_input) if time_input != [] else 0 for time_input in
+        #                     self.time_stat_dict['overall'].values()]
 
         # print(f"Request_avg_time: {request_avg_time}")
         # print(f"select_input_avg_time: {select_input_avg_time}")
@@ -941,7 +953,7 @@ class ChainParser:
                                      for i in range(len(tagged_tx_rto['backward']))]
         backward_sum_rto_by_layer.reverse()
         backward_sum_rto_by_layer.extend([None for _ in range(self.forward_nb_layers)])
-        # print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}")
+        print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}\nLayers: {layers}")
 
         forward_sum_rto_by_layer = [None for _ in range(self.nb_layers)] + \
                                    [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
@@ -970,6 +982,33 @@ class ChainParser:
         self.display_time_stats()
 
         # plt.show()
+
+    def display_backward_stats_report(self):
+        nb_tx_layer = {i: 0 for i in range(self.nb_layers)}
+        tot_rto_layer = {i: sum([tx.rto for tx in self.transaction_lists[i]]) for i in range(self.nb_layers)}
+        tagged_rto_layer = {i: 0 for i in range(self.nb_layers)}
+        for layer in range(len(self.transaction_lists)):
+            nb_tx_layer[layer] += len(self.transaction_lists[layer])
+            for tx in self.transaction_lists[layer]:
+
+                if tx.tag:
+                    tagged_rto_layer[layer] += tx.rto
+            if layer != 0:
+                tagged_rto_layer[layer] += tagged_rto_layer[layer - 1]
+        for layer in range(self.nb_layers):
+            print(f"LAYER {layer}: ")
+            print(f"\t - Nb of tx tot: {self.tot_nb_tx[layer]}")
+            print(f"\t - Nb of tx kept: {nb_tx_layer[layer]}")
+            print(f"\t - Nb of tx removed: {self.nb_tx_removed[layer]}")
+            print(f"\t - Nb of tx removed bc of low RTO: {self.nb_tx_low_RTO[layer]}")
+            print(f"\t - Total RTO of that layer: {(tot_rto_layer[layer])}")
+            print("")
+
+        print(f"Root value: {self.root_value}")
+        # print(f"Total nb of transactions removed: {self.nb_tx_removed}")
+        # print(f"Total nb of transactions removed bc of low RTO: {nb_tx_low_RTO}")
+        #
+        # print(f"Total RTO in last layer: {tot_rto} ({tot_rto / self.root_value * 100})")
 
     def find_transactions(self):
         """
