@@ -75,7 +75,7 @@ class GraphVisualisation:
         # self.make_legend()
         self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
 
-        print(f"Tree done! ({self.name})")
+        print(f"Tree done! ({self.name})\n")
         return f"{self.name}.gv.svg"
 
     def build_backward_tree(self):

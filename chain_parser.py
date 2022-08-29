@@ -24,7 +24,7 @@ FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # PATH to BTC_tracker
 
 
 class ChainParser:
-    def __init__(self, address, backward_layers=0, rto_threshold=0.1, cache_expire=14,
+    def __init__(self, address, backward_layers=0, rto_threshold=0.1, cache_expire=-1,
                  forward_layers=0, send_fct=None):
         self.cache_expire = cache_expire
 
@@ -56,8 +56,8 @@ class ChainParser:
                                                     # use_cache_dir=True,  # Save files in the default user cache dir
                                                     cache_control=True,
                                                     # Use Cache-Control headers for expiration, if available
-                                                    expire_after=timedelta(days=cache_expire),
-                                                    # Otherwise expire responses after 14 days
+                                                    expire_after=cache_expire,
+                                                    # Otherwise never expire responses
                                                     )
 
         print("PAAAAAAATTTTHHHHH: ", self.session.cache.db_path)
@@ -80,6 +80,8 @@ class ChainParser:
         self.nb_tx_removed = {i: 0 for i in range(backward_layers)}
         self.nb_tx_low_RTO = {i: 0 for i in range(self.nb_layers)}
         self.tot_nb_tx = {i: 0 for i in range(self.nb_layers)}
+
+        self.cached_time = 0
 
         print(self.wallet_url)
 
@@ -119,15 +121,15 @@ class ChainParser:
             fn = partial(function, p_bar)
 
             if cached_urls:
-                with ThreadPoolExecutor(max_workers=40) as executor:
+                time_cache = time.time()
+                with ThreadPoolExecutor(max_workers=8) as executor:
                     # Makes requests if they are already cached (bc we don't have any rate limit)
                     executor.map(fn, cached_urls)
                     # for result in executor.map(fn, cached_urls):
                     #     # print(result)
                     #     pass
-
                     # Wait for the futures to be finished
-
+                self.cached_time += time.time() - time_cache
             # Requests that have not been cached
             finished = False
             nb_tries = 5
@@ -760,8 +762,7 @@ class ChainParser:
             self._helper_get_statistics(pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer,
                                         self.forward_root_value, direction="forward")
 
-        # print(f"tagged_tx_rto: {tagged_tx_rto}")
-        # print(f"tagged_tx_lists: {tagged_tx_lists}")
+        print(f"Time to make cached URLs: {self.cached_time} seconds")
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
         # self.display_backward_stats_report()
@@ -953,7 +954,6 @@ class ChainParser:
                                      for i in range(len(tagged_tx_rto['backward']))]
         backward_sum_rto_by_layer.reverse()
         backward_sum_rto_by_layer.extend([None for _ in range(self.forward_nb_layers)])
-        print(f"backward_sum_rto_by_layer: {backward_sum_rto_by_layer}\nLayers: {layers}")
 
         forward_sum_rto_by_layer = [None for _ in range(self.nb_layers)] + \
                                    [sum(list(tagged_tx_rto['forward'].values())[:i + 1])
