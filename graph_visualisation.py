@@ -8,6 +8,7 @@ from transaction import find_transaction
 from pastelor import generate_pastel_colours
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+GRAPH_DIR = f'{FILE_DIR}/doctest-output'
 
 
 class GraphVisualisation:
@@ -73,7 +74,7 @@ class GraphVisualisation:
         self.set_removed()
 
         # self.make_legend()
-        self.dot.render(directory=f'{FILE_DIR}/doctest-output', view=self.display)
+        self.dot.render(directory=GRAPH_DIR, view=self.display)
 
         print(f"Tree done! ({self.name})\n")
         return f"{self.name}.gv.svg"
@@ -222,15 +223,6 @@ class GraphVisualisation:
                 self.prev_txid_set.update([prev_txid[0] for prev_txid in tx.prev_txid])
                 if layer < depth_to_respect - 1 and tx.tag is None and "unspent_" not in tx.txid:
                     self.txid_set.add(tx.txid)
-
-    @staticmethod
-    def get_colours():
-        colours = []
-        with open(FILE_DIR + '/colours.txt', 'r') as f:
-            for line in f.readlines():
-                if line.strip():
-                    colours.append(line.strip())
-        return colours
 
     def get_input_addresses(self):
         depth = min(self.depth, self.backward_layers)
