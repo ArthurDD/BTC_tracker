@@ -1,0 +1,39 @@
+{% if report.found == False %}
+    <div id="ba_report_{{ report.address }}" class="report_div">
+        <div id="report_title" style="width: 100%; text-align: center; margin-bottom: 10px">
+            Reports for <span class="report_colour"> {{ report.address }}</span>
+        </div>
+        No report found.
+    </div>
+
+{% else %}
+
+    <div id="ba_report_{{ report.address }}" class="report_div">
+        <div id="report_title" style="width: 100%; text-align: center; margin-bottom: 10px">
+            Reports for <span class="report_colour">{{ report.address }}</span>
+        </div>
+        Total reports: <span class="report_colour"> {{ report.total_report_count }}</span><br>
+        Genuine recent reports: <span class="report_colour"> {{ report.genuine_recent_count }}</span><br>
+        Last reported: <span class="report_colour"> {{ report.last_reported }}</span><br>
+        {% if report.genuine_recent_count > 0 %}
+            <div>
+                Categories of genuine recent reports: <br>
+                <div style="padding-left: 30px">
+                    {% for rep_type, nb in report.report_types.items %}
+                        {% if nb > 0 %}
+                        <span class="report_colour">{{ rep_type }}: </span> <span style="color:indianred"> {{ nb }}</span> <br>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="genuine_recent_reports" style="width: 100%">
+                <i><u>Genuine recent reports:</u></i><br>
+                {% for rep in report.genuine_report %}
+                    {{ forloop.counter }} - <span class="report_span"> {{ rep.description }} </span><br>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+

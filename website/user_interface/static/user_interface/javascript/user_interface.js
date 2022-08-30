@@ -98,15 +98,13 @@ function connect() {
                 break;
 
             case "ba_report":   // Message received when user wanted to display a ba report for an address and we get the answer from the backend
-                let report = JSON.parse(data.message);
-                display_ba_report(report);
+                display_ba_report(data.message);
                 break;
 
             case "scraping_results":    // Receive a html file, so we just need to display it
                 display_scraping_results(data.message)
                 break;
             default:
-                // console.log("Message: ", data.message)
                 text_area_val = text_area.val();
                 text_area.val(text_area_val + data.message + "\n");
                 text_area.scrollTop(text_area[0].scrollHeight);
@@ -285,33 +283,9 @@ function resume_parsing(tx_to_remove) {
 }
 
 
-function display_ba_report(report) {    // Called
-    let new_report;
-    if (report['found'] === false) {
-         new_report = '<div class="report_div">' + '<div id="report_title" style="width: 100%; text-align: center; margin-bottom: 10px">Reports for <span class="report_colour">' + report["address"] + '</span></div>No report found.</div>'
-
-    } else {
-        new_report = "<div class=\"report_div\">" +
-            "            <div id=\"report_title\" style=\"width: 100%; text-align: center; margin-bottom: 10px\">Reports for <span class=\"report_colour\">" + report['address'] + "</span></div>" +
-            "            Total reports: <span class=\"report_colour\">" + report['total_report_count'] + "</span><br>" +
-            "            Genuine recent reports: <span class=\"report_colour\">" + report['genuine_recent_count'] + "</span><br>" +
-            "            Last reported: <span class=\"report_colour\">" + report['last_reported'] + "</span><br>"
-        if (report['genuine_recent_count'] > 0) {
-            new_report += "Categories of genuine recent reports: <span class=\"report_colour\">" + JSON.stringify(report['report_types']) + "</span> <br>" +
-                "            <div class=\"genuine_recent_reports\" style=\"width: 100%\">\n" +
-            "                <i><u>Genuine recent reports:</u></i><br>\n"
-
-            for (let i=0; i < report['genuine_report'].length; i++) {
-                let gen_report = report['genuine_report'][i]
-                new_report += "                <span class=\"report_span\">" + i + "- " + gen_report + "</span><br>"
-
-            }
-        }
-
-        new_report += "</div></div>"
-    }
-    new_report = $(new_report)
-    new_report.insertAfter($('#reported_address_info'))
+function display_ba_report(data) {    // Called to display BA results on an address clicked on the graph
+    $(data['ba_report_html']).insertAfter($('#reported_address_info'))
+    $('#tab_content').animate({ scrollTop: $("#ba_report_" + data['address']).offset().top }, 500);
 
 }
 

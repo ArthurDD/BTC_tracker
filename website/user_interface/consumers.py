@@ -187,9 +187,10 @@ class UserInterfaceConsumer(WebsocketConsumer):
     def get_ba_report(self, address):
         report = self.chain_parser.web_scraper.bitcoinabuse_search(address)
 
+        html_stats = render_to_string('user_interface/ba_search_results.html', {'report': report})
         self.send(text_data=json.dumps({
             'type': 'ba_report',
-            'message': str(json.dumps(report))
+            'message': {'ba_report_html': html_stats, 'address': address}
         }))
 
 
