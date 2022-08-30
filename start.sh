@@ -1,8 +1,20 @@
 #!/bin/bash
+set -e
+
 
 PORT=8000
 VENV_PATH="./venv/bin/activate"
 GRAPH_PATH="./doctest-output/"  # Please don't change it here without changing it in the code as well (in the headers of graph_visualisation.py)
+
+
+display_help () {
+  echo "Available options:"
+  echo "    -app:   Start the web app on the default port 8000, configuring the the virtual environment if necessary. "
+  echo "    -p:     Specify the port on which to start the web app."
+  echo "    -v:     Create and set up the virtual environment ONLY IF it does not exist. Does not start the app."
+  echo "    -rv:    Delete the current virtual environment and set it up again. Does not start the app."
+  echo "    -h      Display help page."
+}
 
 
 # Activate the venv
@@ -22,18 +34,9 @@ set_up_venv () {
         echo "Virtual Environment created! Installing requirements..."
         activate
         pip install -r requirements.txt
-        echo "Virtual environment set up!"
+        echo "Virtual environment set up! Web application is now ready to start. (to do so, enter source start.sh -app)"
+
     fi
-}
-
-
-display_help () {
-  echo "Available options:"
-  echo "    -app:   Start the web app on the default port 8000, configuring the the virtual environment if necessary. "
-  echo "    -p:     Specify the port on which to start the web app."
-  echo "    -v:     Create and set up the virtual environment ONLY IF it does not exist. Does not start the app."
-  echo "    -rv:    Delete the current virtual environment and set it up again. Does not start the app."
-  echo "    -h      Display help page."
 }
 
 
@@ -41,7 +44,6 @@ reset_virtual_env () {
   echo "Resetting virtual environment.."
   rm -rf venv
   set_up_venv
-  echo "Virtual environment set up! Web application is now ready to start. (to do so, enter source start.sh)"
 }
 
 
@@ -56,10 +58,8 @@ start_app () {
         set_up_venv
     fi
 
-    if [ -f ./credentials.json ]
+    if ! [ -f ./credentials.json ]
     then
-        pass
-    else
         echo "credentials.json missing from the directory. Creating an empty one."
         echo {} > ./credentials.json
     fi
@@ -98,4 +98,3 @@ if [ "$start" = true ]
 then
     start_app
 fi
-
