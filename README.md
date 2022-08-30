@@ -62,7 +62,14 @@ How To Use
 
 Once this is installed, you just have to run the ```start.sh``` script:
 ```console
-source start.sh
+source start.sh 
 ```
-Once this is done, go to your browser and connect the User Interface (default address is ```localhost:8000```, but you can change the port in start.sh directly)
+Once this is done, go to your browser and connect the User Interface (default address is ```localhost:8000```, but you can indicate the port the -p option)
+
+You can also manually set up and start the app:
+- Create a virtual environment and install required packages (in requirements.txt)
+- Create ```credentials.json``` as explained above
+- Migrate changes (only if it is the first time you set up the app): ```python website/manage.py migrate```
+- Run the app: ```python website/manage.py runserver 0.0.0.0:PORT```
+
 And you should be set!
