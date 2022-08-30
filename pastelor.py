@@ -1,6 +1,6 @@
+# Taken and adapted from https://gist.github.com/roastedneutrons/1549683
+
 # Based on code from snyppets http://sebsauvage.net/python/snyppets/
-# underconstruction
-# Taken from https://gist.github.com/roastedneutrons/1549683
 
 from PIL import Image, ImageDraw
 import itertools
@@ -56,14 +56,6 @@ def HSL_to_RGB(h, s, l):
     return int(round(r)), int(round(g)), int(round(b))
 
 
-def ceilCubeRoot(n):
-    if n < 0: return 0
-    i = 0
-    while i ** 3 < n:
-        i += 1
-    return i
-
-
 def nForHSL(n):
     return 8, 8, 4
 
@@ -83,7 +75,7 @@ def display_colours():
     h = delimSize * (vert + 1) + patchSize * vert + txtSize * vert
     im = Image.new('RGB', (w, h), (255, 255, 255))
 
-    colors = generatePastelColors()
+    colors = generate_pastel_colours()
 
     k = 0
     imDraw = ImageDraw.Draw(im)

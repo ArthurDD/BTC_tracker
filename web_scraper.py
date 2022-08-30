@@ -9,7 +9,7 @@ from functools import partial
 # from transformers import BertTokenizer
 #
 # from bitcoin_abuse.bert_model import BertBA
-from bitcoin_abuse.evaluate import predict_BA
+from bitcoin_abuse.evaluate_regexp import predict_BA
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 

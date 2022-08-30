@@ -765,8 +765,6 @@ class ChainParser:
         print(f"Time to make cached URLs: {self.cached_time} seconds")
         self.display_tagged_stats(tagged_tx_lists, tagged_tx_rto, display=display)
 
-        # self.display_backward_stats_report()
-
     def _helper_get_statistics(self, pruned_tx_lists, tagged_tx_lists, tagged_tx_rto, layer, root_value, direction):
         pruned_tx_lists[direction][layer] = []
         tagged_tx_lists[direction][layer] = []

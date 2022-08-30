@@ -7,10 +7,9 @@ import torch
 from torch.utils.data import DataLoader
 
 from transformers import BertTokenizer, TrainingArguments, IntervalStrategy
-from data_building import build_sets
+from bitcoin_abuse.bitcoin_abuse_ML.data_building import build_sets
 from evaluate import evaluate
-from bert_model import BertBA, TrainerBA
-from logger import Logger, ErrorLogger
+from bitcoin_abuse.bitcoin_abuse_ML.bert_model import BertBA, TrainerBA
 
 
 def train_model(train_dataset, eval_dataset, params):
