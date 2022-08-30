@@ -1,6 +1,8 @@
-## BTC Tracker tool
+## BTC Tracker - Investigating the source of wealth of Bitcoin addresses - Master's Thesis
 
-Project tracking Bitcoins received on and/or sent from an address.
+
+Web Application tracking Bitcoins received on and/or sent from an address.
+
 
 Setting up APIs
 ----------
