@@ -75,8 +75,13 @@ function connect() {
             case "final_stats":  // Displays final stats when the parsing is done
                 my_json = JSON.parse(data.message)
                 let lines = "\n-------- FINAL RESULTS ---------\nTotal transactions parsed: " + my_json['total_txs']+ "\n" +
-                    "Total time: " + my_json['total_time'] + "s\nRTO threshold: " +my_json["rto_threshold"] +
-                    "\n\nRequests have been cached.\nAll done!"
+                    "Total time: " + my_json['total_time'] + "sec\nRTO threshold: " + my_json["rto_threshold"] + "\nEst. identified RTO: " + my_json['identified_rto']
+
+                if ("unspent_rto" in my_json) {
+                    lines += "\nEst. unspent RTO: " + my_json['unspent_rto'] + " BTC"
+                }
+
+                lines += "\n\nRequests have been cached. All done!"
                 text_area_val = text_area.val();
                 text_area.val(text_area_val + lines);
                 text_area.scrollTop(text_area[0].scrollHeight);

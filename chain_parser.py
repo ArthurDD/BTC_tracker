@@ -726,13 +726,36 @@ class ChainParser:
             if self.send_fct is None:
                 print(f"Forward Layer {self.nb_layers + i}: {len(self.transaction_lists[self.nb_layers + i])}")
 
+        if self.nb_layers > 0:
+            backward_identified_rto = 0
+            for i in range(self.nb_layers):
+                for tx in self.transaction_lists[i]:
+                    if tx.tag:
+                        backward_identified_rto += tx.rto
+
+        if self.forward_parsing:
+            total_unspent_rto = 0
+            forward_identified_rto = 0
+            for i in range(self.forward_nb_layers):
+                for tx in self.transaction_lists[self.nb_layers + i]:
+                    if tx.tag:
+                        forward_identified_rto += tx.rto
+                    if "unspent_tx" in tx.txid:
+                        total_unspent_rto += tx.rto
+            parsing_information['unspent_rto'] = total_unspent_rto
+
         if self.forward_parsing and self.nb_layers > 0:
-            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold} - " \
-                                                   f"Forward: {self.forward_rto_threshold}"
+            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold} BTC - " \
+                                                   f"Forward: {self.forward_rto_threshold} BTC"
+            parsing_information['identified_rto'] = f"Backward: {backward_identified_rto} BTC - " \
+                                                    f"Forward: {forward_identified_rto} BTC"
         elif self.nb_layers > 0:
-            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold}"
+            parsing_information["rto_threshold"] = f"Backward: {self.rto_threshold} BTC"
+            parsing_information['identified_rto'] = f"Backward: {backward_identified_rto} BTC"
         else:
-            parsing_information["rto_threshold"] = f"Forward: {self.forward_rto_threshold}"
+            parsing_information["rto_threshold"] = f"Forward: {self.forward_rto_threshold} BTC"
+            parsing_information['identified_rto'] = f"Forward: {forward_identified_rto} BTC"
+
         parsing_information["total_time"] = self.analysis_time
 
         if self.send_fct is not None:
