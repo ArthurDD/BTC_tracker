@@ -77,8 +77,9 @@ class UserInterfaceConsumer(WebsocketConsumer):
             data = text_data_json['data']
             send_message(self.send, 'Process started...')
             manual_mode = 'manual_input' in data
+            address = data['address_input'].strip()
 
-            success = self.start_search(self.send, data['address_input'], rto_threshold=float(data['rto_input']),
+            success = self.start_search(self.send, address, rto_threshold=float(data['rto_input']),
                                         backward_layers=int(data['backward_layer_input']),
                                         forward_layers=int(data['forward_layer_input']), manual_mode=manual_mode)
 
